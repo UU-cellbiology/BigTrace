@@ -51,7 +51,7 @@ import bigtrace.rois.ColorUserSettings;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.tracks.TrackingPanel;
 import bigtrace.volume.ExtractClip;
-import bvvpg.vistools.BvvStackSource;
+
 import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
@@ -431,8 +431,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		String filename;
 		
 		filename = bt.btData.sFileNameFullImg + "_btview";
-		SaveDialog sd = new SaveDialog("Save ROIs ", filename, ".csv");
-        String path = sd.getDirectory();
+		SaveDialog sd = new SaveDialog("Save View ", filename, ".csv");
+        
+		String path = sd.getDirectory();
         if (path == null)
         	return;
         filename = path + sd.getFileName();	
@@ -765,7 +766,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 					+"&nbsp;<b>D</b> - zoom in to a point<br>"
 					+"&nbsp;<b>C</b> - center the view (zoom out)<br>"
 					+"&nbsp;<b>X</b> - reset clipping<br>"
-					+"&nbsp;<b>P</b> - toggle render method<br>"
+					+"&nbsp;<b>O</b> - toggle render method<br>"
 					+"&nbsp;<b>1</b> - show centered XY view<br>"
 					+"&nbsp;<b>2</b> - show centered YZ view<br>"
 					+"&nbsp;<b>3</b> - show centered XZ view<br>"
@@ -859,7 +860,6 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	
 	
 	/** updates data sources/bvvsources to the current state**/
-	@SuppressWarnings("rawtypes")
 	public void updateViewDataSources()
 	{
 
@@ -873,7 +873,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{
-			((BvvStackSource)bt.bvv_sources.get(i)).setClipInterval(clipInt);
+			bt.bvv_sources.get(i).setClipInterval(clipInt);
 		}	
 		bt.visualBoxes.clipBox.setIntervalLongArray( BigTraceData.nDimCurr );
 		
@@ -922,14 +922,13 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		bt.roiManager.updateROIsDisplay();
 	}
 	
-	@SuppressWarnings("rawtypes")
 	public void setRenderMethod(int nRenderType)
 	{
 		btdata.nRenderMethod = nRenderType;
 		Prefs.set("BigTrace.nRenderMethod",btdata.nRenderMethod);
 		for(int i=0;i<bt.bvv_sources.size();i++)
 		{
-			((BvvStackSource)bt.bvv_sources.get(i)).setRenderType(nRenderType);
+			bt.bvv_sources.get(i).setRenderType(nRenderType);
 		}	
 		if(bt.bvv_trace!=null)
 			bt.bvv_trace.setRenderType(nRenderType);

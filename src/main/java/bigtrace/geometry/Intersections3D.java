@@ -37,15 +37,15 @@ public class Intersections3D {
 	{
 		
 		final Line3D line = new Line3D(RP1,RP2);
-		double dln=LinAlgHelpers.dot(line.linev[1], plane.n);
+		double dln = LinAlgHelpers.dot(line.linev[1], plane.n);
 		// maybe it is not a good idea, but ok for now
 		if (Math.abs(dln)< 2 * Double.MIN_VALUE )
 			{return false;}
 		for(int i=0; i<3; i++)
 		{
-			intersectionPoint[i]=plane.p0[i]-line.linev[0][i];
+			intersectionPoint[i] = plane.p0[i]-line.linev[0][i];
 		}
-		dln=LinAlgHelpers.dot(intersectionPoint, plane.n)/dln;
+		dln = LinAlgHelpers.dot(intersectionPoint, plane.n)/dln;
 		double edgeLn = LinAlgHelpers.distance(RP1.positionAsDoubleArray(), RP2.positionAsDoubleArray());
 		if(dln>=0 && dln <=edgeLn)
 		{

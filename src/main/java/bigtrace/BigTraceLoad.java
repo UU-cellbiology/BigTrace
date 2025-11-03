@@ -90,6 +90,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		BigTraceData.dMinVoxelSize = Math.min(Math.min(BigTraceData.globCal[0], BigTraceData.globCal[1]), BigTraceData.globCal[2]);
 		
 
+		@SuppressWarnings( "cast" )
 		FinalInterval rai_int = new FinalInterval(((BasicImgLoader)seq.getImgLoader()).getSetupImgLoader(0).getImage(0));			
 		
 		List< ViewSetup > allViewSetups = seq.getViewSetupsOrdered();
