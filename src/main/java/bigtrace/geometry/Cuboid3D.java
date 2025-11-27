@@ -166,7 +166,31 @@ public class Cuboid3D {
 		// right
 		faces.add(new Plane3D(vertices[7], vertices[3], vertices[2]));
 
-		faces_init = true;
+		checkFacesNormalsOrientation();
+	}
+	
+	/** verifies that faces normales are looking inside the cuboid.
+	 * if not, inverts them **/
+	void checkFacesNormalsOrientation()
+	{
+		if(faces_init)
+		{
+			final double [] frontToBack = new double [3];
+			LinAlgHelpers.subtract(  vertices[6],  vertices[0], frontToBack );
+			LinAlgHelpers.normalize( frontToBack );
+			double direction = LinAlgHelpers.dot( frontToBack, faces.get( 0 ).n );
+			//invert faces normales so they look "inside" the shape
+			if(direction < 0)
+			{
+				for(int i = 0; i< 6; i++)
+				{
+					for(int d = 0; d < 3; d++)
+					{
+						faces.get( i ).n[d] *= -1.0;
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -203,12 +227,12 @@ public class Cuboid3D {
 		int i;
 		if (!faces_init) iniFaces();
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < 6; i++) 
+		{
 			LinAlgHelpers.subtract(pPoint, faces.get(i).p0, diff);
-			if (LinAlgHelpers.dot(diff, faces.get(i).n) < -0.00000001)// because of
-																																// the error in
-																																// line
-																																// calculation
+			// because how the faces normals are constructed
+			// (facing "inside" of the cuboid)
+			if (LinAlgHelpers.dot(diff, faces.get(i).n) < -0.00000001)																														// calculation
 			{
 				return false;
 			}

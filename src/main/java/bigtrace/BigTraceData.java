@@ -31,7 +31,7 @@ import mpicbg.spim.data.generic.sequence.BasicImgLoader;
 public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 
 	/** current plugin version **/
-	public static String sVersion = "0.7.0";
+	public static String sVersion = "0.7.1";
 	
 	/** plugin instance **/
 	BigTrace<T> bt;

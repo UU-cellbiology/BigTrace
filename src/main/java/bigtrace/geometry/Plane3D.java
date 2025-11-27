@@ -91,8 +91,8 @@ public class Plane3D {
 	 * v1-v2(x) and v3-v2(y), i.e. as (z) **/
 	public Plane3D(final double[] v1, final double[] v2, final double[] v3)
 	{
-		p0= new double [3]; 
-		n= new double [3];
+		p0 = new double [3]; 
+		n = new double [3];
 		
 		double [] v12 = new double [3];
 		double [] v32 = new double [3];

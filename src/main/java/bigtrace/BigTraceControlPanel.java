@@ -431,7 +431,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		String filename;
 		
 		filename = bt.btData.sFileNameFullImg + "_btview";
-		SaveDialog sd = new SaveDialog("Save View ", filename, ".csv");
+		SaveDialog sd = new SaveDialog("Save View/settings ", filename, ".csv");
         
 		String path = sd.getDirectory();
         if (path == null)
@@ -445,7 +445,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		String filename;
 		
 
-		OpenDialog openDial = new OpenDialog("Load BigTrace ROIs",bt.btData.lastDir, "*.csv");
+		OpenDialog openDial = new OpenDialog("Load View/settings",bt.btData.lastDir, "*.csv");
 		
         String path = openDial.getDirectory();
         if (path == null)
