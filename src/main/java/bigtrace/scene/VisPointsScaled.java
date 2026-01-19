@@ -219,7 +219,7 @@ public class VisPointsScaled
 		//that will scale into the circle %)
 		//
 		
-		ellipse_axes = new Vector2f((float)screen_size[0]/(float)BigTraceData.renderParams.renderWidth, (float)screen_size[1]/(float)BigTraceData.renderParams.renderHeight);
+		ellipse_axes = new Vector2f((float)screen_size[0]/(float)btdata.renderParams.renderWidth, (float)screen_size[1]/(float)btdata.renderParams.renderHeight);
 		//scale of viewport vs render
 		//we enlarge/shrink to minimum dimension scale
 		//and in the ellipse the other dimension will be cropped
@@ -242,7 +242,7 @@ public class VisPointsScaled
 		progRound.getUniform2f("windowSize").set(window_sizef);
 		progRound.getUniform2f("ellipseAxes").set(ellipse_axes);
 		progRound.getUniform1i("renderType").set(renderType);
-		progRound.getUniform1i("clipactive").set(BigTraceData.nClipROI);
+		progRound.getUniform1i("clipactive").set(btdata.nClipROI);
 		progRound.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0], btdata.nDimCurr[0][1], btdata.nDimCurr[0][2]));
 		progRound.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0], btdata.nDimCurr[1][1], btdata.nDimCurr[1][2]));
 		progRound.setUniforms( context );
@@ -255,7 +255,7 @@ public class VisPointsScaled
 		progSquare.getUniform2f("windowSize").set(window_sizef);
 		progSquare.getUniform2f("ellipseAxes").set(ellipse_axes);
 		progSquare.getUniform1i("renderType").set(Roi3D.WIRE);
-		progSquare.getUniform1i("clipactive").set(BigTraceData.nClipROI);
+		progSquare.getUniform1i("clipactive").set(btdata.nClipROI);
 		progSquare.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
 		progSquare.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
 		progSquare.setUniforms( context );

@@ -282,7 +282,7 @@ public class VisPolyLineAA
 		prog.getUniform1f( "antialias" ).set( 1.5f);
 		if(bIncludeClip)
 		{
-			prog.getUniform1i("clipactive").set(BigTraceData.nClipROI);
+			prog.getUniform1i("clipactive").set(btdata.nClipROI);
 			prog.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
 			prog.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
 

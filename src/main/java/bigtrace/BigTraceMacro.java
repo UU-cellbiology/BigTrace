@@ -410,23 +410,23 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		switch (sShapeInterpol)
 		{
 		case "Voxel":
-			BigTraceData.shapeInterpolation = BigTraceData.SHAPE_Voxel;
+			bt.btData.shapeInterpolation = BigTraceData.SHAPE_Voxel;
 			IJ.log("BigTrace ROI Shape Interpolation set to Voxel.");
 			break;
 		case "Smooth":
-			BigTraceData.shapeInterpolation = BigTraceData.SHAPE_Smooth;
+			bt.btData.shapeInterpolation = BigTraceData.SHAPE_Smooth;
 			IJ.log("BigTrace ROI Shape Interpolation set to Smooth.");
 			break;
 		case "Spline":
-			BigTraceData.shapeInterpolation = BigTraceData.SHAPE_Spline;
+			bt.btData.shapeInterpolation = BigTraceData.SHAPE_Spline;
 			IJ.log("BigTrace ROI Shape Interpolation set to Spline.");
 			break;
 		default:
 			IJ.log( "Error! ROI Shape Interpolation values should be either Voxel, Smooth or Spline." );
 			return;
 		}
-		BigTraceData.nSmoothWindow = Math.max( 1, Math.abs( Math.round( nSmoothWindow ) ));
-		IJ.log("BigTrace ROI smoothing window set to "+Integer.toString( BigTraceData.nSmoothWindow )+".");
+		bt.btData.nSmoothWindow = Math.max( 1, Math.abs( Math.round( nSmoothWindow ) ));
+		IJ.log("BigTrace ROI smoothing window set to "+Integer.toString( bt.btData.nSmoothWindow )+".");
 		bt.roiManager.updateROIsDisplay();
 		bt.bInputLock = false;
 	}
@@ -441,15 +441,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		switch (sInterpol)
 		{
 		case "Neighbor":
-			BigTraceData.intensityInterpolation = BigTraceData.INT_NearestNeighbor;
+			bt.btData.intensityInterpolation = BigTraceData.INT_NearestNeighbor;
 			IJ.log("BigTrace Intensity Interpolation set to Nearest Neighbor.");
 			break;
 		case "Linear":
-			BigTraceData.intensityInterpolation = BigTraceData.INT_NLinear;
+			bt.btData.intensityInterpolation = BigTraceData.INT_NLinear;
 			IJ.log("BigTrace Intensity Interpolation set to Linear.");
 			break;
 		case "Lanczos":
-			BigTraceData.intensityInterpolation = BigTraceData.INT_Lanczos;
+			bt.btData.intensityInterpolation = BigTraceData.INT_Lanczos;
 			IJ.log("BigTrace Intensity Interpolation set to Lanczos.");
 			break;
 		default:

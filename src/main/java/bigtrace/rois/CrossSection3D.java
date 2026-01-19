@@ -69,7 +69,7 @@ public class CrossSection3D extends AbstractRoi3D
 		verticesVis = new VisPointsScaled();
 		verticesVis.setColor(pointColor);
 		verticesVis.setSize(pointSize);
-		planeVis = new VisPolygonFlat();
+		planeVis = new VisPolygonFlat(btdata);
 	
 	
 		planeVis.setColor(lineColor);

@@ -363,24 +363,24 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
 		JComboBox<String> intensityInterpolationList = new JComboBox<>(sIntInterpolationType);
 		pMeasureSettings.add(new JLabel("Intensity interpolation: "));
-		intensityInterpolationList.setSelectedIndex(BigTraceData.intensityInterpolation);
+		intensityInterpolationList.setSelectedIndex(bt.btData.intensityInterpolation);
 		pMeasureSettings.add(intensityInterpolationList);
 		
 		String[] sShapeInterpolationType = { "Voxel", "Smooth", "Spline"};
 		JComboBox<String> shapeInterpolationList = new JComboBox<>(sShapeInterpolationType);
-		shapeInterpolationList.setSelectedIndex(BigTraceData.shapeInterpolation);
+		shapeInterpolationList.setSelectedIndex(bt.btData.shapeInterpolation);
 		pMeasureSettings.add(new JLabel("ROI Shape interpolation: "));
 		pMeasureSettings.add(shapeInterpolationList);
 		
 		NumberField nfSmoothWindow = new NumberField(2);
 		nfSmoothWindow.setIntegersOnly(true);
-		nfSmoothWindow.setText(Integer.toString(BigTraceData.nSmoothWindow));
+		nfSmoothWindow.setText(Integer.toString(bt.btData.nSmoothWindow));
 		pMeasureSettings.add(new JLabel("Smoothing window/spline points (points): "));
 		pMeasureSettings.add(nfSmoothWindow);	
 		
 		String[] sRotationFrame = { "Wang et al 2008", "Experimental"};
 		JComboBox<String> rotationFrameList = new JComboBox<>(sRotationFrame);
-		rotationFrameList.setSelectedIndex(BigTraceData.rotationMinFrame);
+		rotationFrameList.setSelectedIndex(bt.btData.rotationMinFrame);
 		pMeasureSettings.add(new JLabel("Rotation minimizing frame: "));
 		pMeasureSettings.add(rotationFrameList);
 		
@@ -406,41 +406,41 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			Prefs.set("BigTrace.bIgnoreClipped",bIgnoreClipped);
 			
 			//intensity interpolation
-			BigTraceData.intensityInterpolation = intensityInterpolationList.getSelectedIndex();
-			Prefs.set("BigTrace.IntInterpolation",BigTraceData.intensityInterpolation);
+			bt.btData.intensityInterpolation = intensityInterpolationList.getSelectedIndex();
+			Prefs.set("BigTrace.IntInterpolation",bt.btData.intensityInterpolation);
 			btData.setInterpolationFactory();
 			
 			
-			if(BigTraceData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||
-					BigTraceData.shapeInterpolation!= shapeInterpolationList.getSelectedIndex()||
-							BigTraceData.rotationMinFrame!=rotationFrameList.getSelectedIndex())
+			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||
+					bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex()||
+							bt.btData.rotationMinFrame != rotationFrameList.getSelectedIndex())
 			{
-				BigTraceData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
-				Prefs.set("BigTrace.nSmoothWindow", BigTraceData.nSmoothWindow);
-				BigTraceData.shapeInterpolation = shapeInterpolationList.getSelectedIndex();
-				Prefs.set("BigTrace.ShapeInterpolation",BigTraceData.shapeInterpolation);
-				BigTraceData.rotationMinFrame = rotationFrameList.getSelectedIndex();
-				Prefs.set("BigTrace.RotationMinFrame",BigTraceData.rotationMinFrame);
+				bt.btData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
+				Prefs.set("BigTrace.nSmoothWindow", bt.btData.nSmoothWindow);
+				bt.btData.shapeInterpolation = shapeInterpolationList.getSelectedIndex();
+				Prefs.set("BigTrace.ShapeInterpolation",bt.btData.shapeInterpolation);
+				bt.btData.rotationMinFrame = rotationFrameList.getSelectedIndex();
+				Prefs.set("BigTrace.RotationMinFrame",bt.btData.rotationMinFrame);
 				bt.roiManager.updateROIsDisplay();
 			}
 			
-			if (rt!=null)
+			if (rt != null)
 			{	
-				boolean bUpdate=false;
-				for (int i=0; i<listMeasurements.length; i++) 
+				boolean bUpdate = false;
+				for (int i = 0; i < listMeasurements.length; i++) 
 				{
 					//column not selected
 					//remove it from results table
 					if(!states[i])
 					{
 						String sColName;
-						for (int nCol=0;nCol<=rt.getLastColumn();nCol++)
+						for (int nCol = 0; nCol <= rt.getLastColumn(); nCol++)
 						{
 							sColName = rt.getColumnHeading(nCol);
 							if(sColName.startsWith(colTemplates[i]))
 							{
 								rt.deleteColumn(sColName);
-								bUpdate=true;
+								bUpdate = true;
 							}
 						}
 						
@@ -464,7 +464,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
 		decimalFormatSymbols.setDecimalSeparator('.');
 		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
-		for(d=0;d<3;d++)
+		for(d = 0; d < 3; d++)
 		{
 			nfCoalignVector.add( new NumberField(4));
 			nfCoalignVector.get(d).setText(df.format(coalignVector[d]));
@@ -481,20 +481,20 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 			double [] inVector = new double[3];
-			for(d=0;d<3;d++)
-				inVector[d]=Double.parseDouble(nfCoalignVector.get(d).getText());
+			for(d = 0; d < 3; d++)
+				inVector[ d ] = Double.parseDouble(nfCoalignVector.get(d).getText());
 			double len = LinAlgHelpers.length(inVector);
-			if(len<0.000001)
+			if(len < 0.000001)
 			{
 				IJ.error("Vector length should be more than zero!");
 			}
 			else
 			{
 				LinAlgHelpers.normalize(inVector);
-				for(d=0;d<3;d++)
+				for(d = 0; d < 3; d++)
 				{
-					coalignVector[d] =inVector[d];
-					Prefs.set("BigTrace.coalignVec"+Integer.toString(d), coalignVector[d]);				
+					coalignVector[ d ] = inVector[ d ];
+					Prefs.set("BigTrace.coalignVec" + Integer.toString(d), coalignVector[d]);				
 				}
 			}
 			return true;
@@ -928,7 +928,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{			
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -954,7 +954,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -1043,7 +1043,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:				
-				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);				
+				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);				
 				break;			
 		}
 		if (li_profile!=null && bMakePlot)
@@ -1204,11 +1204,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if(bt.bApplyLLSTransform)
 		{
 			cd.gridy++;
-			cd.gridx=0;	
+			cd.gridx = 0;	
 			extractROISettings.add(new JLabel("Intensity interpolation:"),cd);
 			cd.gridx++;
 			String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
-			extractROISettings.add(new JLabel(sIntInterpolationType[BigTraceData.intensityInterpolation]),cd);
+			extractROISettings.add(new JLabel(sIntInterpolationType[bt.btData.intensityInterpolation]),cd);
 		}
 		
 		int reply = JOptionPane.showConfirmDialog(null, extractROISettings, "Extract box around ROI(s)", 
@@ -1386,14 +1386,14 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		straightenSettings.add(new JLabel("ROI Shape:"),cd);
 		cd.gridx++;
 		String[] sShapeInterpolationType = { "Voxel", "Smooth", "Spline"};
-		straightenSettings.add(new JLabel(sShapeInterpolationType[BigTraceData.shapeInterpolation]),cd);
+		straightenSettings.add(new JLabel(sShapeInterpolationType[bt.btData.shapeInterpolation]),cd);
 		
 		cd.gridy++;
 		cd.gridx=0;	
 		straightenSettings.add(new JLabel("Intensity interpolation:"),cd);
 		cd.gridx++;
 		String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
-		straightenSettings.add(new JLabel(sIntInterpolationType[BigTraceData.intensityInterpolation]),cd);
+		straightenSettings.add(new JLabel(sIntInterpolationType[bt.btData.intensityInterpolation]),cd);
 		
 		int reply = JOptionPane.showConfirmDialog(null, straightenSettings, "Straighten curve(s)", 
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);

@@ -107,7 +107,7 @@ public class PolyLine3D extends AbstractCurve3D
 		bMeshInit = false;
 		if(vertices.size()>1)
 		{
-			interpolator.init(vertices, BigTraceData.shapeInterpolation);
+			interpolator.init(vertices, btdata.shapeInterpolation);
 			edgesVis.setVertices(interpolator.getVerticesVisual(),interpolator.getTangentsVisual());
 		}
 		else

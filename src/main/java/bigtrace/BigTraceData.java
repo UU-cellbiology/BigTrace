@@ -90,7 +90,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public static final int INT_NearestNeighbor = 0, INT_NLinear = 1, INT_Lanczos = 2; 
 	
 	/** current intensity interpolation type **/	
-	public static int intensityInterpolation = (int)Prefs.get("BigTrace.IntInterpolation",INT_NLinear);
+	public int intensityInterpolation = (int)Prefs.get("BigTrace.IntInterpolation",INT_NLinear);
 	
 	///////////////////////////// VOLUME RENDERING
 	
@@ -112,7 +112,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public boolean bClipBox = false;
 	
 	/** also clip ROIs**/
-	public static int nClipROI = 0;
+	public int nClipROI = 0;
 	
 	/** camera position for BVV **/
 	public double dCam = Prefs.get("BigTrace.dCam", 2000.0);
@@ -123,7 +123,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** far clip plane position for BVV  **/
 	public double dClipFar = Prefs.get("BigTrace.dClipFar",1000.0);
 	
-	public static RenderSettings renderParams = new RenderSettings();	
+	public RenderSettings renderParams = new RenderSettings();	
 	
 	/** object to store brightness/alpha range of the channel during tracing**/
 	public BCsettings bcTraceChannel = new BCsettings();
@@ -146,51 +146,51 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public static final int SHAPE_Voxel = 0, SHAPE_Smooth = 1, SHAPE_Spline = 2; 
 	
 	/** current ROI shape interpolation **/
-	public static int shapeInterpolation = (int) Prefs.get("BigTrace.ShapeInterpolation", SHAPE_Spline);
+	public int shapeInterpolation = (int) Prefs.get("BigTrace.ShapeInterpolation", SHAPE_Spline);
 	
 	/** algorithm to build rotation minimizing frame **/
-	public static int rotationMinFrame = (int) Prefs.get("BigTrace.RotationMinFrame",0);
+	public int rotationMinFrame = (int) Prefs.get("BigTrace.RotationMinFrame",0);
 	
 	/** size of moving average window to smooth traces (in points) **/
-	public static int nSmoothWindow = (int) Prefs.get("BigTrace.nSmoothWindow", 5);
+	public int nSmoothWindow = (int) Prefs.get("BigTrace.nSmoothWindow", 5);
 
 	/** number of segments in the cylinder cross-section (for polyline/trace ROIs),
 	 *  3 = prism, 4 = cuboid, etc.
 	 *  The more the number, more smooth is surface **/
-	public static int sectorN = (int) Prefs.get("BigTrace.nSectorN", 32);	
+	public int sectorN = (int) Prefs.get("BigTrace.nSectorN", 32);	
 	
 	/** whether to render wire countour using antialiased lines **/
-	public static boolean wireAntiAliasing = Prefs.get( "BigTrace.wireAntiAliasing", true );
+	public boolean wireAntiAliasing = Prefs.get( "BigTrace.wireAntiAliasing", true );
 	
 	/** approximate distance between contours along the pipe visualizing a curve
 	 *  in minimum voxel size units **/
-	public static int wireCountourStep = (int) Prefs.get("BigTrace.wireCountourStep",50);
+	public int wireCountourStep = (int) Prefs.get("BigTrace.wireCountourStep",50);
 	
 	/** step of gridline displaying cross-section ROI in wired mode (in voxels)**/
-	public static int crossSectionGridStep = (int) Prefs.get("BigTrace.crossSectionGridStep", 50);
+	public int crossSectionGridStep = (int) Prefs.get("BigTrace.crossSectionGridStep", 50);
 	
 	/** available surface render types **/
 	public static final int SURFACE_PLAIN = 0, SURFACE_SHADE = 1, SURFACE_SHINY = 2, SURFACE_SILHOUETTE = 3; 
 	
 	/** current surface render type **/
-	public static int surfaceRender = (int) Prefs.get("BigTrace.surfaceRender", SURFACE_SHADE);
+	public int surfaceRender = (int) Prefs.get("BigTrace.surfaceRender", SURFACE_SHADE);
 
 	/** available silhouette render types **/
 	public static final int silhouette_TRANSPARENT = 0, silhouette_CULLED = 1; 
 
 	/** current silhouette render type **/
-	public static int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_CULLED);
+	public int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_CULLED);
 	
 	/** current silhouette render type **/
-	public static double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 2.0);
+	public double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 2.0);
 	
 	//////rendering ROI over time
 	
 	/** time rendering option **/
-	public static int timeRender = (int) Prefs.get("BigTrace.timeRender", 0);
+	public int timeRender = (int) Prefs.get("BigTrace.timeRender", 0);
 	
 	/** time rendering fade in frames **/
-	public static int timeFade = (int) Prefs.get("BigTrace.timeFade", 0);
+	public int timeFade = (int) Prefs.get("BigTrace.timeFade", 0);
 		
 	/////////////////////////////////USER INTERFACE "CLICKING"
 	
@@ -213,10 +213,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public long nAnimationDuration =  (int)Prefs.get("BigTrace.nAnimationDuration", 400);
 	
 	/** whether to clip volume when double clicking on ROI **/
-	public static boolean bROIDoubleClickClip = Prefs.get("BigTrace.bROIDoubleClickClip", false);
+	public boolean bROIDoubleClickClip = Prefs.get("BigTrace.bROIDoubleClickClip", false);
 	
 	/** whether to clip volume when double clicking on ROI **/
-	public static int nROIDoubleClickClipExpand = (int)Prefs.get("BigTrace.nROIDoubleClickClipExpand", 0.0);
+	public int nROIDoubleClickClipExpand = (int)Prefs.get("BigTrace.nROIDoubleClickClipExpand", 0.0);
 
 	
 ///////////////////////////// TRACING SETTINGS GENERAL

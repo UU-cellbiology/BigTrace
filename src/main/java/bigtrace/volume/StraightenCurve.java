@@ -115,7 +115,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		else
 		{
 			
-			for(int nRoi=0; nRoi<nTotROIs; nRoi++)
+			for(int nRoi = 0; nRoi < nTotROIs; nRoi++)
 			{
 				sRoiName = bt.roiManager.getFullDisplayedRoiName(curveROIArr.get(nRoi));
 				try {
@@ -213,7 +213,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		
 		
 		//get a frame around line
-		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points_space, tangents);
+		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points_space, tangents, bt.btData.rotationMinFrame);
 
 		
 		//plane perpendicular to the line

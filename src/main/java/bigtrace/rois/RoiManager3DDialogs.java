@@ -18,7 +18,6 @@ import javax.swing.JTabbedPane;
 
 import bdv.tools.brightness.ColorIcon;
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.NumberField;
 import bigtrace.gui.PanelOneClickTraceOptions;
@@ -184,28 +183,28 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		});
 		
 		JCheckBox cbRoiDoubleClickClip = new JCheckBox();
-		cbRoiDoubleClickClip.setSelected(BigTraceData.bROIDoubleClickClip);
+		cbRoiDoubleClickClip.setSelected(bt.btData.bROIDoubleClickClip);
 		
 		NumberField nfRoiDoubleClickExpand = new NumberField(2);
 		nfRoiDoubleClickExpand.setIntegersOnly(true);
-		nfRoiDoubleClickExpand.setText(Integer.toString(BigTraceData.nROIDoubleClickClipExpand));
+		nfRoiDoubleClickExpand.setText(Integer.toString(bt.btData.nROIDoubleClickClipExpand));
 		
 		String[] sShapeInterpolationType = { "Voxel", "Smooth", "Spline"};
 		JComboBox<String> shapeInterpolationList = new JComboBox<>(sShapeInterpolationType);
-		shapeInterpolationList.setSelectedIndex(BigTraceData.shapeInterpolation);
+		shapeInterpolationList.setSelectedIndex(bt.btData.shapeInterpolation);
 		
 		NumberField nfSmoothWindow = new NumberField(2);
 		nfSmoothWindow.setIntegersOnly(true);
-		nfSmoothWindow.setText(Integer.toString(BigTraceData.nSmoothWindow));
+		nfSmoothWindow.setText(Integer.toString(bt.btData.nSmoothWindow));
 		
 		
 		String[] sTimeRenderROIs = { "current timepoint", "backward in time", "forward in time"};
 		JComboBox<String> sTimeRenderROIsList = new JComboBox<>(sTimeRenderROIs);
-		sTimeRenderROIsList.setSelectedIndex(BigTraceData.timeRender);
+		sTimeRenderROIsList.setSelectedIndex(bt.btData.timeRender);
 		
 		NumberField nfTimeFadeROIs = new NumberField(4);
 		nfTimeFadeROIs.setIntegersOnly(true);
-		nfTimeFadeROIs.setText(Integer.toString(Math.abs(BigTraceData.timeFade)));
+		nfTimeFadeROIs.setText(Integer.toString(Math.abs(bt.btData.timeFade)));
 		
 		
 		
@@ -274,25 +273,25 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		
 		NumberField nfSectorNLines = new NumberField(4);
 		nfSectorNLines.setIntegersOnly(true);
-		nfSectorNLines.setText(Integer.toString(BigTraceData.sectorN));
+		nfSectorNLines.setText(Integer.toString(bt.btData.sectorN));
 		
 		JCheckBox cbWireAA = new JCheckBox();
-		cbWireAA.setSelected( BigTraceData.wireAntiAliasing );
+		cbWireAA.setSelected( bt.btData.wireAntiAliasing );
 		
 		NumberField nfWireContourStep = new NumberField(4);
 		nfWireContourStep.setIntegersOnly(true);
-		nfWireContourStep.setText(Integer.toString(BigTraceData.wireCountourStep));
+		nfWireContourStep.setText(Integer.toString(bt.btData.wireCountourStep));
 		
 		NumberField nfCrossSectionGridStep = new NumberField(4);
 		nfCrossSectionGridStep.setIntegersOnly(true);
-		nfCrossSectionGridStep.setText(Integer.toString(BigTraceData.crossSectionGridStep));
+		nfCrossSectionGridStep.setText(Integer.toString(bt.btData.crossSectionGridStep));
 		
 		String[] sSilhouetteRenderType = { "transparent", "front culling"};
 		JComboBox<String> sSilhouetteRenderList = new JComboBox<>(sSilhouetteRenderType);
-		sSilhouetteRenderList.setSelectedIndex(BigTraceData.silhouetteRender);
+		sSilhouetteRenderList.setSelectedIndex(bt.btData.silhouetteRender);
 		
 		NumberField nfSilhouetteDecay = new NumberField(4);
-		nfSilhouetteDecay.setText(df.format(BigTraceData.silhouetteDecay));
+		nfSilhouetteDecay.setText(df.format(bt.btData.silhouetteDecay));
 		
 		cd.gridx = 0;
 		cd.gridy = 0;
@@ -379,92 +378,92 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 				Prefs.set("BigTrace.activeLineColor", tempC.getRGB());
 			}
 			
-			BigTraceData.bROIDoubleClickClip = cbRoiDoubleClickClip.isSelected();
-			Prefs.set("BigTrace.bROIDoubleClickClip", BigTraceData.bROIDoubleClickClip );
+			bt.btData.bROIDoubleClickClip = cbRoiDoubleClickClip.isSelected();
+			Prefs.set("BigTrace.bROIDoubleClickClip", bt.btData.bROIDoubleClickClip );
 			
-			if(BigTraceData.nROIDoubleClickClipExpand != Integer.parseInt(nfRoiDoubleClickExpand.getText()))
+			if(bt.btData.nROIDoubleClickClipExpand != Integer.parseInt(nfRoiDoubleClickExpand.getText()))
 			{
-				BigTraceData.nROIDoubleClickClipExpand = Integer.parseInt(nfRoiDoubleClickExpand.getText());
-				Prefs.set("BigTrace.nROIDoubleClickClipExpand", BigTraceData.nROIDoubleClickClipExpand);
+				bt.btData.nROIDoubleClickClipExpand = Integer.parseInt(nfRoiDoubleClickExpand.getText());
+				Prefs.set("BigTrace.nROIDoubleClickClipExpand", bt.btData.nROIDoubleClickClipExpand);
 			}
 			
-			if(BigTraceData.sectorN != Integer.parseInt(nfSectorNLines.getText()))
+			if(bt.btData.sectorN != Integer.parseInt(nfSectorNLines.getText()))
 			{
-				BigTraceData.sectorN = Integer.parseInt(nfSectorNLines.getText());
-				Prefs.set("BigTrace.nSectorN", BigTraceData.sectorN);
+				bt.btData.sectorN = Integer.parseInt(nfSectorNLines.getText());
+				Prefs.set("BigTrace.nSectorN", bt.btData.sectorN);
 				bUpdateROIs  = true;
 			}
 			
-			if(BigTraceData.wireAntiAliasing != cbWireAA.isSelected())
+			if(bt.btData.wireAntiAliasing != cbWireAA.isSelected())
 			{
-				BigTraceData.wireAntiAliasing = cbWireAA.isSelected();
-				Prefs.set("BigTrace.wireAntiAliasing", BigTraceData.wireAntiAliasing);
+				bt.btData.wireAntiAliasing = cbWireAA.isSelected();
+				Prefs.set("BigTrace.wireAntiAliasing", bt.btData.wireAntiAliasing);
 				bUpdateROIs  = true;
 			}
 			
-			if(BigTraceData.wireCountourStep != Integer.parseInt(nfWireContourStep.getText()))
+			if(bt.btData.wireCountourStep != Integer.parseInt(nfWireContourStep.getText()))
 			{
-				BigTraceData.wireCountourStep = Integer.parseInt(nfWireContourStep.getText());
-				Prefs.set("BigTrace.wireCountourStep", BigTraceData.wireCountourStep);
+				bt.btData.wireCountourStep = Integer.parseInt(nfWireContourStep.getText());
+				Prefs.set("BigTrace.wireCountourStep", bt.btData.wireCountourStep);
 				bUpdateROIs  = true;
 			}
 			
-			if(BigTraceData.crossSectionGridStep != Integer.parseInt(nfCrossSectionGridStep.getText()))
+			if(bt.btData.crossSectionGridStep != Integer.parseInt(nfCrossSectionGridStep.getText()))
 			{
-				BigTraceData.crossSectionGridStep = Integer.parseInt(nfCrossSectionGridStep.getText());
-				Prefs.set("BigTrace.crossSectionGridStep", BigTraceData.crossSectionGridStep);
+				bt.btData.crossSectionGridStep = Integer.parseInt(nfCrossSectionGridStep.getText());
+				Prefs.set("BigTrace.crossSectionGridStep", bt.btData.crossSectionGridStep);
 				bUpdateROIs  = true;
 			}
 			
 			
-			if(BigTraceData.silhouetteRender != sSilhouetteRenderList.getSelectedIndex())
+			if(bt.btData.silhouetteRender != sSilhouetteRenderList.getSelectedIndex())
 			{
-				BigTraceData.silhouetteRender = sSilhouetteRenderList.getSelectedIndex();
-				Prefs.set("BigTrace.silhouetteRender", BigTraceData.silhouetteRender);
+				bt.btData.silhouetteRender = sSilhouetteRenderList.getSelectedIndex();
+				Prefs.set("BigTrace.silhouetteRender", bt.btData.silhouetteRender);
 				bUpdateBVV = true;
 				//bUpdateROIs  = true;
 			}
 			
-			if(Math.abs(BigTraceData.silhouetteDecay - Double.parseDouble(nfSilhouetteDecay.getText()))>0.0001)
+			if(Math.abs(bt.btData.silhouetteDecay - Double.parseDouble(nfSilhouetteDecay.getText()))>0.0001)
 			{
-				BigTraceData.silhouetteDecay = Double.parseDouble(nfSilhouetteDecay.getText());
-				Prefs.set("BigTrace.silhouetteDecay",BigTraceData.silhouetteDecay);
+				bt.btData.silhouetteDecay = Double.parseDouble(nfSilhouetteDecay.getText());
+				Prefs.set("BigTrace.silhouetteDecay",bt.btData.silhouetteDecay);
 				bUpdateBVV = true;
 				//bUpdateROIs  = true;
 			}
 			//INTERPOLATION
 			
-			if(BigTraceData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||BigTraceData.shapeInterpolation!= shapeInterpolationList.getSelectedIndex())
+			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex())
 			{
-				BigTraceData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
-				Prefs.set("BigTrace.nSmoothWindow", BigTraceData.nSmoothWindow);
-				BigTraceData.shapeInterpolation = shapeInterpolationList.getSelectedIndex();
-				Prefs.set("BigTrace.ShapeInterpolation",BigTraceData.shapeInterpolation);
+				bt.btData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
+				Prefs.set("BigTrace.nSmoothWindow", bt.btData.nSmoothWindow);
+				bt.btData.shapeInterpolation = shapeInterpolationList.getSelectedIndex();
+				Prefs.set("BigTrace.ShapeInterpolation",bt.btData.shapeInterpolation);
 				bUpdateROIs  = true;				
 			}
 			
 			//TIME RENDER
 			if(bt.btData.nNumTimepoints>1)
 			{
-				if(BigTraceData.timeFade != Integer.parseInt(nfTimeFadeROIs.getText())||BigTraceData.timeRender!= sTimeRenderROIsList.getSelectedIndex())
+				if(bt.btData.timeFade != Integer.parseInt(nfTimeFadeROIs.getText()) || bt.btData.timeRender!= sTimeRenderROIsList.getSelectedIndex())
 				{
-					BigTraceData.timeRender= sTimeRenderROIsList.getSelectedIndex();
-					Prefs.set("BigTrace.timeRender",BigTraceData.timeRender);
-					if(BigTraceData.timeRender==0)
+					bt.btData.timeRender= sTimeRenderROIsList.getSelectedIndex();
+					Prefs.set("BigTrace.timeRender",bt.btData.timeRender);
+					if(bt.btData.timeRender==0)
 					{
-						BigTraceData.timeFade = 0;
+						bt.btData.timeFade = 0;
 					}
 					else
 					{
-						if(BigTraceData.timeRender == 1)
+						if(bt.btData.timeRender == 1)
 						{
-							BigTraceData.timeFade = (-1)*Integer.parseInt(nfTimeFadeROIs.getText());
+							bt.btData.timeFade = (-1)*Integer.parseInt(nfTimeFadeROIs.getText());
 						}
 						else
 						{
-							BigTraceData.timeFade = Integer.parseInt(nfTimeFadeROIs.getText());
+							bt.btData.timeFade = Integer.parseInt(nfTimeFadeROIs.getText());
 						}
-						Prefs.set("BigTrace.timeFade", BigTraceData.timeFade);
+						Prefs.set("BigTrace.timeFade", bt.btData.timeFade);
 					}
 					bUpdateBVV = true;	
 					//bUpdateROIs  = true;	

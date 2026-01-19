@@ -164,25 +164,25 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					  bt.btData.dFrameInterval = Double.parseDouble(line_array[1]);
 					  break;	
 				  case "Intensity Interpolation":
-					  BigTraceData.intensityInterpolation =  Integer.parseInt( line_array[1] );
-					  Prefs.set("BigTrace.IntInterpolation",BigTraceData.intensityInterpolation);
+					  bt.btData.intensityInterpolation =  Integer.parseInt( line_array[1] );
+					  Prefs.set("BigTrace.IntInterpolation",bt.btData.intensityInterpolation);
 					  bt.btData.setInterpolationFactory();
 					  break;
 				  case "ROI Shape Interpolation":
-					  BigTraceData.shapeInterpolation =  Integer.parseInt( line_array[1] );
-					  Prefs.set("BigTrace.ShapeInterpolation",BigTraceData.shapeInterpolation);
+					  bt.btData.shapeInterpolation =  Integer.parseInt( line_array[1] );
+					  Prefs.set("BigTrace.ShapeInterpolation",bt.btData.shapeInterpolation);
 					  break;
 				  case "Rotation min frame type":
-					  BigTraceData.rotationMinFrame = Integer.parseInt( line_array[1] );
-					  Prefs.set("BigTrace.RotationMinFrame",BigTraceData.rotationMinFrame);
+					  bt.btData.rotationMinFrame = Integer.parseInt( line_array[1] );
+					  Prefs.set("BigTrace.RotationMinFrame",bt.btData.rotationMinFrame);
 					  break;
 				  case "Smooth window":
-					  BigTraceData.nSmoothWindow = Integer.parseInt( line_array[1] );
-					  Prefs.set("BigTrace.nSmoothWindow", BigTraceData.nSmoothWindow);
+					  bt.btData.nSmoothWindow = Integer.parseInt( line_array[1] );
+					  Prefs.set("BigTrace.nSmoothWindow", bt.btData.nSmoothWindow);
 					  break;
 				  case "Sector number":
-					  BigTraceData.sectorN = Integer.parseInt( line_array[1] );
-					  Prefs.set("BigTrace.nSectorN", BigTraceData.sectorN);
+					  bt.btData.sectorN = Integer.parseInt( line_array[1] );
+					  Prefs.set("BigTrace.nSectorN", bt.btData.sectorN);
 					  break;	  
 				  case "BT_Roi":
 					  //Sleep for up to one second.

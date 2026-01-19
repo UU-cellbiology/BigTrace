@@ -85,7 +85,7 @@ public class CurveShapeInterpolation {
 						else
 						{
 							//smooth positions of points
-							points_curve = Roi3D.scaleGlob(getSmoothVals(points), btdata.globCal);							
+							points_curve = Roi3D.scaleGlob(getSmoothVals(points, btdata.nSmoothWindow), btdata.globCal);							
 						}
 						//init linear interpolator
 						linInter = new LerpCurve3D(points_curve);
@@ -119,10 +119,10 @@ public class CurveShapeInterpolation {
 							else
 							{
 								//smooth positions of points
-								points_curve = Roi3D.scaleGlob(getSmoothVals(points), btdata.globCal);		
+								points_curve = Roi3D.scaleGlob(getSmoothVals(points, btdata.nSmoothWindow), btdata.globCal);		
 								//take some points along the curve as spline nodes
-								final ArrayList< RealPoint > sparse_points = getSplineSparsePoints(points_curve);
-								if(sparse_points.size()==2)
+								final ArrayList< RealPoint > sparse_points = getSplineSparsePoints(points_curve, btdata.nSmoothWindow);
+								if(sparse_points.size() == 2)
 								{
 									points_curve = sparse_points;
 									linInter = new LerpCurve3D(points_curve);
@@ -222,14 +222,14 @@ public class CurveShapeInterpolation {
 	 *  is less than half of average window, it becomes new half average window.
 	 *  It works similar to Matlab's "smooth()" function;
 	 * **/
-	private static ArrayList< RealPoint > getSmoothVals (final ArrayList< RealPoint > points)
+	private static ArrayList< RealPoint > getSmoothVals (final ArrayList< RealPoint > points, final int nSmoothWindow)
 	{
 		ArrayList< RealPoint > out = new ArrayList< >();
 		double [][] coords= new double[points.size()][3];
 		double [] aver = new double[3];
 		int i,j,k;
 		//int nCount;
-		int nHalfWindow = (int)Math.floor(BigTraceData.nSmoothWindow*0.5);
+		int nHalfWindow = (int)Math.floor(nSmoothWindow * 0.5);
 		int nCurrWindow = 0;
 
 		if(points.size()<3)
@@ -238,29 +238,29 @@ public class CurveShapeInterpolation {
 		}
 
 
-		for (i=0;i<points.size();i++)
+		for (i = 0; i < points.size(); i++)
 		{
 				points.get(i).localize(coords[i]);
 		}
 		
-		
 		out.add(new RealPoint(points.get(0)));
-		for (i=1;i<points.size()-1;i++)
+		
+		for ( i = 1; i < points.size() - 1; i++)
 		{
 			//nCount = 0;
 			
-			for(j=0;j<3;j++)
+			for( j = 0; j < 3; j++)
 			{
-				aver[j]=0.0;
+				aver[ j ] = 0.0;
 			}
-
 					
 			nCurrWindow = Math.min(Math.min(nHalfWindow,i), Math.min(nHalfWindow, points.size()-i-1));
-			for(j=(i-nCurrWindow);j<(i+nCurrWindow+1);j++)
+			
+			for(j = (i - nCurrWindow); j < (i + nCurrWindow + 1); j++)
 			{
-				for(k=0;k<3;k++)
+				for(k = 0; k < 3; k++)
 				{
-					aver[k]+=points.get(j).getDoublePosition(k);
+					aver[ k ] += points.get(j).getDoublePosition(k);
 				}
 				//nCount++;
 			}
@@ -333,19 +333,19 @@ public class CurveShapeInterpolation {
 	
 	/** returns approximately every BigTraceData.nSmoothWindow's point from array
 	 * (and in addition, mandatory boundary (end) points **/
-	private static ArrayList<RealPoint> getSplineSparsePoints(final ArrayList< RealPoint > points)
+	private static ArrayList<RealPoint> getSplineSparsePoints(final ArrayList< RealPoint > points, final int nSmoothWindow)
 	{
 		ArrayList< RealPoint > out = new ArrayList< >();
 		int nPointsN = points.size();
 		int nStep, i;
 		out.add(new RealPoint(points.get(0)));
-		if (nPointsN<BigTraceData.nSmoothWindow)
+		if (nPointsN < nSmoothWindow)
 		{	
 			nStep = 1;
 		}
 		else
 		{
-			nStep = (int)Math.ceil((float)nPointsN/(float)BigTraceData.nSmoothWindow);
+			nStep = (int)Math.ceil((float)nPointsN/(float)nSmoothWindow);
 			nStep = Math.round((float)nPointsN/(float)nStep);
 		}
 		for(i = nStep;i<nPointsN;i+=nStep)

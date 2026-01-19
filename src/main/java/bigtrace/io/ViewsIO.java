@@ -18,9 +18,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 
 import bdv.viewer.ConverterSetupBounds;
-import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
-import bigtrace.animation.Scene;
 import bvvpg.source.converters.ConverterSetupBoundsAlpha;
 import bvvpg.source.converters.ConverterSetupBoundsGamma;
 import bvvpg.source.converters.ConverterSetupBoundsGammaAlpha;
@@ -29,6 +26,10 @@ import bvvpg.source.converters.RealARGBColorGammaConverterSetup;
 import bvvpg.vistools.BvvStackSource;
 import ij.IJ;
 import ij.Prefs;
+
+import bigtrace.BigTrace;
+import bigtrace.BigTraceData;
+import bigtrace.animation.Scene;
 
 public class ViewsIO
 {
@@ -53,24 +54,24 @@ public class ViewsIO
 				writer.write("nHalfClickSizeWindow," + Integer.toString( bt.btData.nHalfClickSizeWindow )+"\n");
 				writer.write("Zoom Box Size," + Integer.toString( bt.btData.nZoomBoxSize)+"\n");
 				writer.write("Zoom Box Fraction," + df3.format(bt.btData.dZoomBoxScreenFraction)+"\n");
-				writer.write("bROIDoubleClickClip," + Integer.toString( BigTraceData.bROIDoubleClickClip ? 1 : 0 )+"\n");
-				writer.write("nROIDoubleClickClipExpand," + Integer.toString( BigTraceData.nROIDoubleClickClipExpand )+"\n");				
+				writer.write("bROIDoubleClickClip," + Integer.toString( bt.btData.bROIDoubleClickClip ? 1 : 0 )+"\n");
+				writer.write("nROIDoubleClickClipExpand," + Integer.toString( bt.btData.nROIDoubleClickClipExpand )+"\n");				
 				writer.write("bStartFullScreen," + Integer.toString( bt.btData.bStartFullScreen ? 1 : 0 )+"\n");
 
 				
-				writer.write("Intensity Interpolation,"+Integer.toString( BigTraceData.intensityInterpolation )+"\n");
-				writer.write("ROI Shape Interpolation,"+Integer.toString( BigTraceData.shapeInterpolation )+"\n");
-				writer.write("Rotation min frame type,"+Integer.toString( BigTraceData.rotationMinFrame )+"\n");
-				writer.write("Smooth window,"+Integer.toString( BigTraceData.nSmoothWindow )+"\n");
-				writer.write("Sector number,"+Integer.toString( BigTraceData.sectorN )+"\n");
-				writer.write("wireCountourStep,"+Integer.toString( BigTraceData.wireCountourStep )+"\n");
-				writer.write("crossSectionGridStep,"+Integer.toString( BigTraceData.crossSectionGridStep )+"\n");
-				writer.write("surfaceRender,"+Integer.toString( BigTraceData.surfaceRender )+"\n");
-				writer.write("silhouetteRender,"+Integer.toString( BigTraceData.silhouetteRender )+"\n");
-				writer.write("silhouetteDecay,"+df3.format(BigTraceData.silhouetteDecay)+"\n");
-				writer.write("wireAntiAliasing,"+Integer.toString( BigTraceData.wireAntiAliasing ? 1 : 0)+"\n");
-				writer.write("timeRender,"+Integer.toString( BigTraceData.timeRender )+"\n");
-				writer.write("timeFade,"+Integer.toString( BigTraceData.timeFade )+"\n");
+				writer.write("Intensity Interpolation,"+Integer.toString( bt.btData.intensityInterpolation )+"\n");
+				writer.write("ROI Shape Interpolation,"+Integer.toString( bt.btData.shapeInterpolation )+"\n");
+				writer.write("Rotation min frame type,"+Integer.toString( bt.btData.rotationMinFrame )+"\n");
+				writer.write("Smooth window,"+Integer.toString( bt.btData.nSmoothWindow )+"\n");
+				writer.write("Sector number,"+Integer.toString( bt.btData.sectorN )+"\n");
+				writer.write("wireCountourStep,"+Integer.toString( bt.btData.wireCountourStep )+"\n");
+				writer.write("crossSectionGridStep,"+Integer.toString( bt.btData.crossSectionGridStep )+"\n");
+				writer.write("surfaceRender,"+Integer.toString( bt.btData.surfaceRender )+"\n");
+				writer.write("silhouetteRender,"+Integer.toString( bt.btData.silhouetteRender )+"\n");
+				writer.write("silhouetteDecay,"+df3.format(bt.btData.silhouetteDecay)+"\n");
+				writer.write("wireAntiAliasing,"+Integer.toString( bt.btData.wireAntiAliasing ? 1 : 0)+"\n");
+				writer.write("timeRender,"+Integer.toString( bt.btData.timeRender )+"\n");
+				writer.write("timeFade,"+Integer.toString( bt.btData.timeFade )+"\n");
 				//tracing parameters
 				writer.write("nTraceBoxSize," + Integer.toString( bt.btData.nTraceBoxSize )+"\n");
 				writer.write("fTraceBoxScreenFraction," + df3.format(bt.btData.fTraceBoxScreenFraction)+"\n");
@@ -184,13 +185,15 @@ public class ViewsIO
 			}
 			if(!line_array[2].equals(BigTraceData.sVersion))
 			{
-				System.out.println("Version mismatch: ROI file "+line_array[2]+", plugin "+BigTraceData.sVersion+". It should be fine in theory, so loading view anyway.");
+				System.out.println("Version mismatch: ROI file "+line_array[2]+", plugin " + BigTraceData.sVersion + 
+						". It should be fine in theory, so loading view anyway.");
 			}			
 			line = br.readLine();
 			line_array = line.split(",");
 			if(!line_array[1].equals(bt.btData.sFileNameFullImg))
 			{
-				if (JOptionPane.showConfirmDialog(null, "The view was stored for "+line_array[2]+" file.\nCurrently " +bt.btData.sFileNameFullImg+ 
+				if (JOptionPane.showConfirmDialog(null, "The view was stored for " + line_array[2] +
+						" file.\nCurrently " + bt.btData.sFileNameFullImg + 
 						" file is loaded.\nDo you want to load it anyway?", "Filename mismatch",
 				        JOptionPane.YES_NO_OPTION) == JOptionPane.NO_OPTION) 
 				{
@@ -234,65 +237,65 @@ public class ViewsIO
 					Prefs.set("BigTrace.dZoomBoxScreenFraction", bt.btData.dZoomBoxScreenFraction);
 					break;
 				case "bROIDoubleClickClip":
-					BigTraceData.bROIDoubleClickClip = line_array[1].equals( "1" )? true : false;
-					Prefs.set("BigTrace.bROIDoubleClickClip", BigTraceData.bROIDoubleClickClip );
+					bt.btData.bROIDoubleClickClip = line_array[1].equals( "1" )? true : false;
+					Prefs.set("BigTrace.bROIDoubleClickClip", bt.btData.bROIDoubleClickClip );
 					break;
 				case "nROIDoubleClickClipExpand":
-					BigTraceData.nROIDoubleClickClipExpand =  Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.nROIDoubleClickClipExpand", BigTraceData.nROIDoubleClickClipExpand);
+					bt.btData.nROIDoubleClickClipExpand =  Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.nROIDoubleClickClipExpand", bt.btData.nROIDoubleClickClipExpand);
 					break;
 				case "Intensity Interpolation":
-					BigTraceData.intensityInterpolation =  Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.IntInterpolation",BigTraceData.intensityInterpolation);
+					bt.btData.intensityInterpolation =  Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.IntInterpolation",bt.btData.intensityInterpolation);
 					bt.btData.setInterpolationFactory();
 					break;
 				case "ROI Shape Interpolation":
-					BigTraceData.shapeInterpolation =  Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.ShapeInterpolation",BigTraceData.shapeInterpolation);
+					bt.btData.shapeInterpolation =  Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.ShapeInterpolation",bt.btData.shapeInterpolation);
 					break;
 				case "Rotation min frame type":
-					BigTraceData.rotationMinFrame = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.RotationMinFrame",BigTraceData.rotationMinFrame);
+					bt.btData.rotationMinFrame = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.RotationMinFrame",bt.btData.rotationMinFrame);
 					break;
 				case "Smooth window":
-					BigTraceData.nSmoothWindow = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.nSmoothWindow", BigTraceData.nSmoothWindow);
+					bt.btData.nSmoothWindow = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.nSmoothWindow", bt.btData.nSmoothWindow);
 					break;
 				case "Sector number":
-					BigTraceData.sectorN = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.nSectorN", BigTraceData.sectorN);
+					bt.btData.sectorN = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.nSectorN", bt.btData.sectorN);
 					break;
 				case "wireCountourStep":
-					BigTraceData.wireCountourStep = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.wireCountourStep", BigTraceData.wireCountourStep);
+					bt.btData.wireCountourStep = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.wireCountourStep", bt.btData.wireCountourStep);
 					break;
 				case "crossSectionGridStep":
-					BigTraceData.crossSectionGridStep = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.crossSectionGridStep", BigTraceData.crossSectionGridStep);
+					bt.btData.crossSectionGridStep = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.crossSectionGridStep", bt.btData.crossSectionGridStep);
 					break;
 				case "surfaceRender":
-					BigTraceData.surfaceRender = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.surfaceRender", BigTraceData.surfaceRender);
+					bt.btData.surfaceRender = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.surfaceRender", bt.btData.surfaceRender);
 					break;
 				case "silhouetteRender":
-					BigTraceData.silhouetteRender = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.silhouetteRender", BigTraceData.silhouetteRender);
+					bt.btData.silhouetteRender = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.silhouetteRender", bt.btData.silhouetteRender);
 					break;
 				case "silhouetteDecay":
-					BigTraceData.silhouetteDecay = Double.parseDouble( line_array[1] );
-					Prefs.set("BigTrace.silhouetteDecay", BigTraceData.silhouetteDecay);
+					bt.btData.silhouetteDecay = Double.parseDouble( line_array[1] );
+					Prefs.set("BigTrace.silhouetteDecay", bt.btData.silhouetteDecay);
 					break;
 				case "wireAntiAliasing":
-					BigTraceData.wireAntiAliasing = line_array[1].equals( "1" )? true : false;
-					Prefs.set("BigTrace.wireAntiAliasing", BigTraceData.wireAntiAliasing);
+					bt.btData.wireAntiAliasing = line_array[1].equals( "1" )? true : false;
+					Prefs.set("BigTrace.wireAntiAliasing", bt.btData.wireAntiAliasing);
 					break;
 				case "timeRender":
-					BigTraceData.timeRender = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.timeRender", BigTraceData.timeRender);
+					bt.btData.timeRender = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.timeRender", bt.btData.timeRender);
 					break;
 				case "timeFade":
-					BigTraceData.timeFade = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.timeFade", BigTraceData.timeFade);
+					bt.btData.timeFade = Integer.parseInt( line_array[1] );
+					Prefs.set("BigTrace.timeFade", bt.btData.timeFade);
 					break;
 				case "nTraceBoxSize":
 					bt.btData.nTraceBoxSize = Integer.parseInt( line_array[1] );

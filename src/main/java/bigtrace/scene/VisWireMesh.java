@@ -154,7 +154,7 @@ public class VisWireMesh {
 		{
 			
 			//build a pipe in scaled space
-			ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points_, tangents_, BigTraceData.sectorN, 0.5 * fLineThickness * btdata.dMinVoxelSize);
+			ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points_, tangents_, btdata.sectorN, 0.5 * fLineThickness * btdata.dMinVoxelSize, btdata.rotationMinFrame);
 			//return to voxel space	for the render		
 			for(int i = 0; i < point_contours.size(); i++)
 			{
@@ -188,7 +188,7 @@ public class VisWireMesh {
 	{		
 		
 		nPointsN = points.size();
-		if(BigTraceData.wireAntiAliasing)
+		if(btdata.wireAntiAliasing)
 		{
 			centerLine.setThickness( fLineThickness );
 			centerLine.setColor( l_color );
@@ -215,7 +215,7 @@ public class VisWireMesh {
 		int vertShift;
 		int i;
 
-		final int nSectorN = BigTraceData.sectorN;
+		final int nSectorN = btdata.sectorN;
 		nPointsN = allContours.size();
 		if(nPointsN>1)
 		{
@@ -251,7 +251,7 @@ public class VisWireMesh {
 	/** generates a wireframe mesh of a pipe around provided points **/
 	public void setVerticesWire( final ArrayList<ArrayList< RealPoint >> allContours)
 	{
-		if(BigTraceData.wireAntiAliasing)
+		if(btdata.wireAntiAliasing)
 		{
 			setVerticesWireAA(allContours);
 		}
@@ -266,16 +266,16 @@ public class VisWireMesh {
 	{
 		int i,j, iPoint;
 		wireLine.clear();
-		final int nSectorN = BigTraceData.sectorN;
+		final int nSectorN = btdata.sectorN;
 		nPointsN = allContours.size();
 		if(nPointsN > 1)
 		{
-			for (iPoint=0; iPoint<nPointsN; iPoint+=BigTraceData.wireCountourStep)
+			for (iPoint = 0; iPoint < nPointsN; iPoint += btdata.wireCountourStep)
 			{
 				
 				ArrayList<RealPoint> contour_arr = new  ArrayList<>();
 
-				for (i=0;i<nSectorN; i++)
+				for (i = 0; i < nSectorN; i++)
 				{
 					contour_arr.add( allContours.get(iPoint).get(i));			
 				}
@@ -287,7 +287,7 @@ public class VisWireMesh {
 			}
 			
 			//the last contour
-			if((iPoint-BigTraceData.wireCountourStep) != (nPointsN - 1))
+			if((iPoint - btdata.wireCountourStep) != (nPointsN - 1))
 			{
 				iPoint = nPointsN-1;
 				
@@ -327,7 +327,7 @@ public class VisWireMesh {
 		int i,j, iPoint;
 		int vertShift;
 
-		final int nSectorN = BigTraceData.sectorN;
+		final int nSectorN = btdata.sectorN;
 		nPointsN = allContours.size();
 		if(nPointsN > 1)
 		{
@@ -362,7 +362,7 @@ public class VisWireMesh {
 			return initGPUBufferMesh(gl);	
 		}
 		
-		if(!BigTraceData.wireAntiAliasing)
+		if(!btdata.wireAntiAliasing)
 		{
 			initGPUBufferWire( gl );
 		}
@@ -665,15 +665,15 @@ public class VisWireMesh {
 				progMesh.getUniformMatrix4f( "vm" ).set( vm );
 				progMesh.getUniformMatrix3f( "itvm" ).set( itvm.get3x3( new Matrix3f() ) );
 				progMesh.getUniform4f("colorin").set(l_color);
-				progMesh.getUniform1i("surfaceRender").set(BigTraceData.surfaceRender);
-				progMesh.getUniform1i("clipactive").set(BigTraceData.nClipROI);
+				progMesh.getUniform1i("surfaceRender").set(btdatain.surfaceRender);
+				progMesh.getUniform1i("clipactive").set(btdatain.nClipROI);
 				progMesh.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
 				progMesh.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
-				progMesh.getUniform1i("silType").set(BigTraceData.silhouetteRender);
-				progMesh.getUniform1f("silDecay").set((float)BigTraceData.silhouetteDecay);
+				progMesh.getUniform1i("silType").set(btdatain.silhouetteRender);
+				progMesh.getUniform1f("silDecay").set((float)btdatain.silhouetteDecay);
 				progMesh.setUniforms( context );
 				progMesh.use( context );
-				if(BigTraceData.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && BigTraceData.silhouetteRender == BigTraceData.silhouette_TRANSPARENT)
+				if(btdata.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && btdatain.silhouetteRender == BigTraceData.silhouette_TRANSPARENT)
 				{
 					gl.glDepthFunc( GL.GL_ALWAYS);
 				}
@@ -687,7 +687,7 @@ public class VisWireMesh {
 			}
 			else
 			{
-				if(BigTraceData.wireAntiAliasing)
+				if(btdatain.wireAntiAliasing)
 				{
 				    gl.glDepthFunc( GL.GL_ALWAYS);
 				    
@@ -709,7 +709,7 @@ public class VisWireMesh {
 				{
 					progLine.getUniformMatrix4f( "pvm" ).set( pvm );
 					progLine.getUniform4f("colorin").set(l_color);
-					progLine.getUniform1i("clipactive").set(BigTraceData.nClipROI);
+					progLine.getUniform1i("clipactive").set(btdatain.nClipROI);
 					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
 					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
 					progLine.setUniforms( context );
@@ -726,27 +726,27 @@ public class VisWireMesh {
 					if(renderType == Roi3D.WIRE)
 					{
 						int nPointIt;
-						final int nSectorN = BigTraceData.sectorN;
+						final int nSectorN = btdatain.sectorN;
 	
 						gl.glLineWidth( 1.0f );
 						
 						//contours
-						for(nPointIt = 0; nPointIt < nPointsN; nPointIt+=BigTraceData.wireCountourStep)
+						for(nPointIt = 0; nPointIt < nPointsN; nPointIt += btdatain.wireCountourStep)
 						{
-							gl.glDrawArrays( GL.GL_LINE_LOOP, nPointIt*nSectorN, nSectorN);
+							gl.glDrawArrays( GL.GL_LINE_LOOP, nPointIt * nSectorN, nSectorN);
 							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 						//the last contour
-						if((nPointIt - BigTraceData.wireCountourStep) != (nPointsN-1))
+						if((nPointIt - btdatain.wireCountourStep) != (nPointsN-1))
 						{
-							gl.glDrawArrays( GL.GL_LINE_LOOP, (nPointsN-1)*nSectorN, nSectorN);
+							gl.glDrawArrays( GL.GL_LINE_LOOP, (nPointsN - 1) * nSectorN, nSectorN);
 						}
 						//lines along the pipe
 						int nShift = nSectorN * nPointsN;
 						
 						for(nPointIt = 0; nPointIt < nSectorN; nPointIt += 1)
 						{
-							gl.glDrawArrays( GL.GL_LINE_STRIP, nShift+nPointIt*nPointsN, nPointsN);
+							gl.glDrawArrays( GL.GL_LINE_STRIP, nShift + nPointIt * nPointsN, nPointsN);
 							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 					}

@@ -46,7 +46,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.geometry.Line3D;
 import bigtrace.gui.NumberField;
 import bigtrace.gui.PanelFullAutoTrace;
@@ -506,9 +505,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 final Interval roiBoundingBox = roi.getBoundingBox(); 
 		 if(roiBoundingBox != null)
 		 {
-			 final Interval zoomInterval = Intervals.intersect(Intervals.expand(roiBoundingBox, BigTraceData.nROIDoubleClickClipExpand), bt.btData.getDataCurrentSourceFull());
+			 final Interval zoomInterval = Intervals.intersect(Intervals.expand(roiBoundingBox, bt.btData.nROIDoubleClickClipExpand), bt.btData.getDataCurrentSourceFull());
 			 bt.focusOnInterval(zoomInterval);
-			 if(BigTraceData.bROIDoubleClickClip)
+			 if(bt.btData.bROIDoubleClickClip)
 			 {
 				 bt.btPanel.clipPanel.setBoundingBox(zoomInterval);
 			 }			 
@@ -657,9 +656,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	       int nShift;
 	       float fOpacityScale = 1.0f;
 	       float fOpacitySave = 1.0f;
-	       int nMinF = Math.min(0,BigTraceData.timeFade);
-	       int nMaxF = Math.max(0,BigTraceData.timeFade);
-	       if(BigTraceData.timeRender == 0)
+	       int nMinF = Math.min(0,bt.btData.timeFade);
+	       int nMaxF = Math.max(0,bt.btData.timeFade);
+	       if(bt.btData.timeRender == 0)
 	       {
 		       nMinF = 0;
 		       nMaxF = 0;
@@ -683,9 +682,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    	   nShift = Math.abs(nShift);
 	    		   if(nShift > 0)
 	    		   {
-	    			   fOpacityScale = 1.0f - (float)nShift/(float)(Math.abs(BigTraceData.timeFade) + 1);
+	    			   fOpacityScale = 1.0f - (float)nShift / (float)(Math.abs(bt.btData.timeFade) + 1);
 	    			   fOpacitySave = roi.getOpacity();
-	    			   roi.setOpacity(roi.getOpacity()*fOpacityScale);
+	    			   roi.setOpacity(roi.getOpacity() * fOpacityScale);
 	    		   }
 		    	   if(bShowAll)
 		    	   {
@@ -1381,8 +1380,8 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		int dInd = -1;
 		double dCurrDist = 0.0;
 	    
-		final int nMinF = Math.min(0,BigTraceData.timeFade);
-	    final int nMaxF = Math.max(0,BigTraceData.timeFade);
+		final int nMinF = Math.min(0,bt.btData.timeFade);
+	    final int nMaxF = Math.max(0,bt.btData.timeFade);
 		int nShift;
 		
 		for (int i=0;i<rois.size();i++)

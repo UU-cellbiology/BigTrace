@@ -59,7 +59,7 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 				writer.write("#raw "+ bt.btData.sFileNameFullImg+"\n");
 				writer.write("#original_source BigTrace_ver_" +BigTraceData.sVersion+"\n");
 				writer.write( "#roi_shape_interpolation " );
-				switch (BigTraceData.shapeInterpolation)
+				switch (bt.btData.shapeInterpolation)
 				{
 				case BigTraceData.SHAPE_Voxel:
 					writer.write("voxel\n");
@@ -71,7 +71,7 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 					writer.write("spline\n");
 					break;
 				}
-				writer.write( "#smooth_window "+Integer.toString( BigTraceData.nSmoothWindow )+"\n" );
+				writer.write( "#smooth_window "+Integer.toString( bt.btData.nSmoothWindow )+"\n" );
 
 				for(nRoi=0; nRoi<nRoiN; nRoi++)
 				{

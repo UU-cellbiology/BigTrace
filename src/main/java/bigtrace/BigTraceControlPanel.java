@@ -252,10 +252,10 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			@Override
 			public void itemStateChanged(ItemEvent e) {
 				if(e.getStateChange()==ItemEvent.SELECTED){
-					BigTraceData.nClipROI = 1;
+					bt.btData.nClipROI = 1;
 					bt.repaintBVV();
 				} else if(e.getStateChange()==ItemEvent.DESELECTED){
-					BigTraceData.nClipROI = 0;
+					bt.btData.nClipROI = 0;
 					bt.repaintBVV();
 				}
 			}
@@ -721,7 +721,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			clipExtractSettings.add(new JLabel("Intensity interpolation:"),cd);
 			cd.gridx++;
 			String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
-			clipExtractSettings.add(new JLabel(sIntInterpolationType[BigTraceData.intensityInterpolation]),cd);
+			clipExtractSettings.add(new JLabel(sIntInterpolationType[bt.btData.intensityInterpolation]),cd);
 		}
 		
 		int nExtractClippedOutput = 0;

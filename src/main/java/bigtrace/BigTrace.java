@@ -788,12 +788,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				dCam(btData.dCam).
 				dClipNear(btData.dClipNear).
 				dClipFar(btData.dClipFar).				
-				renderWidth( BigTraceData.renderParams.renderWidth).
-				renderHeight( BigTraceData.renderParams.renderHeight).
-				numDitherSamples( BigTraceData.renderParams.numDitherSamples ).
-				cacheBlockSize( BigTraceData.renderParams.cacheBlockSize ).
-				maxCacheSizeInMB( BigTraceData.renderParams.maxCacheSizeInMB ).
-				ditherWidth(BigTraceData.renderParams.ditherWidth).
+				renderWidth( btData.renderParams.renderWidth).
+				renderHeight( btData.renderParams.renderHeight).
+				numDitherSamples( btData.renderParams.numDitherSamples ).
+				cacheBlockSize( btData.renderParams.cacheBlockSize ).
+				maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
+				ditherWidth(btData.renderParams.ditherWidth).
 				frameTitle(filename)
 				);
 
@@ -832,12 +832,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				dCam(btData.dCam).
 				dClipNear(btData.dClipNear).
 				dClipFar(btData.dClipFar).				
-				renderWidth( BigTraceData.renderParams.renderWidth).
-				renderHeight( BigTraceData.renderParams.renderHeight).
-				numDitherSamples( BigTraceData.renderParams.numDitherSamples ).
-				cacheBlockSize( BigTraceData.renderParams.cacheBlockSize ).
-				maxCacheSizeInMB( BigTraceData.renderParams.maxCacheSizeInMB ).
-				ditherWidth(BigTraceData.renderParams.ditherWidth).
+				renderWidth( btData.renderParams.renderWidth).
+				renderHeight( btData.renderParams.renderHeight).
+				numDitherSamples( btData.renderParams.numDitherSamples ).
+				cacheBlockSize( btData.renderParams.cacheBlockSize ).
+				maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
+				ditherWidth(btData.renderParams.ditherWidth).
 				dCam( btData.dCam ).
 				dClipNear( btData.dClipNear ).
 				dClipFar( btData.dClipFar ).

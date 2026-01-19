@@ -289,7 +289,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		int nPixN;
 		
 		//get a frame around line
-		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points, tangents);
+		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points, tangents, btdata.rotationMinFrame);
 		int d;
 		double [] current_point = new double [3];
 		Circle2DMeasure measureCircle = new Circle2DMeasure();
@@ -352,7 +352,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		
 		
 		//get a frame around line
-		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points, tangents);
+		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points, tangents, btdata.rotationMinFrame);
 		int d;
 		double [] current_point = new double [3];
 		Circle2DMeasure measureCircle = new Circle2DMeasure();
@@ -498,7 +498,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			return new FinalInterval(lPos[0],lPos[1]);
 		}
 		
-		final ArrayList<ArrayList< RealPoint >> point_contours  = Pipe3D.getCountours(interpolator.getVerticesVisual(), interpolator.getTangentsVisual(), BigTraceData.sectorN, 0.5 * lineThickness * btdata.dMinVoxelSize);
+		final ArrayList<ArrayList< RealPoint >> point_contours  = Pipe3D.getCountours(interpolator.getVerticesVisual(), interpolator.getTangentsVisual(), btdata.sectorN, 0.5 * lineThickness * btdata.dMinVoxelSize, btdata.rotationMinFrame);
 		for(int i = 0; i < point_contours.size(); i++)
 		{
 			allvertices.addAll(Roi3D.scaleGlobInv(point_contours.get(i), btdata.globCal));
@@ -581,7 +581,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		{
 			final ArrayList< RealPoint > points = this.getJointSegmentResampled();
 			final ArrayList< double[] > tangents = this.getJointSegmentTangentsResampled();
-			final ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points, tangents, BigTraceData.sectorN, 0.5 * this.getLineThickness() * btdata.dMinVoxelSize);
+			final ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points, tangents, btdata.sectorN, 0.5 * this.getLineThickness() * btdata.dMinVoxelSize, btdata.rotationMinFrame);
 			//return to voxel space	for the render		
 			for(int i=0; i<point_contours.size(); i++)
 			{

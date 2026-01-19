@@ -202,7 +202,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		allSegments.add( segment );
 		
 		//get a frame around line in SCALED
-		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(segment, tangents);
+		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(segment, tangents, bt.btData.rotationMinFrame);
 
 		allFrames = new ArrayList<>();
 		allFrames.add( rsVect );

@@ -2,7 +2,6 @@ package bigtrace.geometry;
 
 import java.util.ArrayList;
 
-import bigtrace.BigTraceData;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
@@ -13,7 +12,7 @@ public class Pipe3D {
 	public static double doublePrecision = 0.0000000000001;
 	/** given a set of points, generates Pipe circular contours around each point (using rotation minimizing frame) 
 	 * with radius dRadius and nSectorN sectors**/
-	public static ArrayList<ArrayList< RealPoint >> getCountours(final ArrayList< RealPoint > points, final int nSectorN, final double dRadius)
+	public static ArrayList<ArrayList< RealPoint >> getCountours(final ArrayList< RealPoint > points, final int nSectorN, final double dRadius, final int rotationMinFrameAlgorithm)
 	{
 
 		ArrayList<double []> tangents;
@@ -26,7 +25,7 @@ public class Pipe3D {
 			
 			//calculate tangents at each point
 			tangents = CurveShapeInterpolation.getTangentsAverage(points);
-			double [][][] rsVect =  rotationMinimizingFrame(points, tangents);
+			double [][][] rsVect =  rotationMinimizingFrame(points, tangents, rotationMinFrameAlgorithm);
 			for (int i=0;i<points.size();i++)			
 			{
 				points.get(i).localize(center);
@@ -41,19 +40,19 @@ public class Pipe3D {
 	/** given a set of points and tangents at their location, 
 	 * generates Pipe circular contours around each point (using rotation minimizing frame) 
 	 * with radius dRadius and nSectorN sectors**/
-	public static ArrayList<ArrayList< RealPoint >> getCountours(final ArrayList< RealPoint > points, final ArrayList<double []> tangents, final int nSectorN, final double dRadius)
+	public static ArrayList<ArrayList< RealPoint >> getCountours(final ArrayList< RealPoint > points, final ArrayList<double []> tangents, final int nSectorN, final double dRadius, final int rotationMinFrameAlgorithm)
 	{
-
-	
 		ArrayList<ArrayList< RealPoint >> allCountours = new ArrayList<>();
+		
 		double [] center = new double[3];
 	
-		int nPointsNum=points.size();
-		if(nPointsNum>1)
+		int nPointsNum = points.size();
+		
+		if(nPointsNum > 1)
 		{
 			
-			double [][][] rsVect =  rotationMinimizingFrame(points, tangents);
-			for (int i=0;i<points.size();i++)			
+			double [][][] rsVect =  rotationMinimizingFrame(points, tangents, rotationMinFrameAlgorithm);
+			for (int i = 0; i < points.size(); i++)			
 			{
 				points.get(i).localize(center);
 				allCountours.add(getContourInXY( dRadius,  nSectorN, rsVect[0][i],rsVect[1][i], center));
@@ -64,9 +63,9 @@ public class Pipe3D {
 		
 	}
 
-	public static double [][][] rotationMinimizingFrame(final ArrayList< RealPoint > points, final ArrayList< double [] > tangents)
+	public static double [][][] rotationMinimizingFrame(final ArrayList< RealPoint > points, final ArrayList< double [] > tangents, final int rotationMinFrameAlgorithm)
 	{
-		if(BigTraceData.rotationMinFrame==0)
+		if(rotationMinFrameAlgorithm == 0)
 		{
 			return rotationMinimizingFrameWang(points,tangents);
 		}

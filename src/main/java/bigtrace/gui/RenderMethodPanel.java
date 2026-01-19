@@ -9,23 +9,24 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import ij.Prefs;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
+import bigtrace.BigTrace;
 
-public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ActionListener{
+
+public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ActionListener
+{
 	
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 7367842640615289454L;
+
 	public JComboBox<String> cbRenderMethod;
+	
 	public JComboBox<String> cbSurfaceRenderList; 
+	
 	String[] sSurfaceRenderType = {"plain", "shaded", "shiny", "silhouette"};
+	
 	BigTrace<T> bt;
 	
 	public RenderMethodPanel(BigTrace<T> bt_)
@@ -54,7 +55,7 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 		
 		
 		cbSurfaceRenderList = new JComboBox<>(sSurfaceRenderType);
-		cbSurfaceRenderList.setSelectedIndex(BigTraceData.surfaceRender);
+		cbSurfaceRenderList.setSelectedIndex(bt.btData.surfaceRender);
 		cbSurfaceRenderList.addActionListener(this);
 		cd.gridx=0;
 		cd.gridy++;
@@ -70,12 +71,12 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 		}
 		if(e.getSource() == cbSurfaceRenderList)
 		{
-			if(BigTraceData.surfaceRender != cbSurfaceRenderList.getSelectedIndex())
+			if(bt.btData.surfaceRender != cbSurfaceRenderList.getSelectedIndex())
 			{
 //	
-				BigTraceData.surfaceRender = cbSurfaceRenderList.getSelectedIndex();
-				Prefs.set("BigTrace.surfaceRender", BigTraceData.surfaceRender);
-				bt.viewer.showMessage("ROI surface: "+ sSurfaceRenderType[BigTraceData.surfaceRender]);
+				bt.btData.surfaceRender = cbSurfaceRenderList.getSelectedIndex();
+				Prefs.set("BigTrace.surfaceRender", bt.btData.surfaceRender);
+				bt.viewer.showMessage("ROI surface: "+ sSurfaceRenderType[bt.btData.surfaceRender]);
 				//long start1 = System.currentTimeMillis();
 				bt.repaintBVV();
 				

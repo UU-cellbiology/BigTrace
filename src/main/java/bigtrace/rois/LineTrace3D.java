@@ -148,7 +148,7 @@ public class LineTrace3D extends AbstractCurve3D
 	@Override
 	public void setPointSize(float point_size) {
 
-		pointSize=point_size;
+		pointSize = point_size;
 		verticesVis.setSize(pointSize);
 	}
 	
@@ -344,7 +344,7 @@ public class LineTrace3D extends AbstractCurve3D
 		bMeshInit = false;
 		if(vertices.size() > 1)
 		{
-			interpolator.init(makeJointSegment(), BigTraceData.shapeInterpolation);
+			interpolator.init(makeJointSegment(), btdata.shapeInterpolation);
 			segmentsVis.setVertices(interpolator.getVerticesVisual(),interpolator.getTangentsVisual());
 			//segmentsVis.setVertices(interpolator.getVerticesResample(),interpolator.getTangentsResample());
 		}

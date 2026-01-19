@@ -46,13 +46,13 @@ public class VisPolygonFlat {
 	
 	public float fLineThickness;
 
-
 	private boolean initialized;
 	
-
-
-	public VisPolygonFlat()
+	final BigTraceData<?> btdata;
+	
+	public VisPolygonFlat(final BigTraceData<?> btdata_)
 	{
+		btdata = btdata_;
 		final Segment pointVp = new SegmentTemplate( VisPolygonFlat.class, "/scene/simple_color_clip.vp" ).instantiate();
 		final Segment pointFp = new SegmentTemplate( VisPolygonFlat.class, "/scene/simple_color_depth.fp" ).instantiate();
 	
@@ -60,9 +60,9 @@ public class VisPolygonFlat {
 	}
 	
 	
-	public VisPolygonFlat(final ArrayList< RealPoint > points, final float fLineThickness_, final Color color_in,  final int nRenderType)
+	public VisPolygonFlat(final BigTraceData<?> btdata_, final ArrayList< RealPoint > points, final float fLineThickness_, final Color color_in,  final int nRenderType)
 	{
-		this();
+		this(btdata_);
 		
 		fLineThickness = fLineThickness_;	
 		l_color = new Vector4f(color_in.getComponents(null));		
@@ -144,7 +144,7 @@ public class VisPolygonFlat {
 		
 		int i,j;
 
-		double nGridStep = BigTraceData.crossSectionGridStep;
+		double nGridStep = btdata.crossSectionGridStep;
 		
 		nPointsN = points.size();
 		
@@ -314,7 +314,7 @@ public class VisPolygonFlat {
 		}
 	}
 
-	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdata)
+	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdatain)
 	{
 		int nGridIt;
 		if ( !initialized )
@@ -326,12 +326,12 @@ public class VisPolygonFlat {
 			JoglGpuContext context = JoglGpuContext.get( gl );
 	
 			prog.getUniformMatrix4f( "pvm" ).set( pvm );
-			prog.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-			prog.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
-			prog.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
+			prog.getUniform1i("clipactive").set(btdatain.nClipROI);
+			prog.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
+			prog.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
 
 			
-			if(BigTraceData.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && renderType == Roi3D.SURFACE)
+			if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && renderType == Roi3D.SURFACE)
 			{
 				Vector4f l_color_t = new Vector4f(l_color);
 				l_color_t.w = 0.6f;
@@ -380,7 +380,7 @@ public class VisPolygonFlat {
 
 			if(renderType == Roi3D.SURFACE)
 			{
-				if(BigTraceData.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
+				if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
 				{
 					gl.glDepthFunc( GL.GL_ALWAYS);
 				}
