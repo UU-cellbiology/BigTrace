@@ -48,8 +48,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
-import bigtrace.volume.VolumeMisc;
-
 public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 {
 	
@@ -83,11 +81,11 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		//get voxel size
 		for (int d =0;d<3;d++)
 		{
-			BigTraceData.globCal[d] = seq.getViewDescription(0,0).getViewSetup().getVoxelSize().dimension(d);
+			bt.btData.globCal[d] = seq.getViewDescription(0,0).getViewSetup().getVoxelSize().dimension(d);
 		}
 		//number of timepoints
 		bt.btData.nNumTimepoints = seq.getTimePoints().size();
-		BigTraceData.dMinVoxelSize = Math.min(Math.min(BigTraceData.globCal[0], BigTraceData.globCal[1]), BigTraceData.globCal[2]);
+		bt.btData.dMinVoxelSize = Math.min(Math.min(bt.btData.globCal[0], bt.btData.globCal[1]), bt.btData.globCal[2]);
 		
 
 		@SuppressWarnings( "cast" )
@@ -113,8 +111,8 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		}
 		rai_int.min( btdata.nDimIni[0] );
 		rai_int.max( btdata.nDimIni[1] );
-		rai_int.min( BigTraceData.nDimCurr[0] );
-		rai_int.max( BigTraceData.nDimCurr[1] );
+		rai_int.min( btdata.nDimCurr[0] );
+		rai_int.max( btdata.nDimCurr[1] );
 		
 		btdata.sVoxelUnit = seq.getViewSetupsOrdered().get(0).getVoxelSize().unit();
 		
@@ -160,7 +158,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 	        seriesBitDepth = new int[nSeriesCount];
 
 	        MetadataRetrieve retrieve = (MetadataRetrieve) r.getMetadataStore();
-	        for (int nS=0;nS<nSeriesCount;nS++)
+	        for (int nS = 0; nS < nSeriesCount; nS++)
 	        {
 	        	r.setSeries(nS);
 	        	seriesZsize[nS] = r.getSizeZ();
@@ -184,9 +182,9 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 	    }
 	    
 		int nOpenSeries = 0;
-		if(nSeriesCount==1)
+		if(nSeriesCount == 1)
 		{
-			if(seriesZsize[0]>1)
+			if(seriesZsize[ 0 ] > 1)
 			{
 				nOpenSeries = 0;
 			}
@@ -199,9 +197,9 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		{
 			//make a list of 3D series
 			int outCount = 0;
-			for(int nS=0;nS<nSeriesCount; nS++)
+			for(int nS = 0; nS < nSeriesCount; nS++)
 			{
-				if(seriesZsize[nS] > 1)
+				if(seriesZsize[ nS ] > 1)
 				{
 					outCount++;
 				}
@@ -215,9 +213,9 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 			int [] nDatasetIDs = new int[outCount];
 			int [] nDatasetType = new int[outCount];
 			int nCurrDS = 0;
-			for(int nS=0;nS<nSeriesCount;nS++)
+			for(int nS = 0; nS < nSeriesCount; nS++)
 			{
-				if(seriesZsize[nS] > 1)
+				if(seriesZsize[ nS ] > 1)
 				{
 					sDatasetNames[nCurrDS] = seriesName[nS];
 					nDatasetIDs[nCurrDS] = nS;
@@ -235,48 +233,38 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 			
 		}
 		
-
-		if (seriesBitDepth[nOpenSeries] == FormatTools.UINT16)
+		final int nBitDepth = seriesBitDepth[ nOpenSeries ];
+		if (nBitDepth == FormatTools.UINT16 || nBitDepth == FormatTools.UINT8 || nBitDepth == FormatTools.FLOAT)
 		{
 			OpenerSettings settings = OpenerSettings.BioFormats()
 					.location(new File(btdata.sFileNameFullImg))
 					.unit("MICROMETER")
 					.setSerie(nOpenSeries)
-					.positionConvention("TOP LEFT");
+					.positionConvention("TOP LEFT")
+					.pyramidize( true );
 			bt.spimData = (SpimData) OpenersToSpimData.getSpimData(settings);
 			
 		}
 		else
-		if(seriesBitDepth[nOpenSeries] == FormatTools.UINT8 )		
 		{
-			OpenerSettings settings = OpenerSettings.BioFormats()
-					.location(new File(btdata.sFileNameFullImg))
-					.unit("MICROMETER")
-					.setSerie(nOpenSeries)
-					.to16bits(true)
-					.positionConvention("TOP LEFT");
-			bt.spimData = (SpimData) OpenersToSpimData.getSpimData(settings);
-		}
-		else
-		{
-			return "Sorry, only 8- and 16-bit BioFormats images are supported.\nClosing BigTrace.";
+			return "Sorry, only 8-, 16- or 32-bit BioFormats images are supported.\nClosing BigTrace.";
 		}
 
 		final SequenceDescription seq = bt.spimData.getSequenceDescription();
 
 		//get voxel size
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			BigTraceData.globCal[d] = seq.getViewDescription(0,0).getViewSetup().getVoxelSize().dimension(d);
+			bt.btData.globCal[d] = seq.getViewDescription(0,0).getViewSetup().getVoxelSize().dimension(d);
 		}
-		BigTraceData.dMinVoxelSize = Math.min(Math.min(BigTraceData.globCal[0], BigTraceData.globCal[1]), BigTraceData.globCal[2]);
+		bt.btData.dMinVoxelSize = Math.min(Math.min(bt.btData.globCal[0], bt.btData.globCal[1]), bt.btData.globCal[2]);
 		
 		//number of timepoints
 		bt.btData.nNumTimepoints = seq.getTimePoints().size();
 		
 		//see if data comes from LLS7
 		String sTestLLS = seq.getViewDescription(0, 0).getViewSetup().getName();
-		if(sTestLLS.length()>3)
+		if(sTestLLS.length() > 3)
 		{
 			if((sTestLLS.contains("LLS")||sTestLLS.contains("LatticeLightsheet")) && btdata.sFileNameFullImg.endsWith(".czi"))
 			{
@@ -305,8 +293,8 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		
 		rai_int.min( btdata.nDimIni[0] );
 		rai_int.max( btdata.nDimIni[1] );
-		rai_int.min( BigTraceData.nDimCurr[0] );
-		rai_int.max( BigTraceData.nDimCurr[1] );
+		rai_int.min( btdata.nDimCurr[0] );
+		rai_int.max( btdata.nDimCurr[1] );
 		
 		btdata.sVoxelUnit = seq.getViewSetupsOrdered().get(0).getVoxelSize().unit();
 		
@@ -337,9 +325,9 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		//shearing transform
 		tShear.set(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.7320508075688767, 0.0, 0.0, 0.0, 1.0, 0.0);
 		//Z-step adjustment transform
-		bt.afDataTransform.set(BigTraceData.globCal[0]/BigTraceData.dMinVoxelSize, 0.0, 0.0, 0.0, 
-								0.0, BigTraceData.globCal[1]/BigTraceData.dMinVoxelSize, 0.0, 0.0, 
-								0.0, 0.0, 0.5*BigTraceData.globCal[2]/BigTraceData.dMinVoxelSize, 0.0);
+		bt.afDataTransform.set(bt.btData.globCal[0]/bt.btData.dMinVoxelSize, 0.0, 0.0, 0.0, 
+								0.0, bt.btData.globCal[1]/bt.btData.dMinVoxelSize, 0.0, 0.0, 
+								0.0, 0.0, 0.5 * bt.btData.globCal[2]/bt.btData.dMinVoxelSize, 0.0);
 		
 		bt.afDataTransform = tShear.concatenate(bt.afDataTransform);
 		bt.afDataTransform = tRotate.concatenate(bt.afDataTransform);
@@ -375,41 +363,41 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 			IJ.error("BigTrace: cannot open selected TIF file. Plugin terminated.");
 			return false;
 		}
-		if(imp.getNSlices()==1)
+		if(imp.getNSlices() == 1)
 		{
 			IJ.error("Error, input image has only one Z slice (2D?).\nBigTrace works only with 3D data. Plugin terminated.");			
 			return false;
 		}
 		
-		if(imp.getType()!=ImagePlus.GRAY8 && imp.getType()!=ImagePlus.GRAY16 && imp.getType()!=ImagePlus.GRAY32)
+		if(imp.getType() != ImagePlus.GRAY8 && imp.getType() != ImagePlus.GRAY16 && imp.getType() != ImagePlus.GRAY32)
 		{
 			IJ.error("Only 8-, 16- and 32-bit images supported for now.");
 			return false;
 		}
 
 		
-		BigTraceData.globCal[0] = imp.getCalibration().pixelWidth;
-		BigTraceData.globCal[1] = imp.getCalibration().pixelHeight;
-		BigTraceData.globCal[2] = imp.getCalibration().pixelDepth;
-		BigTraceData.dMinVoxelSize = Math.min(Math.min(BigTraceData.globCal[0], BigTraceData.globCal[1]), BigTraceData.globCal[2]);
+		bt.btData.globCal[0] = imp.getCalibration().pixelWidth;
+		bt.btData.globCal[1] = imp.getCalibration().pixelHeight;
+		bt.btData.globCal[2] = imp.getCalibration().pixelDepth;
+		bt.btData.dMinVoxelSize = Math.min(Math.min(bt.btData.globCal[0], bt.btData.globCal[1]), bt.btData.globCal[2]);
 		btdata.sVoxelUnit = imp.getCalibration().getUnit();
 		btdata.sTimeUnit = imp.getCalibration().getTimeUnit();
 		btdata.dFrameInterval = imp.getCalibration().frameInterval;
 		bt.btData.nNumTimepoints = imp.getNFrames();
 		
 		Img<T> img_ImageJ;
-
 				
 		btdata.nBitDepth = imp.getBitDepth();
-		if(btdata.nBitDepth<=16)
-		{
-			img_ImageJ = ImageJFunctions.wrap( imp );//.wrapNumeric(imp);
-		}
-		else
-		{
-			
-			img_ImageJ =   VolumeMisc.convertFloatToUnsignedShort(ImageJFunctions.wrapReal(imp));
-		}
+		img_ImageJ = ImageJFunctions.wrap( imp );//.wrapNumeric(imp);
+//		if(btdata.nBitDepth<=16)
+//		{
+//			img_ImageJ = ImageJFunctions.wrap( imp );//.wrapNumeric(imp);
+//		}
+//		else
+//		{
+//			
+//			img_ImageJ =   VolumeMisc.convertFloatToUnsignedShort(ImageJFunctions.wrapReal(imp));
+//		}
 		//long[] test = img_ImageJ.dimensionsAsLongArray();
 		
 		//let's convert it to XYZTC for BVV to understand
@@ -452,8 +440,8 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		
 		testRAI.min( btdata.nDimIni[0] );
 		testRAI.max( btdata.nDimIni[1] );
-		testRAI.min( BigTraceData.nDimCurr[0] );
-		testRAI.max( BigTraceData.nDimCurr[1] );
+		testRAI.min( btdata.nDimCurr[0] );
+		testRAI.max( btdata.nDimCurr[1] );
 		
 		return true;
 	}

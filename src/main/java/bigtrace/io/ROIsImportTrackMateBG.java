@@ -12,7 +12,6 @@ import javax.xml.stream.XMLStreamReader;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.rois.Point3D;
 import bigtrace.rois.Roi3D;
 import ij.IJ;
@@ -104,9 +103,9 @@ public class ROIsImportTrackMateBG  extends SwingWorker<Void, String> implements
 	                    	Point3D roiP = (Point3D) bt.roiManager.makeRoi(Roi3D.POINT, nFrame);
 	                    	roiP.setName("track_"+Integer.toString(nTrack)+"_point_"+Integer.toString(nPoint));
 	                    	
-	                    	vertex = new RealPoint(Float.parseFloat(streamReader.getAttributeValue(1))/BigTraceData.globCal[0],
-	                    			               Float.parseFloat(streamReader.getAttributeValue(2))/BigTraceData.globCal[1],
-	                    			               Float.parseFloat(streamReader.getAttributeValue(3))/BigTraceData.globCal[2]);
+	                    	vertex = new RealPoint(Float.parseFloat(streamReader.getAttributeValue(1))/bt.btData.globCal[0],
+	                    			               Float.parseFloat(streamReader.getAttributeValue(2))/bt.btData.globCal[1],
+	                    			               Float.parseFloat(streamReader.getAttributeValue(3))/bt.btData.globCal[2]);
 							roiP.setVertex(vertex);
 							if(nImportColor == 0)
 							{

@@ -210,7 +210,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		
 		//VOXEL SIZE PANEL		
-		voxelSizePanel = new VoxelSizePanel(BigTraceData.globCal,btdata.sVoxelUnit);
+		voxelSizePanel = new VoxelSizePanel(bt.btData.globCal, btdata.sVoxelUnit);
 		voxelSizePanel.addVoxelSizePanelListener(new VoxelSizePanel.Listener() {
 			
 			@Override
@@ -484,6 +484,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		JCheckBox cbStartFullScreen = new JCheckBox();
 		cbStartFullScreen.setSelected(bt.btData.bStartFullScreen);
 		
+		JCheckBox cbLazyLoadTIFF = new JCheckBox();
+		cbLazyLoadTIFF.setSelected(bt.btData.bUseLazyLoadForTiff);
+		
 		NumberField nfClickArea = new NumberField(4);
 		nfClickArea.setIntegersOnly(true);
 		nfClickArea.setText(Integer.toString(bt.btData.nHalfClickSizeWindow*2));
@@ -527,6 +530,12 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		pViewSettings.add(new JLabel("Start in full screen mode: "),cd);
 		cd.gridx++;
 		pViewSettings.add(cbStartFullScreen,cd);
+
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Lazy load TIFF files: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbLazyLoadTIFF,cd);
 		
 		cd.gridx = 0;
 		cd.gridy++;
@@ -611,6 +620,11 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			bt.btData.bStartFullScreen = cbStartFullScreen.isSelected();
 			Prefs.set("BigTrace.bStartFullScreen", bt.btData.bStartFullScreen );
+			
+			bt.btData.bUseLazyLoadForTiff = cbLazyLoadTIFF.isSelected();
+			Prefs.set("BigTrace.bUseLazyLoadForTiff", bt.btData.bUseLazyLoadForTiff );
+
+			
 			bt.btData.nHalfClickSizeWindow = (int)(0.5*Integer.parseInt(nfClickArea.getText()));
 			Prefs.set("BigTrace.nHalfClickSizeWindow",bt.btData.nHalfClickSizeWindow);
 
@@ -832,11 +846,11 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		}		
 		
 		boolean bNewOne = false;
-		for(i=0;i<3;i++)
+		for(i = 0; i < 3; i++)
 		{
-			for(int j=0;j<2;j++)
+			for(int j = 0; j < 2; j++)
 			{
-				if(BigTraceData.nDimCurr[j][i]!=box[j][i])
+				if(bt.btData.nDimCurr[j][i]!=box[j][i])
 				{
 					bNewOne = true;
 					break;
@@ -848,10 +862,10 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		if(bWithinRange && bNewOne)
 		{
-				for(i=0;i<3;i++)
+				for(i = 0; i < 3; i++)
 				{
-					BigTraceData.nDimCurr[0][i]=box[0][i];
-					BigTraceData.nDimCurr[1][i]=box[1][i];
+					bt.btData.nDimCurr[0][i]=box[0][i];
+					bt.btData.nDimCurr[1][i]=box[1][i];
 				}
 				
 				updateViewDataSources();
@@ -867,7 +881,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		double [][] doubleClip = new double [2][3];
 		for (int d = 0; d < 3; d++)
 			for(int j = 0; j < 2; j++)
-				doubleClip[j][d] = BigTraceData.nDimCurr[j][d];
+				doubleClip[j][d] = bt.btData.nDimCurr[j][d];
 
 		final FinalRealInterval clipInt = new FinalRealInterval(doubleClip[0],doubleClip[1]);
 		
@@ -875,7 +889,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		{
 			bt.bvv_sources.get(i).setClipInterval(clipInt);
 		}	
-		bt.visualBoxes.clipBox.setIntervalLongArray( BigTraceData.nDimCurr );
+		bt.visualBoxes.clipBox.setIntervalLongArray( bt.btData.nDimCurr );
 		
 	}
 	
@@ -892,15 +906,15 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		double[] scaleChange = new double [3];
 		
-		for (int d = 0;d<3; d++)
+		for (int d = 0; d < 3; d++)
 		{
 			scaleChange[d] = Affine3DHelpers.extractScale( transform, d );
-			scaleChange[d] /= BigTraceData.globCal[d];
-			BigTraceData.globCal[d]=newVoxelSize[d];
+			scaleChange[d] /= bt.btData.globCal[d];
+			bt.btData.globCal[d] = newVoxelSize[d];
 			//IJ.log("voxel "+Integer.toString(d)+" "+Double.toString(newVoxelSize[d]));
-			scaleChange[d]*=BigTraceData.globCal[d];
+			scaleChange[d] *= bt.btData.globCal[d];
 		}
-		BigTraceData.dMinVoxelSize = Math.min(Math.min(BigTraceData.globCal[0], BigTraceData.globCal[1]), BigTraceData.globCal[2]);
+		bt.btData.dMinVoxelSize = Math.min(Math.min(bt.btData.globCal[0], bt.btData.globCal[1]), bt.btData.globCal[2]);
 		final double[][] Rcurrent = new double[ 3 ][ 3 ];
 		double[] qStart = new double[ 4 ];
 		Affine3DHelpers.extractRotationAnisotropic( transform, qStart );

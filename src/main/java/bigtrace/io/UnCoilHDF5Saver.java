@@ -26,7 +26,6 @@ import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.animation.UnCoilAnimation;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
 import mpicbg.spim.data.registration.ViewRegistration;
@@ -53,7 +52,7 @@ public class UnCoilHDF5Saver < T extends RealType< T > & NativeType< T > >
 		String fullPathNoExt = unCoil.sSaveFolderPath +unCoil.inputROI.getName();
 		final File hdf5File = new File( fullPathNoExt + ".h5" );
 		final File xmlFile = new File( fullPathNoExt + ".xml" );
-		final FinalVoxelDimensions voxelSize = new FinalVoxelDimensions( bt.btData.sVoxelUnit, BigTraceData.globCal[0], BigTraceData.globCal[1], BigTraceData.globCal[2] );
+		final FinalVoxelDimensions voxelSize = new FinalVoxelDimensions( bt.btData.sVoxelUnit, bt.btData.globCal[0], bt.btData.globCal[1], bt.btData.globCal[2] );
 		final FinalDimensions size = new FinalDimensions( unCoil.unionInterval.dimension( 0 ), unCoil.unionInterval.dimension( 1 ), unCoil.unionInterval.dimension( 2 ) );
 		
 		// propose reasonable mipmap settings
@@ -137,13 +136,13 @@ public class UnCoilHDF5Saver < T extends RealType< T > & NativeType< T > >
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 
 		sourceTransform.set(
-				BigTraceData.globCal[ 0 ], 0, 0, 0,
-				0, BigTraceData.globCal[ 1 ], 0, 0,
-				0, 0, BigTraceData.globCal[ 2 ], 0 );
+				bt.btData.globCal[ 0 ], 0, 0, 0,
+				0, bt.btData.globCal[ 1 ], 0, 0,
+				0, 0, bt.btData.globCal[ 2 ], 0 );
 		double[] minShift = unCoil.allIntervals.get( nTP ).minAsDoubleArray();
 		for(int d=0;d<3;d++)
 		{
-			minShift[ d ] *= BigTraceData.globCal[ d ];
+			minShift[ d ] *= bt.btData.globCal[ d ];
 		}
 		sourceTransform.translate( minShift );
 		return sourceTransform;

@@ -21,10 +21,11 @@ import net.imglib2.util.LinAlgHelpers;
 public interface Roi3D 
 {
 
-	public static final int POINT=0, POLYLINE=1, LINE_TRACE=2, PLANE=3, BOX=4; // Types
+	/** ROI types**/
+	public static final int POINT = 0, POLYLINE = 1, LINE_TRACE = 2, PLANE = 3, BOX = 4;
 	
 	/** render types **/
-	public static final int OUTLINE=0, WIRE=1, SURFACE=2;
+	public static final int OUTLINE = 0, WIRE = 1, SURFACE = 2;
 	
 	/** returns ROI type**/
 	public int getType();
@@ -84,10 +85,10 @@ public interface Roi3D
 		switch (nType)
 		{
 		 case POINT:
-			 sType= "Point";
+			 sType = "Point";
 			 break;
 		 case POLYLINE:
-			 sType= "Polyline";
+			 sType = "Polyline";
 			 break;
 		 case LINE_TRACE:
 			 sType = "LineTrace";
@@ -123,7 +124,7 @@ public interface Roi3D
 	{
 		ArrayList<RealPoint> reversed = new ArrayList<>();
 		
-		for(int i=vert_in.size()-1;i>=0;i--)
+		for(int i = vert_in.size() - 1; i >= 0; i--)
 		{
 			reversed.add(new RealPoint(vert_in.get(i)));
 		}
@@ -135,9 +136,9 @@ public interface Roi3D
 	public static RealPoint scaleGlob(final RealPoint in, final double [] globCal)
 	{
 		RealPoint out = new RealPoint(in);
-		for (int i=0;i<in.numDimensions();i++)
+		for (int i = 0; i < in.numDimensions(); i++)
 		{
-			out.setPosition(out.getDoublePosition(i)*globCal[i],i);
+			out.setPosition(out.getDoublePosition(i) * globCal[i], i);
 		}
 		return out;
 	}
@@ -149,9 +150,9 @@ public interface Roi3D
 	{
 		ArrayList<RealPoint> out = new ArrayList<>(in.size());
 			
-		for (int i=0;i<in.size();i++)
+		for (int i = 0; i < in.size(); i++)
 		{
-			out.add(scaleGlob(in.get(i),globCal));
+			out.add(scaleGlob(in.get(i), globCal));
 		}
 		return out;
 	}
@@ -161,9 +162,9 @@ public interface Roi3D
 	public static RealPoint scaleGlobInv(final RealPoint in, final double [] globCal)
 	{
 		RealPoint out = new RealPoint(in);
-		for (int i=0;i<in.numDimensions();i++)
+		for (int i = 0; i < in.numDimensions(); i++)
 		{
-			out.setPosition(out.getDoublePosition(i)/globCal[i],i);
+			out.setPosition(out.getDoublePosition(i) / globCal[ i ], i);
 		}
 		return out;
 	}
@@ -175,9 +176,9 @@ public interface Roi3D
 	{
 		ArrayList<RealPoint> out = new ArrayList<>(in.size());
 		
-		for (int i=0;i<in.size();i++)
+		for (int i = 0; i < in.size(); i++)
 		{
-			out.add(scaleGlobInv(in.get(i),globCal));
+			out.add(scaleGlobInv(in.get(i), globCal));
 		}
 		return out;
 	}
@@ -187,9 +188,9 @@ public interface Roi3D
 	public static double [] scaleGlob(final double [] in, final double [] globCal)
 	{
 		double [] out = new double [in.length];
-		for (int i=0;i<in.length;i++)
+		for (int i = 0; i < in.length; i++)
 		{
-			out[i]=in[i]*globCal[i];
+			out[ i ] = in[ i ] * globCal[ i ];
 		}
 		return out;
 	}
@@ -199,26 +200,26 @@ public interface Roi3D
 	public static double [] scaleGlobInv(final double [] in, final double [] globCal)
 	{
 		double [] out = new double [in.length];
-		for (int i=0;i<in.length;i++)
+		for (int i = 0; i < in.length; i++)
 		{
-			out[i]=in[i]/globCal[i];
+			out[ i ] = in[ i ] / globCal[ i ];
 		}
 		return out;
 	}
 	/** calculates cumulative length between vert_in 3D points  **/
 	public static double getSegmentLength(final ArrayList<RealPoint> vert_in)
 	{
-		double length=0.0;
+		double length = 0.0;
 		double [] pos1 = new double [3];
 		double [] pos2 = new double [3];
 		
-		if (vert_in==null)
+		if (vert_in == null)
 			{return 0.0;}
-		for (int i=0;i<vert_in.size()-1; i++)
+		for (int i = 0; i < vert_in.size() - 1; i++)
 		{
 			vert_in.get(i).localize(pos1);
 			vert_in.get(i+1).localize(pos2);
-			length+=LinAlgHelpers.distance(pos1, pos2);
+			length += LinAlgHelpers.distance(pos1, pos2);
 		}
 		//System.out.print(length);
 		return length;
@@ -227,22 +228,22 @@ public interface Roi3D
 	 * using globCal calibration. The returned value is in SPACE coordinates **/
 	public static double getSegmentLength(final ArrayList<RealPoint> vert_in, double [] globCal)
 	{
-		double length=0.0;
+		double length = 0.0;
 		double [] pos1 = new double [3];
 		double [] pos2 = new double [3];
 		
-		if (vert_in==null)
+		if (vert_in == null)
 			{return 0.0;}
-		for (int i=0;i<vert_in.size()-1; i++)
+		for (int i = 0; i < vert_in.size() - 1; i++)
 		{
 			vert_in.get(i).localize(pos1);
 			vert_in.get(i+1).localize(pos2);
 			for (int j = 0; j<3; j++)
 			{
-				pos1[j]*=globCal[j];
-				pos2[j]*=globCal[j];
+				pos1[j] *= globCal[j];
+				pos2[j] *= globCal[j];
 			}
-			length+=LinAlgHelpers.distance(pos1, pos2);
+			length += LinAlgHelpers.distance(pos1, pos2);
 		}
 		//System.out.print(length);
 		return length;
@@ -252,25 +253,24 @@ public interface Roi3D
 	public static double[] getSegmentTabLength(final ArrayList<RealPoint> vert_in, double [] globCal)
 	{
 		
-		if (vert_in==null)
+		if (vert_in == null)
 		{return null;}
 		
 		double[] length=new double [vert_in.size()];
 		double [] pos1 = new double [3];
 		double [] pos2 = new double [3];
 		
-
-		length[0]=0.0f;
-		for (int i=0;i<vert_in.size()-1; i++)
+		length[0] = 0.0f;
+		for (int i = 0; i < vert_in.size() - 1; i++)
 		{
 			vert_in.get(i).localize(pos1);
 			vert_in.get(i+1).localize(pos2);
-			for (int j = 0; j<3; j++)
+			for (int j = 0; j < 3; j++)
 			{
-				pos1[j]*=globCal[j];
-				pos2[j]*=globCal[j];
+				pos1[ j ] *= globCal[ j ];
+				pos2[ j ] *= globCal[ j ];
 			}
-			length[i+1]=length[i]+LinAlgHelpers.distance(pos1, pos2);
+			length[ i + 1 ] = length[ i ] + LinAlgHelpers.distance(pos1, pos2);
 		}
 		//System.out.print(length);
 		return length;
@@ -279,20 +279,19 @@ public interface Roi3D
 	/** calculates cumulative length between vert_in 3D points **/
 	public static double[] getSegmentTabLength(final ArrayList<RealPoint> vert_in)
 	{
-		if (vert_in==null)
+		if (vert_in == null)
 		{return null;}
 		
-		double [] length=new double [vert_in.size()];
-		double [] pos1 = new double [3];
-		double [] pos2 = new double [3];
-		
+		double [] length = new double [ vert_in.size() ];
+		double [] pos1 = new double [ 3 ];
+		double [] pos2 = new double [ 3 ];
 
-		length[0]=0.0f;
-		for (int i=0;i<vert_in.size()-1; i++)
+		length[0] = 0.0f;
+		for (int i = 0; i < vert_in.size() - 1; i++)
 		{
 			vert_in.get(i).localize(pos1);
 			vert_in.get(i+1).localize(pos2);
-			length[i+1]=length[i]+LinAlgHelpers.distance(pos1, pos2);
+			length[ i + 1 ] = length[ i ] + LinAlgHelpers.distance(pos1, pos2);
 		}
 		//System.out.print(length);
 		return length;
@@ -304,7 +303,7 @@ public interface Roi3D
 	public static RealPoint getNaNPoint()
 	{
 		RealPoint out = new RealPoint(3);
-		for (int i = 0;i<3; i++)
+		for (int i = 0; i < 3; i++)
 			out.setPosition(Double.NaN, i);
 		return out;
 	}

@@ -19,17 +19,21 @@ public class SplineCurve3D {
 	
 	/** reparametrization of arclength spline**/
 	CubicSpline arcToNodes = null;
+	
+	final BigTraceData<?> btdata;
 		
 	/** do natural cubic spline interpolation **/
-	public SplineCurve3D(ArrayList<RealPoint> points)
+	public SplineCurve3D(ArrayList<RealPoint> points, final BigTraceData<?> btdata_)
 	{
-		init(points,0);
+		btdata = btdata_;
+		init(points, 0);
 	}
 	
 	/** do cubic spline interpolation with end derivatives estimated 
 	 * from nDeriveEst points from each end **/
-	public SplineCurve3D(ArrayList<RealPoint> points, final int nDeriveEst)
+	public SplineCurve3D(ArrayList<RealPoint> points, final int nDeriveEst, final BigTraceData<?> btdata_)
 	{
+		btdata = btdata_;
 		init(points, nDeriveEst);
 	}
 	
@@ -135,12 +139,12 @@ public class SplineCurve3D {
 
 		final double approxL = xnodes[xnodes.length-1];
 
-		final int nNewPoints = (int) Math.floor(approxL/BigTraceData.dMinVoxelSize);
-		final double [] xLSample = new double[nNewPoints+2];
+		final int nNewPoints = (int) Math.floor(approxL / btdata.dMinVoxelSize);
+		final double [] xLSample = new double[nNewPoints + 2];
 		
-		for(int i = 1; i< nNewPoints; i++)
+		for(int i = 1; i < nNewPoints; i++)
 		{
-			xLSample[i] = i*BigTraceData.dMinVoxelSize;
+			xLSample[i] = i * btdata.dMinVoxelSize;
 		}
 		xLSample[nNewPoints+1] = approxL;
 

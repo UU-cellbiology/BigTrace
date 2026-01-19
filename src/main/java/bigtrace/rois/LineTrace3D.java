@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.function.Predicate;
 
 import org.joml.Matrix4fc;
 
@@ -19,26 +17,22 @@ import bigtrace.geometry.CurveShapeInterpolation;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisWireMesh;
 
-
-import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
-import net.imglib2.roi.Masks;
-import net.imglib2.roi.RealMask;
-import net.imglib2.roi.RealMaskRealInterval;
-import net.imglib2.roi.geom.real.WritablePolyline;
-import net.imglib2.roi.util.RealLocalizableRealPositionable;
 import net.imglib2.util.LinAlgHelpers;
 
 
-public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
-{
-	
+public class LineTrace3D extends AbstractCurve3D
+{	
 	public ArrayList<ArrayList<RealPoint>> segments;
+	
 	public final VisPointsScaled verticesVis;
+	
 	public final VisWireMesh segmentsVis;
 
-	public LineTrace3D(final Roi3DGroup preset_in, final int nTimePoint_)
+	public LineTrace3D(final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final int nTimePoint_)
 	{
+		super (btdata_);
+		
 		type = Roi3D.LINE_TRACE;
 		
 		pointSize = preset_in.pointSize;
@@ -60,8 +54,8 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 		verticesVis.setSize(pointSize);
 		verticesVis.setRenderType(renderType);
 		
-		interpolator = new CurveShapeInterpolation(type);
-		segmentsVis = new VisWireMesh();
+		interpolator = new CurveShapeInterpolation(type, btdata);
+		segmentsVis = new VisWireMesh(btdata);
 		segmentsVis.setColor(lineColor);
 		segmentsVis.setThickness(lineThickness);
 		segmentsVis.setRenderType(renderType);
@@ -132,8 +126,8 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 	@Override
 	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
 	{
-		verticesVis.draw(gl, pvm, screen_size);
-		segmentsVis.draw(gl, pvm, vm);	
+		verticesVis.draw(gl, pvm, screen_size, btdata);
+		segmentsVis.draw(gl, pvm, vm, btdata);	
 	}
 	
 	@Override
@@ -185,7 +179,6 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 	 * to the best of my knowledge (and so they do not produce errors)
 	 */
 	
-	@Override
 	public int numVertices() {
 		return vertices.size();
 	}
@@ -195,84 +188,6 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 		return segments.size();
 	}
 
-	@Override
-	public RealMaskRealInterval and(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.and(this, paramPredicate);
-	}
-
-	@Override
-	public RealMaskRealInterval minus(Predicate<? super RealLocalizable> paramPredicate) {
-		
-		// TODO Auto-generated method stub
-		return Masks.minus(this, paramPredicate);
-	}
-
-	@Override
-	public RealMask negate() {
-		// TODO Auto-generated method stub
-		return Masks.negate(this);
-	}
-
-	@Override
-	public RealMask or(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.or(this, paramPredicate);
-	}
-
-	@Override
-	public RealMask xor(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.xor(this, paramPredicate);
-	}
-
-	@Override
-	public boolean test(RealLocalizable arg0) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public int numDimensions() {
-		// TODO Auto-generated method stub
-		return 3;
-	}
-
-	@Override
-	public double realMin(int d) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public double realMax(int d) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public RealLocalizableRealPositionable vertex(int paramInt) {
-		// TODO Auto-generated method stub
-		return (RealLocalizableRealPositionable) vertices.get(paramInt);
-	}
-
-	@Override
-	public void addVertex(int paramInt, RealLocalizable paramRealLocalizable) {
-		// TODO Auto-generated method stub
-		vertices.add((RealPoint) paramRealLocalizable);
-	}
-
-	@Override
-	public void removeVertex(int paramInt) {
-		// TODO Auto-generated method stub
-		vertices.remove(paramInt);
-	}
-
-	@Override
-	public void addVertices(int paramInt, Collection<RealLocalizable> paramCollection) {
-		// TODO Auto-generated method stub
-		
-	}
 
 	@Override
 	public void saveRoi(final FileWriter writer)
@@ -316,12 +231,12 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 			writer.write("SegmentsNumber,"+Integer.toString(segments.size())+"\n");
 			for(iSegment=0;iSegment<segments.size();iSegment++)
 			{
-				segment=segments.get(iSegment);
+				segment = segments.get(iSegment);
 				writer.write("Segment,"+Integer.toString(iSegment+1)+",Points,"+Integer.toString(segment.size())+"\n");
-				for (iPoint = 0;iPoint<segment.size();iPoint++)
+				for (iPoint = 0; iPoint < segment.size(); iPoint++)
 				{ 
 					segment.get(iPoint).localize(vert);
-					for(i=0;i<3;i++)
+					for(i = 0; i < 3; i++)
 					{
 						writer.write(df3.format(vert[i])+",");
 					}
@@ -346,7 +261,7 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 		verticesVis.setVertices(vertices);
 		
 		ArrayList<ArrayList<RealPoint>> segments_r = new ArrayList<>();
-		for(i= segments.size()-1;i>=0;i--)
+		for(i = segments.size() - 1; i >= 0; i--)
 		{
 			segments_r.add(Roi3D.reverseArrayRP(segments.get(i)));
 		}
@@ -362,10 +277,10 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 	public int getNumberOfPointsInJointSegment()
 	{
 		int out = 0;
-		if(vertices.size()>1)
+		if(vertices.size() > 1)
 		{
 			out++;
-			for(int i=0;i<segments.size(); i++)
+			for(int i = 0; i < segments.size(); i++)
 			{
 				out+= segments.get(i).size() - 1;
 			}
@@ -377,14 +292,14 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 	public ArrayList<RealPoint> makeJointSegment()
 	{
 		ArrayList<RealPoint> out = new ArrayList<>();
-		if(vertices.size()>1)
+		if(vertices.size() > 1)
 		{
 			//first vertex
 			out.add(vertices.get(0));
 			//the rest
-			for(int i=0;i<segments.size(); i++)
+			for(int i = 0; i < segments.size(); i++)
 			{
-				for(int j = 1; j<segments.get(i).size();j++)
+				for(int j = 1; j < segments.get(i).size(); j++)
 				{
 					out.add(segments.get(i).get(j));
 				}
@@ -406,9 +321,9 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 			//first vertex
 			out.add(vertices.get(0).positionAsDoubleArray());
 			//the rest
-			for(int i=0;i<segments.size(); i++)
+			for(int i = 0; i < segments.size(); i++)
 			{
-				for(int j = 1; j<segments.get(i).size();j++)
+				for(int j = 1; j < segments.get(i).size(); j++)
 				{
 					out.add(segments.get(i).get(j).positionAsDoubleArray());
 				}
@@ -432,18 +347,15 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 			interpolator.init(makeJointSegment(), BigTraceData.shapeInterpolation);
 			segmentsVis.setVertices(interpolator.getVerticesVisual(),interpolator.getTangentsVisual());
 			//segmentsVis.setVertices(interpolator.getVerticesResample(),interpolator.getTangentsResample());
-
 		}
 		else
 		{
-			if(vertices.size()==1)
+			if(vertices.size() == 1)
 			{
 				segmentsVis.nPointsN = 0;	
 			}
 		}
 	
-
-		
 	}
 	
 	public ArrayList<RealPoint> getVerticesVisual()
@@ -462,21 +374,21 @@ public class LineTrace3D extends AbstractCurve3D implements WritablePolyline
 		
 		ArrayList<RealPoint> allvertices;
 		//in VOXEL coordinates
-		if(this.vertices.size()==1)
+		if(this.vertices.size() == 1)
 		{
 			allvertices = this.vertices;
 		}
 		else
 		{
-			allvertices = Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), BigTraceData.globCal);
+			allvertices = Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), btdata.globCal);
 		}
 		double dMinDist = Double.MAX_VALUE;
 		double currDist = 0.0;
-		for(int i=0;i<allvertices.size();i++)
+		for(int i = 0; i < allvertices.size(); i++)
 		{
-			currDist= Line3D.distancePointLine(allvertices.get(i), line);
+			currDist = Line3D.distancePointLine(allvertices.get(i), line);
 			
-			if(currDist <dMinDist)
+			if(currDist < dMinDist)
 			{
 				dMinDist = currDist;
 			}

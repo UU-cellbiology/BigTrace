@@ -24,9 +24,9 @@ public class VisualBoxes
 	public VisualBoxes(final BigTrace<?> bt_)
 	{
 		bt = bt_;
-		volumeBox = new Box3D(1.0f);
-		clipBox = new Box3D(0.5f);
-		traceBox = new Box3D(1.0f);
+		volumeBox = new Box3D(bt.btData, 1.0f);
+		clipBox = new Box3D(bt.btData, 0.5f);
+		traceBox = new Box3D(bt.btData, 1.0f);
 	}
 	
 	public void setColor(final Color colorin)

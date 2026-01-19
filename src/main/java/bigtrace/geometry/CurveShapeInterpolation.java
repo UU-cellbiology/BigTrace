@@ -32,15 +32,18 @@ public class CurveShapeInterpolation {
 	
 	boolean bInit = false;
 		
+	final BigTraceData<?> btdata;
 	
-	public CurveShapeInterpolation (final int nRoiType_)
+	public CurveShapeInterpolation (final int nRoiType_, final BigTraceData<?> btdata_)
 	{
+		btdata = btdata_;
 		nRoiType = nRoiType_;
 		bInit = false;
 	}
 	
-	public CurveShapeInterpolation (final ArrayList<RealPoint> points, final int nShapeInterpolation,final int nRoiType_)
+	public CurveShapeInterpolation (final ArrayList<RealPoint> points, final int nShapeInterpolation,final int nRoiType_, final BigTraceData<?> btdata_)
 	{
+		btdata = btdata_;
 		nRoiType = nRoiType_;
 		init(points, nShapeInterpolation);
 	}
@@ -52,7 +55,7 @@ public class CurveShapeInterpolation {
 	public boolean init(final ArrayList<RealPoint> points, final int nShapeInterpolation)
 	{
 		
-		if(points.size()>1)
+		if(points.size() > 1)
 		{
 				currInterpolation = nShapeInterpolation;
 				points_curve = new ArrayList<>();
@@ -62,12 +65,12 @@ public class CurveShapeInterpolation {
 						if(nRoiType == Roi3D.POLYLINE)
 						{
 							//sample data between points using Bresenham
-							points_curve = Roi3D.scaleGlob(getJointSegmentBresenhamPolyLine(points),BigTraceData.globCal);
+							points_curve = Roi3D.scaleGlob(getJointSegmentBresenhamPolyLine(points), btdata.globCal);
 						}
 						else
 						{
 							//keep original trace
-							points_curve = Roi3D.scaleGlob(points,BigTraceData.globCal);
+							points_curve = Roi3D.scaleGlob(points, btdata.globCal);
 						}
 						//init linear interpolator
 						linInter = new LerpCurve3D(points_curve);
@@ -77,12 +80,12 @@ public class CurveShapeInterpolation {
 						if(nRoiType == Roi3D.POLYLINE)
 						{							
 							//sample segments between points with pixel step of 1
-							points_curve = Roi3D.scaleGlob(getJointSegmentSmoothPolyLine(points),BigTraceData.globCal);
+							points_curve = Roi3D.scaleGlob(getJointSegmentSmoothPolyLine(points), btdata.globCal);
 						}
 						else
 						{
 							//smooth positions of points
-							points_curve = Roi3D.scaleGlob(getSmoothVals(points),BigTraceData.globCal);							
+							points_curve = Roi3D.scaleGlob(getSmoothVals(points), btdata.globCal);							
 						}
 						//init linear interpolator
 						linInter = new LerpCurve3D(points_curve);
@@ -93,7 +96,7 @@ public class CurveShapeInterpolation {
 						{
 							if(points.size()==2)
 							{
-								points_curve = Roi3D.scaleGlob(points,BigTraceData.globCal);
+								points_curve = Roi3D.scaleGlob(points, btdata.globCal);
 								linInter = new LerpCurve3D(points_curve);
 								splineInter = null;
 							}
@@ -101,22 +104,22 @@ public class CurveShapeInterpolation {
 							{
 								//perform spline interpolation
 								//estimating end derivatives
-								splineInter = new SplineCurve3D( Roi3D.scaleGlob(points,BigTraceData.globCal),2);
+								splineInter = new SplineCurve3D( Roi3D.scaleGlob(points, btdata.globCal), 2, btdata);
 								linInter = null;
 							}
 						}
 						else
 						{
-							if(points.size()==2)
+							if(points.size() == 2)
 							{
-								points_curve = Roi3D.scaleGlob(points,BigTraceData.globCal);
+								points_curve = Roi3D.scaleGlob(points, btdata.globCal);
 								linInter = new LerpCurve3D(points_curve);
 								splineInter = null;
 							}
 							else
 							{
 								//smooth positions of points
-								points_curve = Roi3D.scaleGlob(getSmoothVals(points),BigTraceData.globCal);		
+								points_curve = Roi3D.scaleGlob(getSmoothVals(points), btdata.globCal);		
 								//take some points along the curve as spline nodes
 								final ArrayList< RealPoint > sparse_points = getSplineSparsePoints(points_curve);
 								if(sparse_points.size()==2)
@@ -127,7 +130,7 @@ public class CurveShapeInterpolation {
 								}
 								else
 								{
-									splineInter = new SplineCurve3D(sparse_points,2);
+									splineInter = new SplineCurve3D(sparse_points, 2, btdata);
 									linInter = null;
 								}
 							}
@@ -388,12 +391,12 @@ public class CurveShapeInterpolation {
 		double [] xLSample;
 		int i;
 		dLength = splineInter.getMaxArcLength();
-		nNewPoints =(int) Math.floor(dLength/BigTraceData.dMinVoxelSize);
+		nNewPoints = (int) Math.floor(dLength / btdata.dMinVoxelSize);
 		xLSample = new double[nNewPoints+1];
 		double dStep = dLength/nNewPoints;
-		for(i = 0;i<=nNewPoints;i++)
+		for(i = 0; i <= nNewPoints; i++)
 		{
-			xLSample[i]=i*dStep;
+			xLSample[i] = i * dStep;
 		}
 		return splineInter.interpolate(xLSample);
 	}
@@ -407,12 +410,12 @@ public class CurveShapeInterpolation {
 		int i;
 		waitForInit();
 		dLength = splineInter.getMaxArcLength();
-		nNewPoints =(int) Math.floor(dLength/BigTraceData.dMinVoxelSize);
+		nNewPoints =(int) Math.floor(dLength / btdata.dMinVoxelSize);
 		xLSample = new double[nNewPoints+1];
 		double dStep = dLength/nNewPoints;
-		for(i = 0;i<=nNewPoints;i++)
+		for(i = 0; i <= nNewPoints;i++)
 		{
-			xLSample[i]=i*dStep;
+			xLSample[ i ] = i * dStep;
 		}
 		return splineInter.interpolateSlopes(xLSample);
 	}
@@ -435,11 +438,11 @@ public class CurveShapeInterpolation {
 				return null;
 			dLength = splineInter.getMaxArcLength();
 		}
-		nNewPoints =(int) Math.ceil(dLength/ BigTraceData.dMinVoxelSize);
+		nNewPoints = (int) Math.ceil(dLength / btdata.dMinVoxelSize);
 		xLSample = new double[nNewPoints];
-		for(i = 0;i<nNewPoints;i++)
+		for(i = 0; i < nNewPoints; i++)
 		{
-			xLSample[i]=i*BigTraceData.dMinVoxelSize;
+			xLSample[ i ] = i * btdata.dMinVoxelSize;
 		}
 		if(linInter != null)
 		{
@@ -461,7 +464,6 @@ public class CurveShapeInterpolation {
 				}
 				catch ( InterruptedException exc )
 				{
-					// TODO Auto-generated catch block
 					exc.printStackTrace();
 				}
 			}
@@ -485,11 +487,11 @@ public class CurveShapeInterpolation {
 		{
 			dLength = splineInter.getMaxArcLength();
 		}
-		nNewPoints =(int) Math.ceil(dLength/ BigTraceData.dMinVoxelSize);
+		nNewPoints = (int) Math.ceil(dLength/ btdata.dMinVoxelSize);
 		xLSample = new double[nNewPoints];
-		for(i = 0;i<nNewPoints;i++)
+		for(i = 0; i < nNewPoints;i++)
 		{
-			xLSample[i]=i*BigTraceData.dMinVoxelSize;
+			xLSample[i] = i * btdata.dMinVoxelSize;
 		}
 		if(linInter != null)
 		{

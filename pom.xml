@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>40.0.0</version>
+		<version>42.0.0</version>
 		<relativePath />
 	</parent>
 
 	<groupId>nl.uu.science.cellbiology</groupId>
 	<artifactId>bigtrace</artifactId>
-	<version>0.7.1-SNAPSHOT</version>
+	<version>0.8.0-SNAPSHOT</version>
 
 	<name>BigTrace</name>
 	<description>Tracing of curvilinear structures in 3D</description>
@@ -83,13 +83,15 @@
         <license.copyrightOwners>Cell Biology, Neurobiology and Biophysics Department of Utrecht University.</license.copyrightOwners>  			
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
+		<bvv-playground.version>0.5.2</bvv-playground.version>
+		<bdv-loaders.version>0.10.0</bdv-loaders.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 		  <groupId>nl.uu.science.cellbiology</groupId>
 		  <artifactId>bvv-playground</artifactId>
-		  <version>0.4.0</version>
+		  <version>${bvv-playground.version}</version>
 		</dependency>
 		
 		<!-- BIOFORMATS -->
@@ -128,7 +130,7 @@
 		<dependency>
 			<groupId>ch.epfl.biop</groupId>
 			<artifactId>bigdataviewer-image-loaders</artifactId>
-			<version>0.10.0</version> 
+			<version>${bdv-loaders.version}</version>  
 		</dependency>
   		
 		<!-- ImgLib2 dependencies -->

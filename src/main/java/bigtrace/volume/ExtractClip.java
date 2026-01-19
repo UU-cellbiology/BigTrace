@@ -7,7 +7,6 @@ import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -55,10 +54,10 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 		FinalInterval cropInt = new FinalInterval (full_RAI);
 		long[] cropMin = cropInt.minAsLongArray();
 		long[] cropMax = cropInt.maxAsLongArray();
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
-			cropMin[d] = BigTraceData.nDimCurr[0][d];
-			cropMax[d] = BigTraceData.nDimCurr[1][d];
+			cropMin[d] = bt.btData.nDimCurr[0][d];
+			cropMax[d] = bt.btData.nDimCurr[1][d];
 		}
 		cropMin[3] = nMinTimePoint;
 		cropMax[3] = nMaxTimePoint;
@@ -67,9 +66,9 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 		//output calibration
 		cal.setUnit(bt.btData.sVoxelUnit);
 		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth = BigTraceData.globCal[0];
-		cal.pixelHeight = BigTraceData.globCal[1];
-		cal.pixelDepth = BigTraceData.globCal[2];
+		cal.pixelWidth = bt.btData.globCal[0];
+		cal.pixelHeight = bt.btData.globCal[1];
+		cal.pixelDepth = bt.btData.globCal[2];
 		
 		Path p = Paths.get(bt.btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();

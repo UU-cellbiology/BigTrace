@@ -7,7 +7,6 @@ import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.geometry.Pipe3D;
 import bigtrace.measure.Circle2DMeasure;
 import bigtrace.rois.Roi3D;
@@ -93,9 +92,9 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		//output calibration
 		cal.setUnit(bt.btData.sVoxelUnit);
 		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth= BigTraceData.dMinVoxelSize;
-		cal.pixelHeight= BigTraceData.dMinVoxelSize;
-		cal.pixelDepth= BigTraceData.dMinVoxelSize;
+		cal.pixelWidth = bt.btData.dMinVoxelSize;
+		cal.pixelHeight = bt.btData.dMinVoxelSize;
+		cal.pixelDepth = bt.btData.dMinVoxelSize;
 		final int nTotROIs = curveROIArr.size();  
 		if(nTotROIs == 0)
 			return null;
@@ -239,18 +238,18 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 
 			if(nStraightenShape == 0 )
 			{
-				planeNorm = getNormSquareGridXYPairs(nRadius, BigTraceData.dMinVoxelSize,rsVect[0][nPoint],rsVect[1][nPoint], current_point);							
+				planeNorm = getNormSquareGridXYPairs(nRadius, bt.btData.dMinVoxelSize, rsVect[0][nPoint], rsVect[1][nPoint], current_point);							
 			}
 			else
 			{			
-				planeNorm = getNormCircleGridXYPairs(nRadius, BigTraceData.dMinVoxelSize,rsVect[0][nPoint],rsVect[1][nPoint], current_point);			
+				planeNorm = getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize, rsVect[0][nPoint], rsVect[1][nPoint], current_point);			
 			}
 			for(int i=0;i<planeNorm.size();i++)
 			{
 				//current XY point coordinates
 				curr_XY = new RealPoint( planeNorm.get(i).getB());
 				//back to voxel units
-				curr_XY = Roi3D.scaleGlobInv(curr_XY, BigTraceData.globCal);
+				curr_XY = Roi3D.scaleGlobInv(curr_XY, bt.btData.globCal);
 				for(int nTimePoint = nMinTimePoint;nTimePoint<=nMaxTimePoint;nTimePoint++)
 				{
 					for (int nCh=0;nCh<nChannelN;nCh++)

@@ -84,12 +84,12 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 					if(bt.roiManager.rois.get( nRoi ) instanceof AbstractCurve3D)
 					{						
 						AbstractCurve3D currRoi = ((AbstractCurve3D)bt.roiManager.rois.get( nRoi ));
-						sRadius = df3.format( currRoi.getLineThickness()*0.5*BigTraceData.dMinVoxelSize);
+						sRadius = df3.format( currRoi.getLineThickness() * 0.5 * bt.btData.dMinVoxelSize);
 						ArrayList< RealPoint > points = currRoi.getJointSegmentResampled();
-						for(int nP=0; nP<points.size(); nP++)
+						for(int nP = 0; nP < points.size(); nP++)
 						{
 							writer.write( Long.toString( nPointCount ) +" 0 " );
-							for (int d=0;d<3;d++)
+							for (int d = 0; d < 3; d++)
 							{
 								writer.write( df3.format(points.get( nP ).getDoublePosition( d ) ) +" " );								
 							}

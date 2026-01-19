@@ -131,9 +131,9 @@ public class ViewsIO
 					writer.write("LUT," + converter.getLUTName() + "\n");
 					
 					writer.write("Voxel interpolation," + Integer.toString(converter.getVoxelRenderInterpolation()) + "\n");
-					writer.write("Clip active," + Integer.toString( converter.clipActive()?1:0) + "\n");
+					writer.write("Clip active," + Integer.toString( converter.getClipState()) + "\n");
 					
-					if(converter.clipActive())
+					if(converter.getClipState() > 0)
 					{
 						AffineTransform3D clipTransform = new AffineTransform3D();
 						converter.getClipTransform(clipTransform);
@@ -407,8 +407,10 @@ public class ViewsIO
 					btS.setVoxelRenderInterpolation( Integer.parseInt( line_array[1] ) );
 					line = br.readLine();
 					line_array = line.split(",");
-					if(line_array[1].equals( "1" ))
+					final int nClipState = Integer.parseInt( line_array[1]);
+					if(nClipState > 0 )
 					{
+						btS.setClipState( nClipState );
 						line = br.readLine();
 						line_array = line.split(",");
 						final double [] transform = new double [12];

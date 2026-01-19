@@ -800,7 +800,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		}
 		if(nVoxelSize>=0)
 		{
-			val.volume = nVoxelSize*BigTraceData.globCal[0]*BigTraceData.globCal[1]*BigTraceData.globCal[2];
+			val.volume = nVoxelSize * bt.btData.globCal[0] * bt.btData.globCal[1] * bt.btData.globCal[2];
 		}
 	}
 	
@@ -813,7 +813,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:
-				val.endsDistance = ((AbstractCurve3D)roi).getEndsDistance(BigTraceData.globCal);
+				val.endsDistance = ((AbstractCurve3D)roi).getEndsDistance(bt.btData.globCal);
 				break;			
 			default:
 				val.endsDistance = Double.NaN;
@@ -928,7 +928,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{			
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, BigTraceData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -954,7 +954,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, BigTraceData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -984,7 +984,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:		
 			case Roi3D.LINE_TRACE:
-				val.straightness = ((AbstractCurve3D)roi).getEndsDistance( BigTraceData.globCal)/((AbstractCurve3D)roi).getLength();
+				val.straightness = ((AbstractCurve3D)roi).getEndsDistance( bt.btData.globCal)/((AbstractCurve3D)roi).getLength();
 				break;			
 			default:
 				val.straightness = Double.NaN;
@@ -996,11 +996,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		switch (roi.getType())
 		{
 			case Roi3D.POINT:
-				((Point3D)roi).getEnds(val, BigTraceData.globCal);
+				((Point3D)roi).getEnds(val, bt.btData.globCal);
 				break;
 			case Roi3D.POLYLINE:			
 			case Roi3D.LINE_TRACE:
-				((AbstractCurve3D)roi).getEnds(val, BigTraceData.globCal);
+				((AbstractCurve3D)roi).getEnds(val, bt.btData.globCal);
 				break;	
 			default:
 				val.ends = new RealPoint [2];
@@ -1020,7 +1020,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:
-				((AbstractCurve3D)roi).getEndsDirection(val, BigTraceData.globCal);
+				((AbstractCurve3D)roi).getEndsDirection(val, bt.btData.globCal);
 				break;	
 			default:
 				val.direction = Roi3D.getNaNPoint();
@@ -1043,7 +1043,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:				
-				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, BigTraceData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);				
+				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, BigTraceData.shapeInterpolation);				
 				break;			
 		}
 		if (li_profile!=null && bMakePlot)

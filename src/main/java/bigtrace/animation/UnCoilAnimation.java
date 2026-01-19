@@ -39,7 +39,6 @@ import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.geometry.Pipe3D;
 import bigtrace.geometry.Plane3D;
 import bigtrace.io.UnCoilHDF5Saver;
@@ -348,12 +347,12 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 			allFrames.add( newFrame );
 			allSegments.add( segment_new);
 			//LineTrace3D newROI = addROIsegment(bt, segment_new, i, ( int ) firstLine.getLineThickness());
-			LineTrace3D newROI = addROIsegment(bt, Roi3D.scaleGlobInv( segment_new, BigTraceData.globCal ),firstLine.getTimePoint(), ( int ) firstLine.getLineThickness(), bAddROIs);
+			LineTrace3D newROI = addROIsegment(bt, Roi3D.scaleGlobInv( segment_new, bt.btData.globCal ),firstLine.getTimePoint(), ( int ) firstLine.getLineThickness(), bAddROIs);
 			allRois.add( newROI );
 			
 
 		}
-		if(nUnCoilTask>0)
+		if(nUnCoilTask > 0)
 		{
 			calculateIntervals();
 	
@@ -383,7 +382,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 	//debug
 	void addNormalROI (final ArrayList<RealPoint> segment_, final double [][][]rsVect, float nThickness)
 	{
-		ArrayList<RealPoint> segment = Roi3D.scaleGlobInv( segment_, BigTraceData.globCal );
+		ArrayList<RealPoint> segment = Roi3D.scaleGlobInv( segment_, bt.btData.globCal );
 		int nTotPoints = segment.size();
 		ArrayList<RealPoint> norm1 = new ArrayList<> ();
 		double [] bvect = new double [3];
@@ -391,15 +390,15 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		for (int nPoint = 0; nPoint<nTotPoints; nPoint++)
 		{
 			segment.get( nPoint ).localize( bvect );
-			bvect = Roi3D.scaleGlob(bvect,BigTraceData.globCal);
+			bvect = Roi3D.scaleGlob(bvect, bt.btData.globCal);
 			for (int d =0; d<3; d++)
 			{
 				bnorm[d] =rsVect[0][nPoint][d];
 			}
-			LinAlgHelpers.scale( bnorm, nThickness*0.5*BigTraceData.dMinVoxelSize, bnorm );
+			LinAlgHelpers.scale( bnorm, nThickness * 0.5 * bt.btData.dMinVoxelSize, bnorm );
 			LinAlgHelpers.add( bvect, bnorm, bvect );
 			//norm1.add( new RealPoint(Roi3D.scaleGlobInv(bvect,BigTraceData.globCal)));
-			norm1.add( new RealPoint(Roi3D.scaleGlobInv(bvect,BigTraceData.globCal)));
+			norm1.add( new RealPoint(Roi3D.scaleGlobInv(bvect, bt.btData.globCal)));
 		}
 		addROIsegment(bt, norm1,0, 1, true);
 
@@ -427,11 +426,11 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 			for (int nPoint = 0;nPoint<allSegments.get( 0 ).size();nPoint++)
 			{
 				allSegments.get( nTP ).get(nPoint).localize(current_point_new); 
-				planeNormNew = StraightenCurve.getNormCircleGridXYPairs(nRadius, BigTraceData.dMinVoxelSize,allFrames.get( nTP )[0][nPoint],allFrames.get( nTP )[1][nPoint], current_point_new);
+				planeNormNew = StraightenCurve.getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize,allFrames.get( nTP )[0][nPoint],allFrames.get( nTP )[1][nPoint], current_point_new);
 				for(int i=0;i<planeNormNew.size();i++)
 				{
 					planeNormNew.get(i).getB().localize( curr_XY_new );
-					curr_XY_new = Roi3D.scaleGlobInv(curr_XY_new, BigTraceData.globCal);
+					curr_XY_new = Roi3D.scaleGlobInv(curr_XY_new, bt.btData.globCal);
 					for(int d=0;d<3;d++)
 					{
 						posInt[d] = Math.round( curr_XY_new[d]);
@@ -457,15 +456,15 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 			double [] pos = new double[3];
 			double [] comp =  new double[3];
 			double [] addition = new double[3];
-			for(int nPoint = 0;nPoint<allSegments.get( nFrame ).size();nPoint++)
+			for(int nPoint = 0; nPoint < allSegments.get( nFrame ).size(); nPoint++)
 			{
 				allSegments.get( nFrame ).get( nPoint ).localize( pos );
-				LinAlgHelpers.scale( allFrames.get( nFrame )[0][nPoint], 20*BigTraceData.dMinVoxelSize, addition );
+				LinAlgHelpers.scale( allFrames.get( nFrame )[0][nPoint], 20 * bt.btData.dMinVoxelSize, addition );
 				LinAlgHelpers.add( addition, pos, comp );
-				frameX1.add( new RealPoint(Roi3D.scaleGlobInv(comp,BigTraceData.globCal)));
-				LinAlgHelpers.scale( allFrames.get( nFrame )[1][nPoint], 20*BigTraceData.dMinVoxelSize, addition );
+				frameX1.add( new RealPoint(Roi3D.scaleGlobInv(comp, bt.btData.globCal)));
+				LinAlgHelpers.scale( allFrames.get( nFrame )[1][nPoint], 20 * bt.btData.dMinVoxelSize, addition );
 				LinAlgHelpers.add( addition, pos, comp );
-				frameX2.add( new RealPoint(Roi3D.scaleGlobInv(comp,BigTraceData.globCal)));
+				frameX2.add( new RealPoint(Roi3D.scaleGlobInv(comp, bt.btData.globCal)));
 
 				
 //				frameX1.add( new RealPoint(Roi3D.scaleGlobInv(pos,BigTraceData.globCal)));
@@ -535,18 +534,18 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		for (int nPoint = 0;nPoint<allSegments.get( 0 ).size();nPoint++)
 		{
 			allSegments.get( 0 ).get(nPoint).localize(current_point_zero); 
-			planeNormZero = StraightenCurve.getNormCircleGridXYPairs(nRadius, BigTraceData.dMinVoxelSize,allFrames.get( 0 )[0][nPoint],allFrames.get( 0 )[1][nPoint], current_point_zero);
+			planeNormZero = StraightenCurve.getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize, allFrames.get( 0 )[0][nPoint],allFrames.get( 0 )[1][nPoint], current_point_zero);
 			
 			allSegments.get( nInd ).get(nPoint).localize(current_point_new); 
-			planeNormNew = StraightenCurve.getNormCircleGridXYPairs(nRadius, BigTraceData.dMinVoxelSize,allFrames.get( nInd )[0][nPoint],allFrames.get( nInd )[1][nPoint], current_point_new);
+			planeNormNew = StraightenCurve.getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize, allFrames.get( nInd )[0][nPoint],allFrames.get( nInd )[1][nPoint], current_point_new);
 
 			for(int i=0;i<planeNormZero.size();i++)
 			{
 				planeNormZero.get(i).getB().localize( curr_XY_zero );
-				curr_XY_zero = Roi3D.scaleGlobInv(curr_XY_zero, BigTraceData.globCal);
+				curr_XY_zero = Roi3D.scaleGlobInv(curr_XY_zero, bt.btData.globCal);
 				
 				planeNormNew.get(i).getB().localize( curr_XY_new );
-				curr_XY_new = Roi3D.scaleGlobInv(curr_XY_new, BigTraceData.globCal);
+				curr_XY_new = Roi3D.scaleGlobInv(curr_XY_new, bt.btData.globCal);
 
 				for(int d=0;d<3;d++)
 				{
@@ -679,9 +678,9 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		final Calibration cal = new Calibration();
 		cal.setUnit(bt.btData.sVoxelUnit);
 		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth = BigTraceData.globCal[0];
-		cal.pixelHeight = BigTraceData.globCal[1];
-		cal.pixelDepth = BigTraceData.globCal[2];
+		cal.pixelWidth = bt.btData.globCal[0];
+		cal.pixelHeight = bt.btData.globCal[1];
+		cal.pixelDepth = bt.btData.globCal[2];
 		
 		final IntervalView< T > imgOut = Views.zeroMin(  Views.interval( Views.extendZero( outInterval ),unionInterval ));
 		final ImagePlus ip = VolumeMisc.wrapImgImagePlusCal(imgOut, inputROI.getName() + "_vol_T"+ String.format("%0"+String.valueOf(nFrames).length()+"d", nInd),cal, bt.btData.nNumTimepoints);

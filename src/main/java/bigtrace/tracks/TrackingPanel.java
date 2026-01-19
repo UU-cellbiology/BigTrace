@@ -33,7 +33,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.NumberField;
 import bigtrace.gui.PanelTitle;
@@ -43,8 +42,6 @@ import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
 import ij.IJ;
 import ij.Prefs;
-
-
 
 public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener, ActionListener
 {
@@ -292,7 +289,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		MeasureValues oldVect = new MeasureValues();
 		MeasureValues newVect = new MeasureValues();
 		int nFrameN = groupROIs.get( 0 ).nTimeFrame;
-		(groupROIs.get( 0 ).sRoi).getEndsDirection(oldVect, BigTraceData.globCal);
+		(groupROIs.get( 0 ).sRoi).getEndsDirection(oldVect, bt.btData.globCal);
 		for(int i = 1; i<groupROIs.size();i++)
 		{
 			AbstractCurve3D newRoi = groupROIs.get( i ).sRoi;
@@ -301,7 +298,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 				IJ.log("There are multiple ROIs in the same frame number #" +Integer.toString( nFrameN ));
 			}
 			nFrameN = newRoi.getTimePoint();
-			newRoi.getEndsDirection(newVect, BigTraceData.globCal);
+			newRoi.getEndsDirection(newVect, bt.btData.globCal);
 			//if not looking at the same direction
 			if(LinAlgHelpers.dot( oldVect.direction.positionAsDoubleArray(),  newVect.direction.positionAsDoubleArray())<0)
 			{

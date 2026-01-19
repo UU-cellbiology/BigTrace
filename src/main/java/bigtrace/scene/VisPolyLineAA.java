@@ -261,7 +261,7 @@ public class VisPolyLineAA
 		
 	}
 
-	public void draw( GL3 gl, Matrix4fc pvm)
+	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdata)
 	{
 		if ( !initialized )
 			init( gl );
@@ -283,8 +283,8 @@ public class VisPolyLineAA
 		if(bIncludeClip)
 		{
 			prog.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-			prog.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-			prog.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+			prog.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
+			prog.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
 
 		}
 		else

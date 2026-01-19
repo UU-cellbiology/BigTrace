@@ -2,9 +2,12 @@ package bigtrace.rois;
 
 import java.awt.Color;
 
+import bigtrace.BigTraceData;
+
 
 public abstract class AbstractRoi3D implements Roi3D {
 	
+	final BigTraceData<?> btdata;
 	public float lineThickness;
 	public float pointSize;
 	public Color lineColor;
@@ -15,6 +18,10 @@ public abstract class AbstractRoi3D implements Roi3D {
 	public int groupIndex = -1;
 	public int nTimePoint;
 	
+	public AbstractRoi3D (final BigTraceData<?> btdata_)
+	{
+		btdata = btdata_;
+	}
 	
 	@Override
 	public int getType() {

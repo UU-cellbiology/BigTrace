@@ -8,7 +8,6 @@ import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.rois.Box3D;
 import bigtrace.rois.CrossSection3D;
@@ -128,9 +127,9 @@ public class SplitVolumePlane < T extends RealType< T > & NativeType< T > > exte
 		Calibration cal = new Calibration();
 		cal.setUnit(bt.btData.sVoxelUnit);
 		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth= BigTraceData.globCal[0];
-		cal.pixelHeight= BigTraceData.globCal[1];
-		cal.pixelDepth= BigTraceData.globCal[2];
+		cal.pixelWidth= bt.btData.globCal[0];
+		cal.pixelHeight= bt.btData.globCal[1];
+		cal.pixelDepth= bt.btData.globCal[2];
 		Path p = Paths.get(bt.btData.sFileNameFullImg);
 		String fileName = p.getFileName().toString()+"_"+crossSection.getName();
 		

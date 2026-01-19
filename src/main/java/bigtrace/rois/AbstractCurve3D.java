@@ -36,9 +36,17 @@ import net.imglib2.view.Views;
 public abstract class AbstractCurve3D extends AbstractRoi3D
 {
 	public ArrayList<RealPoint> vertices;
+	
 	CurveShapeInterpolation interpolator = null;
+	
 	Mesh volumeMesh;
+	
 	boolean bMeshInit = false;
+	
+	public AbstractCurve3D (final BigTraceData<?> btdata_)
+	{
+		super(btdata_);
+	}
 	
 	/** returns the length of Polyline using globCal voxel size **/
 	public double getLength()
@@ -83,7 +91,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 	/** returns direction of the vector from one to another end (in val) **/
 	public void getEndsDirection(final MeasureValues val, final double [] globCal)
 	{
-		if(vertices.size()>1)
+		if(vertices.size() > 1)
 		{
 			double [] posB = new double [3];
 			double [] posE = new double [3];
@@ -219,7 +227,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		int i,d;
 		
 		//first point
-		out[0][0]=0.0;
+		out[0][0] = 0.0;
 		allPoints.get(0).localize(pos);
 		xyz = pos.clone();
 		//in voxels
@@ -230,14 +238,14 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		//length
 		
 		//point location
-		for(d=0;d<3;d++)
+		for( d = 0; d < 3; d++)
 		{
-			out[2+d][0]=xyz[d];
+			out[ 2 + d ][ 0 ] = xyz[ d ];
 		}
-		for(i=1;i<allPoints.size();i++)
+		for( i = 1; i < allPoints.size(); i++)
 		{
 			allPoints.get(i).localize(pos);
-			out[0][i] = BigTraceData.dMinVoxelSize*i;
+			out[0][i] = btdata.dMinVoxelSize * i;
 			xyz= pos.clone();			
 			//in voxels
 			pos = Roi3D.scaleGlobInv(pos, globCal);
@@ -290,7 +298,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		for (int nPoint = 0;nPoint<points.size();nPoint++)
 		{
 			//length
-			out[0][nPoint] = BigTraceData.dMinVoxelSize*nPoint;
+			out[0][nPoint] = btdata.dMinVoxelSize * nPoint;
 			
 			//log point location
 			points.get(nPoint).localize(current_point); 
@@ -310,7 +318,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			{
 				measureCircle.cursorCircle.fwd();
 				measureCircle.cursorCircle.localize(current_pixel);
-				LinAlgHelpers.scale(current_pixel, BigTraceData.dMinVoxelSize, current_pixel);
+				LinAlgHelpers.scale(current_pixel, btdata.dMinVoxelSize, current_pixel);
 				getVoxelInPlane(rsVect[0][nPoint],rsVect[1][nPoint], current_point,current_pixel);
 				//back to voxel units
 				current_pixel = Roi3D.scaleGlobInv(current_pixel, globCal);
@@ -350,10 +358,10 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		Circle2DMeasure measureCircle = new Circle2DMeasure();
 		
 		measureCircle.setRadius(nRadius);
-		for (int nPoint = 0;nPoint<points.size();nPoint++)
+		for (int nPoint = 0; nPoint < points.size(); nPoint++)
 		{
 			//length
-			out[0][nPoint] = BigTraceData.dMinVoxelSize*nPoint;
+			out[0][nPoint] = btdata.dMinVoxelSize * nPoint;
 			
 			//log point location
 			points.get(nPoint).localize(current_point); 
@@ -372,7 +380,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			{
 				measureCircle.cursorCircle.fwd();
 				measureCircle.cursorCircle.localize(current_pixel);
-				LinAlgHelpers.scale(current_pixel, BigTraceData.dMinVoxelSize, current_pixel);
+				LinAlgHelpers.scale(current_pixel, btdata.dMinVoxelSize, current_pixel);
 				getVoxelInPlane(rsVect[0][nPoint],rsVect[1][nPoint], current_point,current_pixel);
 				//back to voxel units
 				current_pixel =Roi3D.scaleGlobInv(current_pixel, globCal);
@@ -490,36 +498,36 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			return new FinalInterval(lPos[0],lPos[1]);
 		}
 		
-		final ArrayList<ArrayList< RealPoint >> point_contours  = Pipe3D.getCountours(interpolator.getVerticesVisual(), interpolator.getTangentsVisual(), BigTraceData.sectorN, 0.5*lineThickness*BigTraceData.dMinVoxelSize);
-		for(int i=0; i<point_contours.size(); i++)
+		final ArrayList<ArrayList< RealPoint >> point_contours  = Pipe3D.getCountours(interpolator.getVerticesVisual(), interpolator.getTangentsVisual(), BigTraceData.sectorN, 0.5 * lineThickness * btdata.dMinVoxelSize);
+		for(int i = 0; i < point_contours.size(); i++)
 		{
-			allvertices.addAll(Roi3D.scaleGlobInv(point_contours.get(i), BigTraceData.globCal));
+			allvertices.addAll(Roi3D.scaleGlobInv(point_contours.get(i), btdata.globCal));
 		}
 		
 		long [][] bBox = new long [2][3];
-		for (int d = 0; d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			bBox[0][d] = Long.MAX_VALUE; 
-			bBox[1][d]= (-1)* Long.MAX_VALUE; 
+			bBox[1][d] = (-1) * Long.MAX_VALUE; 
 		}
 		double [] currPoint = new double [3];
-		for (int i = 0; i<allvertices.size();i++)
+		for (int i = 0; i < allvertices.size(); i++)
 		{
 			allvertices.get(i).localize(currPoint);
-			for (int d=0;d<3;d++)
+			for (int d = 0; d < 3; d++)
 			{
-				if(currPoint[d]<bBox[0][d])
+				if(currPoint[d] < bBox[0][d])
 				{
 					bBox[0][d] = Math.round(currPoint[d]);
 				}
-				if(currPoint[d]>bBox[1][d])
+				if(currPoint[d] > bBox[1][d])
 				{
 					bBox[1][d] = Math.round(currPoint[d]);
 				}
 
 			}
 		}
-		return new FinalInterval(bBox[0],bBox[1]);
+		return new FinalInterval(bBox[0], bBox[1]);
 	}
 	
 	@Override
@@ -533,25 +541,25 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		}
 		else
 		{
-			allvertices =  Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), BigTraceData.globCal);
+			allvertices =  Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), btdata.globCal);
 		}
 		long [][] bBox = new long [2][3];
-		for (int d = 0; d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			bBox[0][d] = Long.MAX_VALUE; 
-			bBox[1][d]= (-1)* Long.MAX_VALUE; 
+			bBox[1][d] = (-1) * Long.MAX_VALUE; 
 		}
 		double [] currPoint = new double [3];
-		for (int i = 0; i<allvertices.size();i++)
+		for (int i = 0; i < allvertices.size();i++)
 		{
 			allvertices.get(i).localize(currPoint);
-			for (int d=0;d<3;d++)
+			for (int d = 0; d < 3; d++)
 			{
-				if(currPoint[d]<bBox[0][d])
+				if(currPoint[d] < bBox[0][d])
 				{
 					bBox[0][d] = Math.round(currPoint[d]);
 				}
-				if(currPoint[d]>bBox[1][d])
+				if(currPoint[d] > bBox[1][d])
 				{
 					bBox[1][d] = Math.round(currPoint[d]);
 				}
@@ -573,13 +581,13 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		{
 			final ArrayList< RealPoint > points = this.getJointSegmentResampled();
 			final ArrayList< double[] > tangents = this.getJointSegmentTangentsResampled();
-			final ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points, tangents, BigTraceData.sectorN, 0.5*this.getLineThickness()*BigTraceData.dMinVoxelSize);
+			final ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points, tangents, BigTraceData.sectorN, 0.5 * this.getLineThickness() * btdata.dMinVoxelSize);
 			//return to voxel space	for the render		
 			for(int i=0; i<point_contours.size(); i++)
 			{
-				point_contours.set(i, Roi3D.scaleGlobInv(point_contours.get(i), BigTraceData.globCal));
+				point_contours.set(i, Roi3D.scaleGlobInv(point_contours.get(i), btdata.globCal));
 			}
-			final BufferMesh meshx = VisWireMesh.initClosedVolumeMesh(point_contours, Roi3D.scaleGlobInv(points, BigTraceData.globCal) );
+			final BufferMesh meshx = VisWireMesh.initClosedVolumeMesh(point_contours, Roi3D.scaleGlobInv(points, btdata.globCal) );
 			if(meshx == null)
 				return null;
 			volumeMesh = Meshes.removeDuplicateVertices( meshx, 2 );

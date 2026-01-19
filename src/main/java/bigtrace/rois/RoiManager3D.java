@@ -527,22 +527,22 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 switch (nRoiType)
 		 {
 		 case Roi3D.POINT:
-			 newRoi = new Point3D(groups.get(nActiveGroup), nTimePoint);
+			 newRoi = new Point3D(bt.btData, groups.get(nActiveGroup), nTimePoint);
 			 break;
 		 case Roi3D.POLYLINE:
-			 newRoi = new PolyLine3D(groups.get(nActiveGroup),nTimePoint);
+			 newRoi = new PolyLine3D(bt.btData, groups.get(nActiveGroup),nTimePoint);
 			 break;
 		 case Roi3D.LINE_TRACE:
-			 newRoi = new LineTrace3D(groups.get(nActiveGroup),nTimePoint);
+			 newRoi = new LineTrace3D(bt.btData, groups.get(nActiveGroup),nTimePoint);
 			 break;
 		 case Roi3D.PLANE:
-			 newRoi = new CrossSection3D(groups.get(nActiveGroup),bt.btData.nDimIni,nTimePoint);
+			 newRoi = new CrossSection3D(bt.btData, groups.get(nActiveGroup),bt.btData.nDimIni,nTimePoint);
 			 break;
 		 case Roi3D.BOX:
-			 newRoi = new Box3D(groups.get(nActiveGroup),nTimePoint);
+			 newRoi = new Box3D(bt.btData, groups.get(nActiveGroup),nTimePoint);
 			 break;
 		 default:
-			 newRoi = new Point3D(groups.get(nActiveGroup),nTimePoint);
+			 newRoi = new Point3D(bt.btData, groups.get(nActiveGroup),nTimePoint);
 		 }
 		 newRoi.setGroupInd(nActiveGroup);
 		 return newRoi;
@@ -651,7 +651,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size)
 	 {
 	       Roi3D roi;
-	       Color savePointColor= null;
+	       Color savePointColor = null;
 	       Color saveLineColor = null;
 	       int i;
 	       int nShift;
@@ -659,13 +659,13 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	       float fOpacitySave = 1.0f;
 	       int nMinF = Math.min(0,BigTraceData.timeFade);
 	       int nMaxF = Math.max(0,BigTraceData.timeFade);
-	       if(BigTraceData.timeRender==0)
+	       if(BigTraceData.timeRender == 0)
 	       {
 		       nMinF = 0;
 		       nMaxF = 0;
 	       }
 	       
-	       for (i=0;i<rois.size();i++) 
+	       for (i = 0; i < rois.size(); i++) 
 	       {
 	    	   roi = rois.get(i);
 	    	   nShift = roi.getTimePoint() - bt.btData.nCurrTimepoint;
@@ -673,7 +673,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	    	   {
 
 		    	   //save colors in case ROI is active
-		    	   if(i==activeRoi.intValue())
+		    	   if(i == activeRoi.intValue())
 		    	   {
 		    		   savePointColor = roi.getPointColor();
 		    		   saveLineColor = roi.getLineColor();
@@ -681,9 +681,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    		   roi.setLineColorRGB(activeLineColor);
 		    	   }
 		    	   nShift = Math.abs(nShift);
-	    		   if(nShift>0)
+	    		   if(nShift > 0)
 	    		   {
-	    			   fOpacityScale=1.0f-(float)nShift/(float)(Math.abs(BigTraceData.timeFade)+1);
+	    			   fOpacityScale = 1.0f - (float)nShift/(float)(Math.abs(BigTraceData.timeFade) + 1);
 	    			   fOpacitySave = roi.getOpacity();
 	    			   roi.setOpacity(roi.getOpacity()*fOpacityScale);
 	    		   }
@@ -696,7 +696,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    		   else
 		    		   {
 		    			   //still draw active ROI
-			    		   if(i==activeRoi.intValue())
+			    		   if(i == activeRoi.intValue())
 			    		   {
 			    			   roi.draw(gl, pvm, vm, screen_size);
 			    		   }	    			   
@@ -704,20 +704,20 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    	   }
 		    	   else
 		    	   {
-		    		   if(i==activeRoi.intValue())
+		    		   if(i == activeRoi.intValue())
 		    		   {
 		    			   roi.draw(gl, pvm, vm, screen_size);
 		    		   }
 		    	   }
 		    	  
 		    	   //restore colors in case ROI is active
-		    	   if(i==activeRoi.intValue())
+		    	   if(i == activeRoi.intValue())
 		    	   {
 		    		   roi.setPointColor(savePointColor);
 		    		   roi.setLineColor(saveLineColor);
 		    	   }
 		    	   //restore opacity
-	    		   if(nShift>0)
+	    		   if(nShift > 0)
 	    		   {
 	    			   roi.setOpacity(fOpacitySave);
 	    		   }

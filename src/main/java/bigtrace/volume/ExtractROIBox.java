@@ -7,7 +7,6 @@ import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.rois.Roi3D;
 
 import ij.IJ;
@@ -94,9 +93,9 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 		//output calibration
 		cal.setUnit(bt.btData.sVoxelUnit);
 		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth = BigTraceData.globCal[0];
-		cal.pixelHeight= BigTraceData.globCal[1];
-		cal.pixelDepth = BigTraceData.globCal[2];
+		cal.pixelWidth = bt.btData.globCal[0];
+		cal.pixelHeight= bt.btData.globCal[1];
+		cal.pixelDepth = bt.btData.globCal[2];
 		final int nTotROIs = listROIs.size();  
 		if(nTotROIs == 0)
 			return null;

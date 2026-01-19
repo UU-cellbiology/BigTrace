@@ -15,7 +15,6 @@ import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
 
@@ -79,7 +78,7 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 						sRoiName = currRoi.getName();
 						sRoiType = Roi3D.intTypeToString( currRoi.getType());
 						sRoiGroup = bt.roiManager.groups.get(currRoi.getGroupInd()).getName();
-						sRadius = df3.format( currRoi.getLineThickness()*0.5*BigTraceData.dMinVoxelSize);
+						sRadius = df3.format( currRoi.getLineThickness() * 0.5 * bt.btData.dMinVoxelSize);
 						ArrayList< RealPoint > points = currRoi.getJointSegmentResampled();
 						for(int nP=0; nP<points.size(); nP++)
 						{

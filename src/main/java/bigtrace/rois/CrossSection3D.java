@@ -15,6 +15,7 @@ import com.jogamp.opengl.GL3;
 
 import Jama.Matrix;
 import Jama.SingularValueDecomposition;
+import bigtrace.BigTraceData;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.geometry.Plane3D;
@@ -50,8 +51,9 @@ public class CrossSection3D extends AbstractRoi3D
 	public Plane3D fittedPlane = null;
 
 
-	public CrossSection3D(final Roi3DGroup preset_in, final long [][] nDimIni_, final int nTimePoint_)
+	public CrossSection3D(final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final long [][] nDimIni_, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.PLANE;
 		
 		pointSize = preset_in.pointSize;
@@ -139,8 +141,8 @@ public class CrossSection3D extends AbstractRoi3D
 
 	@Override
 	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size) {
-		verticesVis.draw(gl, pvm, screen_size);
-		planeVis.draw(gl, pvm);
+		verticesVis.draw(gl, pvm, screen_size, btdata);
+		planeVis.draw(gl, pvm, btdata);
 		
 	}
 	

@@ -28,12 +28,14 @@ public class Box3D extends AbstractRoi3D
 {
 
 	public ArrayList<RealPoint> vertices;
+
 	public ArrayList<ArrayList<RealPoint>> edges;
+	
 	public final ArrayList<VisPolyLineAA> edgesVis;
 
-	
-	public Box3D(final Roi3DGroup preset_in, final int nTimePoint_)
+	public Box3D(final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.BOX;
 
 		pointSize = preset_in.pointSize;
@@ -45,8 +47,10 @@ public class Box3D extends AbstractRoi3D
 		edgesVis = new ArrayList<>();
 	}
 	
-	public Box3D(final float lineThickness_)
+	public Box3D(final BigTraceData<?> btdata_, final float lineThickness_)
 	{
+		super(btdata_);
+		
 		type = Roi3D.BOX;
 
 		lineThickness = lineThickness_;		
@@ -55,8 +59,9 @@ public class Box3D extends AbstractRoi3D
 
 	}
 	
-	public Box3D(float [][] nDimBox, final float lineThickness_, final float pointSize_, final Color lineColor_, final Color pointColor_, final int nTimePoint_)
+	public Box3D(final BigTraceData<?> btdata_, float [][] nDimBox, final float lineThickness_, final float pointSize_, final Color lineColor_, final Color pointColor_, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.BOX;
 		pointSize = pointSize_;
 		lineThickness = lineThickness_;
@@ -70,8 +75,9 @@ public class Box3D extends AbstractRoi3D
 		setIntervalFloatArray(nDimBox);
 	}
 
-	public Box3D(final AbstractInterval nIntervalBox, final float lineThickness_, final float pointSize_, final Color lineColor_, final Color pointColor_, final int nTimePoint_)
+	public Box3D(final BigTraceData<?> btdata_, final AbstractInterval nIntervalBox, final float lineThickness_, final float pointSize_, final Color lineColor_, final Color pointColor_, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.BOX;
 		pointSize = pointSize_;
 		lineThickness = lineThickness_;
@@ -135,12 +141,14 @@ public class Box3D extends AbstractRoi3D
 			}
 		}
 	}
+	
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) {
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size ) 
+	{
 	
 		for (int i = 0; i < edgesVis.size(); i++)
 		{
-			edgesVis.get(i).draw(gl, pvm);
+			edgesVis.get(i).draw(gl, pvm, btdata);
 		}
 	}
 	
@@ -346,34 +354,34 @@ public class Box3D extends AbstractRoi3D
 	@Override
 	public Interval getBoundingBox() 
 	{
-		if(vertices.size()==0)
+		if(vertices.size() == 0)
 			return null;
 	
 		long [][] bBox = new long [2][3];
-		for (int d = 0; d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			bBox[0][d] = Long.MAX_VALUE; 
-			bBox[1][d]= (-1)* Long.MAX_VALUE; 
+			bBox[1][d] = (-1)* Long.MAX_VALUE; 
 		}
 		double [] currPoint = new double [3];
-		for (int i = 0; i<vertices.size();i++)
+		for (int i = 0; i < vertices.size(); i++)
 		{
 			vertices.get(i).localize(currPoint);
-			currPoint = Roi3D.scaleGlobInv(currPoint, BigTraceData.globCal);
-			for (int d=0;d<3;d++)
+			currPoint = Roi3D.scaleGlobInv(currPoint, btdata.globCal);
+			for (int d = 0; d < 3; d++)
 			{
-				if(currPoint[d]<bBox[0][d])
+				if(currPoint[d] < bBox[0][d])
 				{
 					bBox[0][d] = Math.round(currPoint[d]);
 				}
-				if(currPoint[d]>bBox[1][d])
+				if(currPoint[d] > bBox[1][d])
 				{
 					bBox[1][d] = Math.round(currPoint[d]);
 				}
 
 			}
 		}
-		return new FinalInterval(bBox[0],bBox[1]);
+		return new FinalInterval(bBox[0], bBox[1]);
 	}
 	
 	@Override

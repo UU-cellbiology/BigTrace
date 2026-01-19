@@ -79,9 +79,13 @@ public class VisWireMesh {
 	/** anti-aliased wire mesh **/
 	final ArrayList<VisPolyLineAA> wireLine = new ArrayList<>();
 	
+	final BigTraceData<?> btdata;
+	
 
-	public VisWireMesh()
+	public VisWireMesh(final BigTraceData<?> btdata_)
 	{
+		
+		btdata = btdata_;
 		final Segment lineVp = new SegmentTemplate( VisWireMesh.class, "/scene/simple_color_clip.vp" ).instantiate();
 		final Segment lineFp = new SegmentTemplate( VisWireMesh.class, "/scene/simple_color_clip.fp" ).instantiate();		
 		progLine = new DefaultShader( lineVp.getCode(), lineFp.getCode() );
@@ -91,9 +95,9 @@ public class VisWireMesh {
 		progMesh = new DefaultShader( meshVp.getCode(), meshFp.getCode() );
 	}
 	
-	public VisWireMesh(final ArrayList< RealPoint > points, final ArrayList< double [] > tangents, final float fLineThickness_, final Color color_in, final int nRenderType)
+	public VisWireMesh(final BigTraceData<?> btdata_, final ArrayList< RealPoint > points, final ArrayList< double [] > tangents, final float fLineThickness_, final Color color_in, final int nRenderType)
 	{
-		this();
+		this(btdata_);
 		
 		fLineThickness= fLineThickness_;	
 		l_color = new Vector4f(color_in.getComponents(null));		
@@ -126,7 +130,7 @@ public class VisWireMesh {
 		return renderType;		
 	}
 	
-	public synchronized void setVertices( final ArrayList< RealPoint > points_, final ArrayList<double[]> tangents_)
+	public synchronized void setVertices(final ArrayList< RealPoint > points_, final ArrayList<double[]> tangents_)
 	{
 	
 		while (bLocked)
@@ -143,18 +147,18 @@ public class VisWireMesh {
 		bLocked  = true;
 		if(renderType == Roi3D.OUTLINE)
 		{
-			setVerticesCenterLine(Roi3D.scaleGlobInv(points_, BigTraceData.globCal));
+			setVerticesCenterLine(Roi3D.scaleGlobInv(points_, btdata.globCal));
 			//wireLine.clear();
 		}
 		else
 		{
 			
 			//build a pipe in scaled space
-			ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points_, tangents_, BigTraceData.sectorN, 0.5*fLineThickness*BigTraceData.dMinVoxelSize);
+			ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points_, tangents_, BigTraceData.sectorN, 0.5 * fLineThickness * btdata.dMinVoxelSize);
 			//return to voxel space	for the render		
-			for(int i=0; i<point_contours.size(); i++)
+			for(int i = 0; i < point_contours.size(); i++)
 			{
-				point_contours.set(i, Roi3D.scaleGlobInv(point_contours.get(i), BigTraceData.globCal));
+				point_contours.set(i, Roi3D.scaleGlobInv(point_contours.get(i), btdata.globCal));
 			}
 				
 			if(renderType == Roi3D.WIRE)
@@ -621,7 +625,7 @@ public class VisWireMesh {
 		return true; 
 	}
 
-	public void draw( final GL3 gl, final Matrix4fc pvm, Matrix4fc vm )
+	public void draw( final GL3 gl, final Matrix4fc pvm, Matrix4fc vm, final BigTraceData<?> btdatain )
 	{
 		
 		while (bLocked)
@@ -663,8 +667,8 @@ public class VisWireMesh {
 				progMesh.getUniform4f("colorin").set(l_color);
 				progMesh.getUniform1i("surfaceRender").set(BigTraceData.surfaceRender);
 				progMesh.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-				progMesh.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-				progMesh.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+				progMesh.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
+				progMesh.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
 				progMesh.getUniform1i("silType").set(BigTraceData.silhouetteRender);
 				progMesh.getUniform1f("silDecay").set((float)BigTraceData.silhouetteDecay);
 				progMesh.setUniforms( context );
@@ -689,14 +693,14 @@ public class VisWireMesh {
 				    
 					if(renderType == Roi3D.OUTLINE)
 					{
-						centerLine.draw( gl, pvm );
+						centerLine.draw( gl, pvm, btdatain );
 					}
 					
 					if(renderType == Roi3D.WIRE)
 					{					
 						for (int nS = 0; nS < wireLine.size(); nS++)
 						{
-							wireLine.get( nS ).draw( gl, pvm );
+							wireLine.get( nS ).draw( gl, pvm, btdatain );
 						}
 					}
 				}
@@ -706,8 +710,8 @@ public class VisWireMesh {
 					progLine.getUniformMatrix4f( "pvm" ).set( pvm );
 					progLine.getUniform4f("colorin").set(l_color);
 					progLine.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-					progLine.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-					progLine.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
+					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
 					progLine.setUniforms( context );
 					progLine.use( context );		
 					gl.glBindVertexArray( vaosWire[ 0 ] );	

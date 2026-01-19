@@ -21,7 +21,6 @@ import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.BigTraceData;
 import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.measure.MeasureValues;
@@ -101,7 +100,7 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		//get direction between ends of the current ROI
 		oldVect = new MeasureValues();
 		newVect = new MeasureValues();
-		((AbstractCurve3D)currentRoi).getEndsDirection(oldVect, BigTraceData.globCal);
+		((AbstractCurve3D)currentRoi).getEndsDirection(oldVect, bt.btData.globCal);
 		
 		//int nTP = nInitialTimePoint+1; 
 		
@@ -140,7 +139,7 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		
 		//tracing forward in time		
 		currentRoi = initialRoi;
-		((AbstractCurve3D)currentRoi).getEndsDirection(oldVect, BigTraceData.globCal);
+		((AbstractCurve3D)currentRoi).getEndsDirection(oldVect, bt.btData.globCal);
 		bTracing = true;
 		oneClickTask.bInsertROI = false;
 		for(int nTP = nInitialTimePoint+1; nTP<=nLastTP && bTracing; nTP++)
@@ -220,7 +219,7 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		else
 		{
 			bt.roiManager.applyGroupToROI( currentRoi, newGroupTrack  );
-			((AbstractCurve3D)currentRoi).getEndsDirection(newVect, BigTraceData.globCal);
+			((AbstractCurve3D)currentRoi).getEndsDirection(newVect, bt.btData.globCal);
 			//if not looking at the same direction
 			if(LinAlgHelpers.dot( oldVect.direction.positionAsDoubleArray(),  newVect.direction.positionAsDoubleArray())<0)
 			{

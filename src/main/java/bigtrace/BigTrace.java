@@ -181,6 +181,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			btData.sFileNameFullImg = arg;
 		}
+		
 		if(btMacro.bMacroMode)
 			IJ.log("Opening file " + btData.sFileNameFullImg + ".");
 		if(btData.sFileNameFullImg == null)
@@ -189,7 +190,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//load data sources
 		
 		// TIF files are fully loaded (to RAM) for now
-		if(btData.sFileNameFullImg.endsWith(".tif"))
+		if(btData.sFileNameFullImg.endsWith(".tif") && !btData.bUseLazyLoadForTiff)
 		{
 			btData.bSpimSource = false;
 			if(!btLoad.initDataSourcesImageJ())
@@ -739,9 +740,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			//render the origin of coordinates
 			if (btData.bShowOrigin)
 			{
-				for (int i=0;i<3;i++)
+				for (int i = 0; i < 3; i++)
 				{
-					originVis.get(i).draw(gl, pvm);
+					originVis.get(i).draw(gl, pvm, btData);
 				}
 
 
@@ -898,9 +899,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			
 			AffineTransform3D transformScale = new AffineTransform3D();
 
-			for(int j=0;j<3;j++)
+			for(int j = 0; j < 3; j++)
 			{	
-				transformScale.set(1.0/BigTraceData.globCal[j], j, j);
+				transformScale.set(1.0 / btData.globCal[j], j, j);
 			}
 
 			AffineTransform3D transformFinal = transformScale.concatenate(transformTranslation);
@@ -922,9 +923,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				for(int d=0;d<3;d++)
 				{
 					//store original values
-					BigTraceData.inputCal[d] = BigTraceData.globCal[d];
+					btData.inputCal[d] = btData.globCal[d];
 					//since we are resampling
-					BigTraceData.globCal[d] = BigTraceData.dMinVoxelSize;
+					btData.globCal[d] = btData.dMinVoxelSize;
 				}
 
 			}
@@ -941,12 +942,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		AffineTransform3D t = new AffineTransform3D();
 		t.identity();
-		t.scale(BigTraceData.globCal[0],BigTraceData.globCal[1],BigTraceData.globCal[2]);
-		t.rotate(0, Math.PI/2.0);
-		t.rotate(1, (-1)*Math.PI/6.0);
-		t.rotate(0, Math.PI/9.0);
+		t.scale(btData.globCal[0], btData.globCal[1], btData.globCal[2]);
+		t.rotate(0, Math.PI * 0.5);
+		t.rotate(1, (-1) * Math.PI / 6.0);
+		t.rotate(0, Math.PI / 9.0);
 		viewer.state().setViewerTransform(t);
-		t = getCenteredViewTransform(new FinalInterval(BigTraceData.nDimCurr[0],BigTraceData.nDimCurr[1]), 0.9);
+		t = getCenteredViewTransform(new FinalInterval(btData.nDimCurr[0], btData.nDimCurr[1]), 0.9);
 		viewer.state().setViewerTransform(t);
 	}
 	
@@ -957,7 +958,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final long [][] nBox;
 		if(!bTraceMode)
 		{
-			nBox = BigTraceData.nDimCurr;
+			nBox = btData.nDimCurr;
 		}
 		else
 		{
@@ -966,11 +967,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			nBox[1] = btData.trace_weights.maxAsLongArray();
 		}
 		
-		final double nW = (nBox[1][0]-nBox[0][0])*BigTraceData.globCal[0];
-		final double nH = (nBox[1][1]-nBox[0][1])*BigTraceData.globCal[1];
-		final double nWoff = 2.0*nBox[0][0]*BigTraceData.globCal[0];
-		final double nHoff = 2.0*nBox[0][1]*BigTraceData.globCal[1];
-		final double nDoff = 2.0*nBox[0][2]*BigTraceData.globCal[2];
+		final double nW = (nBox[1][0] - nBox[0][0]) * btData.globCal[0];
+		final double nH = (nBox[1][1] - nBox[0][1]) * btData.globCal[1];
+		final double nWoff = 2.0 * nBox[0][0] * btData.globCal[0];
+		final double nHoff = 2.0 * nBox[0][1] * btData.globCal[1];
+		final double nDoff = 2.0 * nBox[0][2] * btData.globCal[2];
 		
 		final double sW = viewer.getWidth();
 		final double sH = viewer.getHeight();
@@ -987,7 +988,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		AffineTransform3D t = new AffineTransform3D();
 		t.identity();
 
-		t.scale(BigTraceData.globCal[0]*scale, BigTraceData.globCal[1]*scale, BigTraceData.globCal[2]*scale);
+		t.scale(btData.globCal[0]*scale, btData.globCal[1]*scale, btData.globCal[2]*scale);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*(nDoff));
 		
 		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t,0,0,(long)(btData.nAnimationDuration*0.5));
@@ -1002,7 +1003,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final long [][] nBox;
 		if(!bTraceMode)
 		{
-			nBox = BigTraceData.nDimCurr;
+			nBox = btData.nDimCurr;
 		}
 		else
 		{
@@ -1010,11 +1011,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			nBox[0] = btData.trace_weights.minAsLongArray();
 			nBox[1] = btData.trace_weights.maxAsLongArray();
 		}
-		final double nH = (nBox[1][1]-nBox[0][1])*BigTraceData.globCal[1];
-		final double nD = (nBox[1][2]-nBox[0][2])*BigTraceData.globCal[2];
-		final double nWoff = 2.0*nBox[0][0]*BigTraceData.globCal[0];
-		final double nHoff = 2.0*nBox[0][1]*BigTraceData.globCal[1];
-		final double nDoff = 2.0*nBox[0][2]*BigTraceData.globCal[2];
+		final double nH = (nBox[1][1]-nBox[0][1]) * btData.globCal[1];
+		final double nD = (nBox[1][2]-nBox[0][2]) * btData.globCal[2];
+		final double nWoff = 2.0*nBox[0][0] * btData.globCal[0];
+		final double nHoff = 2.0*nBox[0][1] * btData.globCal[1];
+		final double nDoff = 2.0*nBox[0][2] * btData.globCal[2];
 		final double sW = viewer.getWidth();
 		final double sH = viewer.getHeight();
 		
@@ -1030,7 +1031,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		AffineTransform3D t = new AffineTransform3D();
 	
 		t.identity();
-		t.scale(BigTraceData.globCal[0]*scale, BigTraceData.globCal[1]*scale, BigTraceData.globCal[2]*scale);
+		t.scale(btData.globCal[0] * scale, btData.globCal[1] * scale, btData.globCal[2] * scale);
 		t.rotate(1, (-1)*Math.PI/2.0);
 		t.translate(0.5*(sW+scale*(nD+nDoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*nWoff);
 		
@@ -1047,7 +1048,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final long [][] nBox;
 		if(!bTraceMode)
 		{
-			nBox = BigTraceData.nDimCurr;
+			nBox = btData.nDimCurr;
 		}
 		else
 		{
@@ -1055,11 +1056,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			nBox[0] = btData.trace_weights.minAsLongArray();
 			nBox[1] = btData.trace_weights.maxAsLongArray();
 		}
-		final double nW = (nBox[1][0]-nBox[0][0])*BigTraceData.globCal[0];
-		final double nD = (nBox[1][2]-nBox[0][2])*BigTraceData.globCal[2];
-		final double nWoff = 2.0*nBox[0][0]*BigTraceData.globCal[0];
-		final double nHoff = 2.0*nBox[0][1]*BigTraceData.globCal[1];
-		final double nDoff = 2.0*nBox[0][2]*BigTraceData.globCal[2];
+		final double nW = (nBox[1][0]-nBox[0][0]) * btData.globCal[0];
+		final double nD = (nBox[1][2]-nBox[0][2]) * btData.globCal[2];
+		final double nWoff = 2.0 * nBox[0][0] * btData.globCal[0];
+		final double nHoff = 2.0 * nBox[0][1] * btData.globCal[1];
+		final double nDoff = 2.0 * nBox[0][2] * btData.globCal[2];
 		final double sW = viewer.getWidth();
 		final double sH = viewer.getHeight();
 		
@@ -1077,8 +1078,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	
 		t.identity();
 		
-		t.scale(BigTraceData.globCal[0]*scale, BigTraceData.globCal[1]*scale, BigTraceData.globCal[2]*scale);
-		t.rotate(0, Math.PI/2.0);
+		t.scale(btData.globCal[0] * scale, btData.globCal[1] * scale, btData.globCal[2] * scale);
+		t.rotate(0, Math.PI * 0.5);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH+scale*(nD+nDoff)),(-0.5)*scale*nHoff);
 			
 		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t,0,0,(long)(btData.nAnimationDuration*0.5));
@@ -1318,9 +1319,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final Cuboid3D dataCube = new Cuboid3D(viewclick);
 		ArrayList<RealPoint> intersectionPoints; 
 		
-		double [] closeP = new double [3];
-		double [] farP = new double [3];
-		double [] vect = new double [3];
+		double [] closeP = new double [ 3 ];
+		double [] farP   = new double [ 3 ];
+		double [] vect   = new double [ 3 ];
 		double totLength;
 		final int nHalfWindowSize = btData.nHalfClickSizeWindow;
 
@@ -1332,15 +1333,15 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		Point finalP = new Point(3);
 		
 		Point foundMaxPosition = new Point(3);
-		double foundMaxValue = (-1)*Double.MAX_VALUE;
+		double foundMaxValue = (-1) * Double.MAX_VALUE;
 		
 		//init stuff
 
 		dataCube.iniFaces();
 		java.awt.Point point_mouse = new java.awt.Point();
 		
-		for (int dx = -nHalfWindowSize;dx<(nHalfWindowSize+1); dx++)
-			for (int dy = -nHalfWindowSize;dy<(nHalfWindowSize+1); dy++)
+		for (int dx = -nHalfWindowSize; dx < (nHalfWindowSize + 1); dx++)
+			for (int dy = -nHalfWindowSize; dy < (nHalfWindowSize + 1); dy++)
 			{
 				point_mouse.x = point_mouse_in.x + dx;
 				point_mouse.y = point_mouse_in.y + dy;
@@ -1348,13 +1349,13 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 				intersectionPoints = Intersections3D.cuboidLinesIntersect(dataCube, viewLine);
 				
-				if(intersectionPoints.size()!=2)
+				if(intersectionPoints.size() != 2)
 				{
 					return false;
 				}
 				//we have 2 intersection points
 					
-				for(int d=0;d<3; d++)
+				for(int d = 0; d < 3; d++)
 				{
 					closeP[d] = intersectionPoints.get(0).getDoublePosition(d);
 					farP[d] = intersectionPoints.get(1).getDoublePosition(d);
@@ -1423,7 +1424,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		transform.set( transform.get( 1, 3 ) - canvasH / 2, 1, 3 );
 		transform.scale( 1.0/ canvasW );
 		
-		return new Scene(transform, BigTraceData.nDimCurr, btData.nCurrTimepoint);
+		return new Scene(transform, btData.nDimCurr, btData.nCurrTimepoint);
 	} 
 	
 	public void setScene(final Scene scene)
@@ -1471,8 +1472,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/FR21_SC_nuc10-1.tif");
+		
+		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
 
-		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10-2xZ_crop.tif");
+//		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10-2xZ_crop.tif");
 		
 		///macros test
 //		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT_8bit.tif");

@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.function.Predicate;
 
 import org.joml.Matrix4fc;
 
@@ -18,25 +16,21 @@ import bigtrace.geometry.CurveShapeInterpolation;
 import bigtrace.geometry.Line3D;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisWireMesh;
-import net.imglib2.RealLocalizable;
+
 import net.imglib2.RealPoint;
-import net.imglib2.roi.Masks;
-import net.imglib2.roi.RealMask;
-import net.imglib2.roi.RealMaskRealInterval;
-import net.imglib2.roi.geom.real.WritablePolyline;
-import net.imglib2.roi.util.RealLocalizableRealPositionable;
 import net.imglib2.util.LinAlgHelpers;
 
 
-public class PolyLine3D extends AbstractCurve3D implements WritablePolyline 
+public class PolyLine3D extends AbstractCurve3D 
 {	
 
 	public VisPointsScaled verticesVis;
 	public VisWireMesh edgesVis;
 	
 
-	public PolyLine3D(final Roi3DGroup preset_in, final int nTimePoint_)
+	public PolyLine3D(final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.POLYLINE;
 		
 		pointSize = preset_in.pointSize;
@@ -52,15 +46,15 @@ public class PolyLine3D extends AbstractCurve3D implements WritablePolyline
 		verticesVis.setColor(pointColor);
 		verticesVis.setSize(pointSize);
 		verticesVis.setRenderType(renderType);
-		//edgesVis = new VisPolyLineScaled();
-		edgesVis = new VisWireMesh();
-	
+
+		edgesVis = new VisWireMesh(btdata);	
 		edgesVis.setColor(lineColor);
 		edgesVis.setThickness(lineThickness);
 		edgesVis.setRenderType(renderType);
+		
 		nTimePoint = nTimePoint_;
-		interpolator = new CurveShapeInterpolation(type);
-		name = "polyl"+Integer.toString(this.hashCode());
+		interpolator = new CurveShapeInterpolation(type, btdata);
+		name = "polyl" + Integer.toString(this.hashCode());
 
 	}
 	
@@ -138,8 +132,8 @@ public class PolyLine3D extends AbstractCurve3D implements WritablePolyline
 	@Override
 	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
 	{
-		verticesVis.draw(gl, pvm, screen_size);
-		edgesVis.draw(gl, pvm, vm);
+		verticesVis.draw(gl, pvm, screen_size, btdata);
+		edgesVis.draw(gl, pvm, vm, btdata);
 		
 	}
 
@@ -187,94 +181,6 @@ public class PolyLine3D extends AbstractCurve3D implements WritablePolyline
 	}	
 	
 	
-	/** Methods from imglib2 Polyline, 
-	 * I do not really understand them yet, 
-	 * but added for the future and implemented them
-	 * to the best of my knowledge (and so they do not produce errors)
-	 */
-	@Override
-	public int numVertices() {
-		return vertices.size();
-	}
-
-	@Override
-	public RealMaskRealInterval and(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.and(this, paramPredicate);
-	}
-
-	@Override
-	public RealMaskRealInterval minus(Predicate<? super RealLocalizable> paramPredicate) {
-		
-		// TODO Auto-generated method stub
-		return Masks.minus(this, paramPredicate);
-	}
-
-	@Override
-	public RealMask negate() {
-		// TODO Auto-generated method stub
-		return Masks.negate(this);
-	}
-
-	@Override
-	public RealMask or(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.or(this, paramPredicate);
-	}
-
-	@Override
-	public RealMask xor(Predicate<? super RealLocalizable> paramPredicate) {
-		// TODO Auto-generated method stub
-		return Masks.xor(this, paramPredicate);
-	}
-
-	@Override
-	public boolean test(RealLocalizable arg0) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public int numDimensions() {
-		// TODO Auto-generated method stub
-		return 3;
-	}
-
-	@Override
-	public double realMin(int d) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public double realMax(int d) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public RealLocalizableRealPositionable vertex(int paramInt) {
-		// TODO Auto-generated method stub
-		return (RealLocalizableRealPositionable) vertices.get(paramInt);
-	}
-
-	@Override
-	public void addVertex(int paramInt, RealLocalizable paramRealLocalizable) {
-		// TODO Auto-generated method stub
-		vertices.add((RealPoint) paramRealLocalizable);
-	}
-
-	@Override
-	public void removeVertex(int paramInt) {
-		// TODO Auto-generated method stub
-		vertices.remove(paramInt);
-	}
-
-	@Override
-	public void addVertices(int paramInt, Collection<RealLocalizable> paramCollection) {
-		// TODO Auto-generated method stub
-		
-	}
 	@Override
 	public void saveRoi(final FileWriter writer)
 	{
@@ -335,21 +241,21 @@ public class PolyLine3D extends AbstractCurve3D implements WritablePolyline
 		
 		ArrayList<RealPoint> allvertices;
 		//in VOXEL coordinates
-		if(this.vertices.size()==1)
+		if(this.vertices.size() == 1)
 		{
 			allvertices = this.vertices;
 		}
 		else
 		{
-			allvertices = Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), BigTraceData.globCal);
+			allvertices = Roi3D.scaleGlobInv(interpolator.getVerticesVisual(), btdata.globCal);
 		}
 		double dMinDist = Double.MAX_VALUE;
 		double currDist = 0.0;
-		for(int i=0;i<allvertices.size();i++)
+		for(int i = 0; i < allvertices.size(); i++)
 		{
-			currDist= Line3D.distancePointLine(allvertices.get(i), line);
+			currDist = Line3D.distancePointLine( allvertices.get(i), line);
 			
-			if(currDist <dMinDist)
+			if(currDist < dMinDist)
 			{
 				dMinDist = currDist;
 			}

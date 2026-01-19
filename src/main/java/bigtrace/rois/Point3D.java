@@ -41,8 +41,9 @@ public class Point3D extends AbstractRoi3D {
 	public VisPointsScaled vertexVis;
 
 
-	public Point3D( final Roi3DGroup preset_in, final int nTimePoint_)
+	public Point3D( final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.POINT;
 		pointSize = preset_in.pointSize;		
 		pointColor = new Color(preset_in.pointColor.getRed(),preset_in.pointColor.getGreen(),preset_in.pointColor.getBlue(),preset_in.pointColor.getAlpha());		
@@ -56,8 +57,9 @@ public class Point3D extends AbstractRoi3D {
 		vertexVis = null;
 		nTimePoint = nTimePoint_;
 	}
-	public Point3D(final float pointSize_, final Color pointColor_, final int nRenderType_, final int nTimePoint_)
+	public Point3D(final BigTraceData<?> btdata_, final float pointSize_, final Color pointColor_, final int nRenderType_, final int nTimePoint_)
 	{
+		super(btdata_);
 		type = Roi3D.POINT;
 		pointSize = pointSize_;		
 		renderType = nRenderType_;
@@ -79,7 +81,7 @@ public class Point3D extends AbstractRoi3D {
 	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
 	{
 		if(vertexVis!=null)
-			vertexVis.draw( gl, pvm, screen_size);
+			vertexVis.draw( gl, pvm, screen_size, btdata);
 	}
 
 
@@ -170,16 +172,16 @@ public class Point3D extends AbstractRoi3D {
 		double [] current_pixel = new double [3];
 		double [] center = new double [3];
 		vertex.localize(center);
-		center = Roi3D.scaleGlob(center, BigTraceData.globCal);
+		center = Roi3D.scaleGlob(center, btdata.globCal);
 		measureSphere.cursorSphere.reset();
 		double dVal;
 		while (measureSphere.cursorSphere.hasNext())
 		{
 			measureSphere.cursorSphere.fwd();
 			measureSphere.cursorSphere.localize(current_pixel);
-			LinAlgHelpers.scale(current_pixel, BigTraceData.dMinVoxelSize, current_pixel);
+			LinAlgHelpers.scale(current_pixel, btdata.dMinVoxelSize, current_pixel);
 			LinAlgHelpers.add(center, current_pixel, current_pixel);
-			current_pixel= Roi3D.scaleGlobInv(current_pixel, BigTraceData.globCal);
+			current_pixel= Roi3D.scaleGlobInv(current_pixel, btdata.globCal);
 			ra.setPosition(current_pixel);
 			dVal = ra.get().getRealDouble();
 			if(!Double.isNaN( dVal ))
@@ -286,13 +288,13 @@ public class Point3D extends AbstractRoi3D {
 		double [] pos = vertex.positionAsDoubleArray();
 		long [][] lPos = new long[2][3];
 		long nRadius;//=  ( int ) Math.ceil( pointSize*0.5 );
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			nRadius = ( long ) Math.ceil( pointSize*0.5 *BigTraceData.dMinVoxelSize/BigTraceData.globCal[d]);
+			nRadius = ( long ) Math.ceil( pointSize * 0.5 *btdata.dMinVoxelSize / btdata.globCal[d]);
 			lPos[0][d] = Math.round(pos[d] - nRadius);
 			lPos[1][d] = Math.round(pos[d] +  nRadius);
 		}
-		return new FinalInterval(lPos[0],lPos[1]);
+		return new FinalInterval(lPos[0], lPos[1]);
 
 	}
 	@Override
@@ -305,17 +307,17 @@ public class Point3D extends AbstractRoi3D {
 	@Override
 	public < T extends RealType< T > & NativeType< T >  > Cursor< T > getSingle3DVolumeCursor( RandomAccessibleInterval< T > input )
 	{
-		if(input.numDimensions()!=3)
+		if(input.numDimensions() != 3)
 		{
 			System.err.println("The input for VolumeCursor should be 3D RAI!");
 		}
 
 		final long [] center = new long[3];
 		final long[] radiuses = new long[3]; 
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
-			radiuses[d] = Math.round( pointSize*0.5 *BigTraceData.dMinVoxelSize/BigTraceData.globCal[d]);
-			center[d]= Math.round(vertex.getDoublePosition( d ));
+			radiuses[ d ] = Math.round( pointSize * 0.5 * btdata.dMinVoxelSize / btdata.globCal[d]);
+			center[ d ]   = Math.round( vertex.getDoublePosition( d ) );
 		}
 
 	

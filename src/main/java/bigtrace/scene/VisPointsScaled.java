@@ -77,7 +77,7 @@ public class VisPointsScaled
 		
 		renderType = nRenderType;
 		
-		vertices = new float [nPointsN*3];//assume 3D
+		vertices = new float [nPointsN * 3];//assume 3D
 		
 		point.localize(vertices);	
 
@@ -88,7 +88,7 @@ public class VisPointsScaled
 	{
 		this();
 		
-		fPointSize= fPointSize_;
+		fPointSize = fPointSize_;
 		
 		l_color = new Vector4f(color_in.getComponents(null));
 		
@@ -102,7 +102,7 @@ public class VisPointsScaled
 		{
 			for (int j = 0; j < 3; j++)
 			{				
-				vertices[i*3 + j]=points.get(i).getFloatPosition(j);
+				vertices[i*3 + j] = points.get(i).getFloatPosition(j);
 			}			
 		}
 
@@ -114,24 +114,24 @@ public class VisPointsScaled
 		
 		nPointsN = points.size();
 		if(nPointsN == 1)
-			vertices = new float [nPointsN*3]; //assume 3D
+			vertices = new float [nPointsN * 3]; //assume 3D
 		else
-			vertices = new float [(nPointsN+1)*3]; //assume 3D
+			vertices = new float [(nPointsN + 1) * 3]; //assume 3D
 
 		
-		for (i=0;i<nPointsN; i++)
+		for (i = 0; i < nPointsN; i++)
 		{
-			for (j=0;j<3; j++)
+			for (j = 0; j < 3; j++)
 			{
-				vertices[i*3+j]=points.get(i).getFloatPosition(j);
+				vertices[ i*3 + j ]=points.get(i).getFloatPosition(j);
 			}			
 		}
-		if(nPointsN>1)
+		if(nPointsN > 1)
 		{
-			i = nPointsN-1;
-			for (j=0;j<3; j++)
+			i = nPointsN - 1;
+			for (j = 0; j < 3; j++)
 			{
-				vertices[(i+1)*3+j]=points.get(i).getFloatPosition(j);
+				vertices[ (i+1)*3 + j ]=points.get(i).getFloatPosition(j);
 			}			
 		}
 		
@@ -192,10 +192,10 @@ public class VisPointsScaled
 
 	}
 
-	public void draw(final GL3 gl, final Matrix4fc pvm, final int [] screen_size )
+	public void draw(final GL3 gl, final Matrix4fc pvm, final int [] screen_size, final BigTraceData<?> btdata )
 	{
 		
-		if (fPointSize<0.0001)
+		if (fPointSize < 0.0001)
 			return;
 		if ( !initialized )
 			init( gl );
@@ -232,9 +232,9 @@ public class VisPointsScaled
 		ellipse_axes.y = ellipse_axes.y*ellipse_axes.y;
 				
 		//voxel size
-		Vector3f globCalForw = new Vector3f((float)BigTraceData.globCal[0], (float)BigTraceData.globCal[1], (float)BigTraceData.globCal[2]);
+		Vector3f globCalForw = new Vector3f((float)btdata.globCal[0], (float)btdata.globCal[1], (float)btdata.globCal[2]);
 
-		progRound.getUniform1f( "pointSizeReal" ).set( (float) (fPointSize*BigTraceData.dMinVoxelSize) );
+		progRound.getUniform1f( "pointSizeReal" ).set( (float) (fPointSize * btdata.dMinVoxelSize) );
 		progRound.getUniform1f( "pointScale" ).set( fPointScale );
 		progRound.getUniformMatrix4f( "pvm" ).set( pvm );
 		progRound.getUniform3f( "voxelScale" ).set( globCalForw );
@@ -243,11 +243,11 @@ public class VisPointsScaled
 		progRound.getUniform2f("ellipseAxes").set(ellipse_axes);
 		progRound.getUniform1i("renderType").set(renderType);
 		progRound.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-		progRound.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-		progRound.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+		progRound.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0], btdata.nDimCurr[0][1], btdata.nDimCurr[0][2]));
+		progRound.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0], btdata.nDimCurr[1][1], btdata.nDimCurr[1][2]));
 		progRound.setUniforms( context );
 		
-		progSquare.getUniform1f( "pointSizeReal" ).set( (float) (1.25*fPointSize*BigTraceData.dMinVoxelSize) );
+		progSquare.getUniform1f( "pointSizeReal" ).set( (float) (1.25 * fPointSize * btdata.dMinVoxelSize) );
 		progSquare.getUniform1f( "pointScale" ).set( fPointScale );
 		progSquare.getUniformMatrix4f( "pvm" ).set( pvm );
 		progSquare.getUniform3f( "voxelScale" ).set( globCalForw );
@@ -256,8 +256,8 @@ public class VisPointsScaled
 		progSquare.getUniform2f("ellipseAxes").set(ellipse_axes);
 		progSquare.getUniform1i("renderType").set(Roi3D.WIRE);
 		progSquare.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-		progSquare.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-		progSquare.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+		progSquare.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
+		progSquare.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
 		progSquare.setUniforms( context );
 
 		progRound.use( context );

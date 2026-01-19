@@ -36,9 +36,9 @@ public class VisPolygonFlat {
 	
 	private float vertices[]; 
 	
-	private int nPointsN=0;
+	private int nPointsN = 0;
 	
-	private int nGridEdges=0;
+	private int nGridEdges = 0;
 
 	public int renderType = Roi3D.WIRE;
 	
@@ -64,7 +64,7 @@ public class VisPolygonFlat {
 	{
 		this();
 		
-		fLineThickness= fLineThickness_;	
+		fLineThickness = fLineThickness_;	
 		l_color = new Vector4f(color_in.getComponents(null));		
 		renderType = nRenderType;
 		setVertices(points);
@@ -73,7 +73,7 @@ public class VisPolygonFlat {
 	
 	public void setThickness(float fLineThickness_)
 	{
-		fLineThickness= fLineThickness_;
+		fLineThickness = fLineThickness_;
 	}
 	
 	public void setColor(Color color_in)
@@ -84,9 +84,8 @@ public class VisPolygonFlat {
 
 
 	public void setParams(final ArrayList< RealPoint > points, final float fLineThickness_, final Color color_in)
-	{
-		
-		fLineThickness= fLineThickness_;		
+	{		
+		fLineThickness = fLineThickness_;		
 		l_color = new Vector4f(color_in.getComponents(null));		
 		setVertices(points);
 	}
@@ -124,14 +123,14 @@ public class VisPolygonFlat {
 		
 		int i,j;
 		
-		nPointsN=points.size();
+		nPointsN = points.size();
 		vertices = new float [nPointsN*3];//assume 3D	
 
-		for (i=0;i<nPointsN; i++)
+		for (i = 0; i < nPointsN; i++)
 		{
-			for (j=0;j<3; j++)
+			for (j = 0; j < 3; j++)
 			{
-				vertices[i*3+j]=points.get(i).getFloatPosition(j);
+				vertices[i*3 + j] = points.get(i).getFloatPosition(j);
 			}			
 		}
 		initialized = false;
@@ -149,11 +148,11 @@ public class VisPolygonFlat {
 		
 		nPointsN = points.size();
 		
-		if (nPointsN<3)
+		if (nPointsN < 3)
 			return;
 		
 		//get a plane of the polygon
-		Plane3D plane = new Plane3D(points.get(1),points.get(0),points.get(2));
+		Plane3D plane = new Plane3D(points.get(1), points.get(0), points.get(2));
 		
 		//get edges of the polygon
 		ArrayList<ArrayList< RealPoint >> edges = getPolygonEdgesPairPoints(points);
@@ -174,15 +173,15 @@ public class VisPolygonFlat {
 		gridPlane.setVectors(lineP1,gridPlaneN);
 		
 		double maxDist = 0.0;
-		double pointDist =0.0;
+		double pointDist = 0.0;
 		// Find most distant vertex of the polygon, this would define the range of the grid
 		//We can skip first two points, since they form the edge/lie in the plane 
-		for(i=2;i<points.size();i++)
+		for(i = 2; i < points.size(); i++)
 		{
-			pointDist=gridPlane.signedDistance(points.get(i));
-			if(Math.abs(pointDist)>Math.abs(maxDist))
+			pointDist = gridPlane.signedDistance(points.get(i));
+			if(Math.abs(pointDist) > Math.abs(maxDist))
 			{
-				maxDist=pointDist;
+				maxDist = pointDist;
 			}
 			
 		}
@@ -193,7 +192,7 @@ public class VisPolygonFlat {
 		//shift grid plane and chop the polygon (find intersection points)
 		//round up grid step
 		double nGridStepEquidist = maxDist/Math.round(maxDist/nGridStep);
-		for(double dShift=nGridStepEquidist;dShift<=Math.abs(maxDist);dShift+=nGridStepEquidist )
+		for(double dShift = nGridStepEquidist;dShift<=Math.abs(maxDist);dShift+=nGridStepEquidist )
 		{
 			
 			LinAlgHelpers.scale(gridPlane.n, dShift, lineP2);
@@ -201,13 +200,13 @@ public class VisPolygonFlat {
 			gridPlane.setVectors(lineP2, gridPlane.n);
 			ArrayList< RealPoint > gridEdge = new ArrayList< >(); 
 			//again, can skip the first edge, since it is already in the plane
-			for(j=1;j<edges.size();j++)
+			for(j = 1; j < edges.size(); j++)
 			{
 				if( Intersections3D.planeEdgeIntersect(gridPlane, edges.get(j).get(0), edges.get(j).get(1), interSect))
 				{
 					gridEdge.add(new RealPoint(interSect));
 				}
-				if(gridEdge.size()==2)
+				if(gridEdge.size() == 2)
 				{
 					gridLines.add(gridEdge);
 					
@@ -220,18 +219,18 @@ public class VisPolygonFlat {
 		gridPlane.setVectors(lineP1,gridDirection.linev[1]);
 		
 		double minDist = Double.MAX_VALUE;
-		maxDist = (-1)*Double.MAX_VALUE;
-		pointDist =0.0;
-		for(i=0;i<points.size();i++)
+		maxDist = (-1) * Double.MAX_VALUE;
+		pointDist = 0.0;
+		for(i = 0; i < points.size(); i++)
 		{
-			pointDist=gridPlane.signedDistance(points.get(i));
-			if(pointDist>maxDist)
+			pointDist = gridPlane.signedDistance(points.get(i));
+			if(pointDist > maxDist)
 			{
-				maxDist=pointDist;
+				maxDist = pointDist;
 			}
-			if(pointDist<minDist)
+			if(pointDist < minDist)
 			{
-				minDist=pointDist;
+				minDist = pointDist;
 			}
 			
 		}
@@ -243,13 +242,13 @@ public class VisPolygonFlat {
 			LinAlgHelpers.add(lineP2, lineP1, lineP2);
 			gridPlane.setVectors(lineP2, gridPlane.n);
 			ArrayList< RealPoint > gridEdge = new ArrayList< >(); 
-			for(j=0;j<edges.size();j++)
+			for(j = 0; j < edges.size(); j++)
 			{
 				if( Intersections3D.planeEdgeIntersect(gridPlane, edges.get(j).get(0), edges.get(j).get(1), interSect))
 				{
 					gridEdge.add(new RealPoint(interSect));
 				}
-				if(gridEdge.size()==2)
+				if(gridEdge.size() == 2)
 				{
 					gridLines.add(gridEdge);
 					
@@ -263,21 +262,21 @@ public class VisPolygonFlat {
 		//vertices = new float [nGridEdges*6];//assume 3D	
 
 		//outline		
-		for (i=0;i<nPointsN; i++)
+		for (i = 0; i < nPointsN; i++)
 		{
-			for (j=0;j<3; j++)
+			for (j = 0; j < 3; j++)
 			{
 				vertices[i*3+j]=points.get(i).getFloatPosition(j);
 			}			
 		}
 		
 		//grid lines		
-		for (i=0;i<nGridEdges; i++)
+		for (i = 0; i < nGridEdges; i++)
 		{
-			for (j=0;j<3; j++)
+			for (j = 0; j < 3; j++)
 			{
-				vertices[nPointsN*3+i*6+j]=gridLines.get(i).get(0).getFloatPosition(j);
-				vertices[nPointsN*3+i*6+3+j]=gridLines.get(i).get(1).getFloatPosition(j);
+				vertices[nPointsN*3 + i*6 + j]     = gridLines.get(i).get(0).getFloatPosition(j);
+				vertices[nPointsN*3 + i*6 + j + 3] = gridLines.get(i).get(1).getFloatPosition(j);
 
 			}	
 		}
@@ -289,6 +288,7 @@ public class VisPolygonFlat {
 	private void init( GL3 gl )
 	{
 		initialized = true;
+		
 		if(nPointsN>1)
 		{
 
@@ -314,21 +314,21 @@ public class VisPolygonFlat {
 		}
 	}
 
-	public void draw( GL3 gl, Matrix4fc pvm )
+	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdata)
 	{
 		int nGridIt;
 		if ( !initialized )
 			init( gl );
 
-		if(nPointsN>1)
+		if(nPointsN > 1)
 		{
 
 			JoglGpuContext context = JoglGpuContext.get( gl );
 	
 			prog.getUniformMatrix4f( "pvm" ).set( pvm );
 			prog.getUniform1i("clipactive").set(BigTraceData.nClipROI);
-			prog.getUniform3f("clipmin").set(new Vector3f(BigTraceData.nDimCurr[0][0],BigTraceData.nDimCurr[0][1],BigTraceData.nDimCurr[0][2]));
-			prog.getUniform3f("clipmax").set(new Vector3f(BigTraceData.nDimCurr[1][0],BigTraceData.nDimCurr[1][1],BigTraceData.nDimCurr[1][2]));
+			prog.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
+			prog.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
 
 			
 			if(BigTraceData.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && renderType == Roi3D.SURFACE)

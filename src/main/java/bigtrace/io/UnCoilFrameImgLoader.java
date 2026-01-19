@@ -13,7 +13,6 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.animation.UnCoilAnimation;
 import mpicbg.spim.data.generic.sequence.BasicImgLoader;
 import mpicbg.spim.data.generic.sequence.BasicSetupImgLoader;
@@ -98,13 +97,13 @@ public class UnCoilFrameImgLoader < T extends RealType< T > & NativeType< T > > 
 					public void dimensions( double[] dimensions )
 					{
 						for ( int d = 0; d < dimensions.length; ++d )
-							dimensions[ d ] = BigTraceData.globCal[ d ];
+							dimensions[ d ] = bt.btData.globCal[ d ];
 					}
 
 					@Override
 					public double dimension( int d )
 					{
-						return BigTraceData.globCal[ d ];
+						return bt.btData.globCal[ d ];
 					}
 
 					@Override

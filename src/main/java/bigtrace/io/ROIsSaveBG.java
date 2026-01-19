@@ -58,9 +58,9 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 				
 				writer.write("BigTrace_ROIs,version," + BigTraceData.sVersion + "\n");
 				writer.write("ImageUnits,"+bt.btData.sVoxelUnit+"\n");
-				writer.write("ImageVoxelWidth," + df3.format(BigTraceData.globCal[0]) + "\n");
-				writer.write("ImageVoxelHeight," + df3.format(BigTraceData.globCal[1]) + "\n");
-				writer.write("ImageVoxelDepth," + df3.format(BigTraceData.globCal[2]) + "\n");
+				writer.write("ImageVoxelWidth," + df3.format(bt.btData.globCal[0]) + "\n");
+				writer.write("ImageVoxelHeight," + df3.format(bt.btData.globCal[1]) + "\n");
+				writer.write("ImageVoxelDepth," + df3.format(bt.btData.globCal[2]) + "\n");
 				writer.write("TimeUnits," + bt.btData.sTimeUnit + "\n");
 				writer.write("FrameInterval," + df3.format(bt.btData.dFrameInterval) + "\n");
 				writer.write("Intensity Interpolation,"+Integer.toString( BigTraceData.intensityInterpolation )+"\n");

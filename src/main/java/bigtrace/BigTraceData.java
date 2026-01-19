@@ -28,10 +28,11 @@ import net.imglib2.view.Views;
 import mpicbg.spim.data.generic.sequence.BasicImgLoader;
 
 /** class that stores settings and main data from BigTrace **/
-public class BigTraceData < T extends RealType< T > & NativeType< T > > {
+public class BigTraceData < T extends RealType< T > & NativeType< T > > 
+{
 
 	/** current plugin version **/
-	public static String sVersion = "0.7.1";
+	public static String sVersion = "0.8.0";
 	
 	/** plugin instance **/
 	BigTrace<T> bt;
@@ -53,16 +54,19 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	/** total number of TimePoints**/
 	public int nNumTimepoints = 0;
 	
+	/** use lazy loading for TIFF files **/
+	public boolean bUseLazyLoadForTiff = Prefs.get( "BigTrace.bUseLazyLoadForTiff", true );
+	
 	///////////////////////DATASET PROCESSING/MEASURE SETTING
 
 	/** voxel size determined from input file  **/
-	public static double [] inputCal = new double [3];
+	public double [] inputCal = new double [3];
 	
 	/** global voxel size (for now one for all)  **/
-	public static double [] globCal = new double [3];
+	public double [] globCal = new double [3];
 	
 	/** minimum voxel size  **/
-	public static double  dMinVoxelSize = 0.0;
+	public double dMinVoxelSize = 0.0;
 	
 	/** units of voxel **/
 	public String sVoxelUnit = "pixel";
@@ -83,7 +87,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public InterpolatorFactory<T, RandomAccessible< T >> nInterpolatorFactory;
 	
 	/** Intensity interpolation types **/
-	public static final int INT_NearestNeighbor=0, INT_NLinear=1, INT_Lanczos=2; 
+	public static final int INT_NearestNeighbor = 0, INT_NLinear = 1, INT_Lanczos = 2; 
 	
 	/** current intensity interpolation type **/	
 	public static int intensityInterpolation = (int)Prefs.get("BigTrace.IntInterpolation",INT_NLinear);
@@ -94,7 +98,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public long [][] nDimIni = new long [2][3];
 	
 	/** current dimensions of the volume/image (after clipping) **/
-	public static long [][] nDimCurr = new long [2][3];
+	public long [][] nDimCurr = new long [2][3];
 
 	/** whether or not display color coded origin of coordinates **/
 	public boolean bShowOrigin = true;
@@ -111,7 +115,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public static int nClipROI = 0;
 	
 	/** camera position for BVV **/
-	public double dCam = Prefs.get("BigTrace.dCam",2000.0);
+	public double dCam = Prefs.get("BigTrace.dCam", 2000.0);
 	
 	/** near clip plane position for BVV **/
 	public double dClipNear = Prefs.get("BigTrace.dClipNear",1000.0);
@@ -127,7 +131,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	/** object to store brightness/alpha range of the tracebox **/
 	public BCsettings bcTraceBox = new BCsettings();	
 	
-	public static final int DATA_RENDER_MAX_INT=0, DATA_RENDER_VOLUMETRIC=1; 
+	public static final int DATA_RENDER_MAX_INT = 0, DATA_RENDER_VOLUMETRIC = 1; 
 	/** dataset rendering method 
 	 * 0 maximum intensity, 
 	 * 1 volumetric **/
@@ -139,10 +143,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public boolean bDeselectROITime = true;
 	
 	/** ROI shape interpolation types **/
-	public static final int SHAPE_Voxel=0, SHAPE_Smooth=1, SHAPE_Spline=2; 
+	public static final int SHAPE_Voxel = 0, SHAPE_Smooth = 1, SHAPE_Spline = 2; 
 	
 	/** current ROI shape interpolation **/
-	public static int shapeInterpolation = (int) Prefs.get("BigTrace.ShapeInterpolation",SHAPE_Spline);
+	public static int shapeInterpolation = (int) Prefs.get("BigTrace.ShapeInterpolation", SHAPE_Spline);
 	
 	/** algorithm to build rotation minimizing frame **/
 	public static int rotationMinFrame = (int) Prefs.get("BigTrace.RotationMinFrame",0);
@@ -166,13 +170,13 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public static int crossSectionGridStep = (int) Prefs.get("BigTrace.crossSectionGridStep", 50);
 	
 	/** available surface render types **/
-	public static final int SURFACE_PLAIN=0, SURFACE_SHADE=1, SURFACE_SHINY=2, SURFACE_SILHOUETTE=3; 
+	public static final int SURFACE_PLAIN = 0, SURFACE_SHADE = 1, SURFACE_SHINY = 2, SURFACE_SILHOUETTE = 3; 
 	
 	/** current surface render type **/
 	public static int surfaceRender = (int) Prefs.get("BigTrace.surfaceRender", SURFACE_SHADE);
 
 	/** available silhouette render types **/
-	public static final int silhouette_TRANSPARENT=0, silhouette_CULLED=1; 
+	public static final int silhouette_TRANSPARENT = 0, silhouette_CULLED = 1; 
 
 	/** current silhouette render type **/
 	public static int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_CULLED);
@@ -183,10 +187,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	//////rendering ROI over time
 	
 	/** time rendering option **/
-	public static int timeRender = (int) Prefs.get("BigTrace.timeRender",0);
+	public static int timeRender = (int) Prefs.get("BigTrace.timeRender", 0);
 	
 	/** time rendering fade in frames **/
-	public static int timeFade = (int) Prefs.get("BigTrace.timeFade",0);
+	public static int timeFade = (int) Prefs.get("BigTrace.timeFade", 0);
 		
 	/////////////////////////////////USER INTERFACE "CLICKING"
 	
@@ -194,7 +198,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	
 	/** half size of rectangle around click point (in screen pixels)
 	 * used to find maximum intensity voxel **/
-	public int nHalfClickSizeWindow = (int)Prefs.get("BigTrace.nHalfClickSizeWindow",5.0);
+	public int nHalfClickSizeWindow = (int)Prefs.get("BigTrace.nHalfClickSizeWindow", 5.0);
 		
 	/** whether to clip volume when zooming **/
 	public boolean bZoomClip = Prefs.get("BigTrace.bZoomClip", false);
@@ -206,7 +210,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 	public double dZoomBoxScreenFraction = 0.6;
 	
 	/** animation speed, i.e. duration of transform **/
-	public long nAnimationDuration =  (int)Prefs.get("BigTrace.nAnimationDuration",400);
+	public long nAnimationDuration =  (int)Prefs.get("BigTrace.nAnimationDuration", 400);
 	
 	/** whether to clip volume when double clicking on ROI **/
 	public static boolean bROIDoubleClickClip = Prefs.get("BigTrace.bROIDoubleClickClip", false);
@@ -218,7 +222,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 ///////////////////////////// TRACING SETTINGS GENERAL
 	
 	/** characteristic size (SD) of lines (for each dimension)**/
-	public double [] sigmaTrace = new double [3];
+	public double [] sigmaTrace = new double [ 3 ];
 	
 	/** whether to limit tracing to clipped area**/
 	public boolean bTraceOnlyClipped = false;
@@ -451,13 +455,13 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 			out = (-1)*Float.MAX_VALUE;
 			for(int d = 0; d < 3; d++)
 			{
-				out = ( float ) Math.max(this.sigmaTrace[d]*globCal[d]/BigTraceData.dMinVoxelSize, out);
+				out = ( float ) Math.max(this.sigmaTrace[d] * globCal[d] / dMinVoxelSize, out);
 			}		
 			break;
 		case 1:
 			for(int d = 0; d < 3; d++)
 			{
-				out +=( float ) (this.sigmaTrace[d]*globCal[d]/BigTraceData.dMinVoxelSize);
+				out +=( float ) (this.sigmaTrace[d] * globCal[d] / dMinVoxelSize);
 			}	
 			out /= 3.0;
 			break;
@@ -465,7 +469,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > > {
 			out = Float.MAX_VALUE;
 			for(int d = 0; d < 3; d++)
 			{
-				out = ( float ) Math.min(this.sigmaTrace[d]*globCal[d]/BigTraceData.dMinVoxelSize, out);
+				out = ( float ) Math.min(this.sigmaTrace[d] * globCal[d] / dMinVoxelSize, out);
 			}		
 			break;
 		}
