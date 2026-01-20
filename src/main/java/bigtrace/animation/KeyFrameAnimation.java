@@ -63,7 +63,7 @@ public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
 		timeIntervals.add((float)nTotalTime);
 		for(int i=0;i<keyFrames.size()+1;i++)
 		{
-			viewAnimate.add( new AnisotropicTransformAnimator3D(fullList.get(i).getScene().getViewerTransform(),fullList.get(i+1).getScene().getViewerTransform(),0,0,5) );
+			viewAnimate.add( new AnisotropicTransformAnimator3D(fullList.get(i).getScene().getViewerTransform(),fullList.get(i+1).getScene().getViewerTransform(),5) );
 		}
 	}
 	

@@ -623,7 +623,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		final AffineTransform3D transform_scale = getCenteredViewTransform(inInterval,zoomFraction);
 		
-		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(transform,transform_scale,0,0,btData.nAnimationDuration);			
+		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(transform,transform_scale, btData.nAnimationDuration);			
 		
 		return anim;
 	}
@@ -709,7 +709,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			final AffineTransform3D transform = new AffineTransform3D();
 			viewer.state().getViewerTransform(transform);
-			final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(transform,btData.transformBeforeTracing,0,0,1500);
+			final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(transform,btData.transformBeforeTracing,1500);
 			viewer.setTransformAnimator(anim);
 			viewer.showMessage("TraceBox mode off");
 
@@ -991,7 +991,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.scale(btData.globCal[0]*scale, btData.globCal[1]*scale, btData.globCal[2]*scale);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*(nDoff));
 		
-		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t,0,0,(long)(btData.nAnimationDuration*0.5));
+		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t, (long)(btData.nAnimationDuration*0.5));
 		viewer.setTransformAnimator(anim);
 			
 	}
@@ -1035,7 +1035,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.rotate(1, (-1)*Math.PI/2.0);
 		t.translate(0.5*(sW+scale*(nD+nDoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*nWoff);
 		
-		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t,0,0,(long)(btData.nAnimationDuration*0.5));
+		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
 		
 		viewer.setTransformAnimator(anim);
 
@@ -1082,7 +1082,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.rotate(0, Math.PI * 0.5);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH+scale*(nD+nDoff)),(-0.5)*scale*nHoff);
 			
-		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t,0,0,(long)(btData.nAnimationDuration*0.5));
+		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
 		
 		viewer.setTransformAnimator(anim);
 

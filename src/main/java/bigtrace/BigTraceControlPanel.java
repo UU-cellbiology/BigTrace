@@ -919,7 +919,6 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		double[] qStart = new double[ 4 ];
 		Affine3DHelpers.extractRotationAnisotropic( transform, qStart );
 		LinAlgHelpers.quaternionToR( qStart, Rcurrent );
-
 		
 		final double[][] m = new double[ 3 ][ 4 ];
 		for ( int r = 0; r < 3; ++r )
@@ -931,7 +930,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		newtransform.set(m);
 		
 		AffineTransform3D final_transform = bt.getCenteredViewTransform(newtransform, btdata.getDataCurrentSourceClipped(), 1.0);
-		bt.viewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform,final_transform ,0,0,btdata.nAnimationDuration));
+		bt.viewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform, final_transform, btdata.nAnimationDuration));
 		//recalculate ROI shapes
 		bt.roiManager.updateROIsDisplay();
 	}
