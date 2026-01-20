@@ -21,9 +21,11 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 	
 	private static final long serialVersionUID = 7367842640615289454L;
 
-	public JComboBox<String> cbRenderMethod;
+	public final JComboBox<String> cbRenderMethod;
 	
-	public JComboBox<String> cbSurfaceRenderList; 
+	public final JComboBox<String> cbVolumeLight;
+	
+	public final JComboBox<String> cbSurfaceRenderList; 
 	
 	String[] sSurfaceRenderType = {"plain", "shaded", "shiny", "silhouette"};
 	
@@ -36,28 +38,44 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 		
 		GridBagLayout gridbag = new GridBagLayout();
 		GridBagConstraints cd = new GridBagConstraints();
-		String[] sMethods = new String[2];
-		sMethods[0]="Max intensity";
-		sMethods[1]="Volumetric";
-	
-		cbRenderMethod = new JComboBox<>(sMethods);
+		String[] sRenderMethods = new String[2];
+		sRenderMethods[0] = "max intensity";
+		sRenderMethods[1] = "volumetric";
+
+		String[] sLightOptions = new String[3];
+		sLightOptions[0] = "plain";
+		sLightOptions[1] = "shaded";
+		sLightOptions[2] = "shiny";	
+		
+		cbRenderMethod = new JComboBox<>(sRenderMethods);
 		cbRenderMethod.setSelectedIndex(bt.btData.nRenderMethod);
 		cbRenderMethod.addActionListener(this);
 		
-		setLayout(gridbag);
-		
-		cd.gridx=0;
-		cd.gridy=0;
-		GBCHelper.alighLoose(cd);
-		this.add(new JLabel("Data:"),cd);
-		cd.gridx++;
-		this.add(cbRenderMethod,cd);
-		
-		
+		cbVolumeLight = new JComboBox<>(sLightOptions);
+		cbVolumeLight.setSelectedIndex(bt.btData.nVolumeLight);
+		cbVolumeLight.addActionListener(this);
+
 		cbSurfaceRenderList = new JComboBox<>(sSurfaceRenderType);
 		cbSurfaceRenderList.setSelectedIndex(bt.btData.surfaceRender);
 		cbSurfaceRenderList.addActionListener(this);
-		cd.gridx=0;
+		
+		
+		setLayout(gridbag);
+		
+		cd.gridx = 0;
+		cd.gridy = 0;
+		GBCHelper.alighLoose(cd);
+		this.add(new JLabel("Data render:"),cd);
+		cd.gridx++;
+		this.add(cbRenderMethod,cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		this.add(new JLabel("Volume light:"),cd);
+		cd.gridx++;
+		this.add(cbVolumeLight,cd);
+		
+		cd.gridx = 0;
 		cd.gridy++;
 		this.add(new JLabel("ROI surface:"),cd);
 		cd.gridx++;
@@ -69,6 +87,12 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 		{
 			bt.btPanel.setRenderMethod(cbRenderMethod.getSelectedIndex());		
 		}
+		
+		if(e.getSource() == cbVolumeLight)
+		{
+			bt.btPanel.setVolumeLight(cbVolumeLight.getSelectedIndex());		
+		}
+		
 		if(e.getSource() == cbSurfaceRenderList)
 		{
 			if(bt.btData.surfaceRender != cbSurfaceRenderList.getSelectedIndex())

@@ -132,10 +132,20 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public BCsettings bcTraceBox = new BCsettings();	
 	
 	public static final int DATA_RENDER_MAX_INT = 0, DATA_RENDER_VOLUMETRIC = 1; 
+	
+	public static final int VOLUMELIGHT_PLAIN = 0, VOLUMELIGHT_SHADED = 1, VOLUMELIGHT_SHINY = 2; 
+	
 	/** dataset rendering method 
 	 * 0 maximum intensity, 
 	 * 1 volumetric **/
 	public int nRenderMethod = (int)Prefs.get("BigTrace.nRenderMethod", DATA_RENDER_MAX_INT);
+
+	/** dataset lighting option for volumetric rendering 
+	 * 0 plain, 
+	 * 1 shaded,
+	 * 2 shiny **/
+	public int nVolumeLight = (int)Prefs.get("BigTrace.nVolumeLight", VOLUMELIGHT_PLAIN);
+
 	
 	/////////////////////////////////GLOBAL ROI APPEARANCE SETTINGS
 	

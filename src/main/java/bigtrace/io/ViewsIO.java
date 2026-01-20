@@ -50,6 +50,8 @@ public class ViewsIO
 				writer.write("BigTrace_View,version," + BigTraceData.sVersion + "\n");
 				writer.write("FileNameFull," + bt.btData.sFileNameFullImg+"\n");
 				writer.write("Render Type," + Integer.toString( bt.btData.nRenderMethod )+"\n");
+				writer.write("Volume Light," + Integer.toString( bt.btData.nVolumeLight )+"\n");
+
 				writer.write("Canvas BG color," + Integer.toString( bt.btData.canvasBGColor.getRGB() )+"\n");
 				writer.write("nHalfClickSizeWindow," + Integer.toString( bt.btData.nHalfClickSizeWindow )+"\n");
 				writer.write("Zoom Box Size," + Integer.toString( bt.btData.nZoomBoxSize)+"\n");
@@ -213,7 +215,14 @@ public class ViewsIO
 				switch (line_array[0])
 				{
 				case "Render Type":
-					bt.btPanel.setRenderMethod( Integer.parseInt( line_array[1]) );
+					int nRenderMethod = Integer.parseInt( line_array[1]);
+					bt.btPanel.setRenderMethod( nRenderMethod  );
+					bt.btPanel.renderMethodPanel.cbRenderMethod.setSelectedIndex( nRenderMethod  );
+					break;
+				case "Volume Light":
+					int nVolumeLight = Integer.parseInt( line_array[1]);
+					bt.btPanel.setVolumeLight( nVolumeLight ); 
+					bt.btPanel.renderMethodPanel.cbVolumeLight.setSelectedIndex( nVolumeLight  );
 					break;
 				case "Canvas BG color":					
 					final Color bgColor = new Color(Integer.parseInt(line_array[1]));
@@ -276,7 +285,9 @@ public class ViewsIO
 					Prefs.set("BigTrace.crossSectionGridStep", bt.btData.crossSectionGridStep);
 					break;
 				case "surfaceRender":
-					bt.btData.surfaceRender = Integer.parseInt( line_array[1] );
+					int nSurfaceRender = Integer.parseInt( line_array[1]);
+					bt.btData.surfaceRender = nSurfaceRender;
+					bt.btPanel.renderMethodPanel.cbSurfaceRenderList.setSelectedIndex( nSurfaceRender );
 					Prefs.set("BigTrace.surfaceRender", bt.btData.surfaceRender);
 					break;
 				case "silhouetteRender":

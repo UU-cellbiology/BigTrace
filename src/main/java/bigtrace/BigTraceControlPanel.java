@@ -939,8 +939,10 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	public void setRenderMethod(int nRenderType)
 	{
 		btdata.nRenderMethod = nRenderType;
+	
 		Prefs.set("BigTrace.nRenderMethod",btdata.nRenderMethod);
-		for(int i=0;i<bt.bvv_sources.size();i++)
+		
+		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{
 			bt.bvv_sources.get(i).setRenderType(nRenderType);
 		}	
@@ -953,10 +955,24 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		if(nRenderType == BigTraceData.DATA_RENDER_MAX_INT)
 		{
 			bt.viewer.showMessage("maximum intensity");
-		}
+		}				
+	}
+
+	public void setVolumeLight(int nVolumeLight)
+	{
+		btdata.nVolumeLight = nVolumeLight;
+	
+		Prefs.set("BigTrace.nVolumeLight", btdata.nVolumeLight);
 		
+		for(int i = 0; i < bt.bvv_sources.size(); i++)
+		{
+			bt.bvv_sources.get(i).setLightingType( nVolumeLight );
+		}	
+		if(bt.bvv_trace != null)
+			bt.bvv_trace.setLightingType( nVolumeLight );
 		
 	}
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 
