@@ -37,6 +37,7 @@ import javax.swing.event.ListSelectionListener;
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
+import bigtrace.gui.GetFolderDialog;
 import bigtrace.gui.NumberField;
 import bigtrace.gui.PanelTitle;
 import bigtrace.rois.AbstractCurve3D;
@@ -1245,7 +1246,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			String sSaveDir = "";
 			if(nExtractBoxOutput > 0)
 			{
-				sSaveDir = IJ.getDirectory("Save box ROI TIF to..");
+				sSaveDir = GetFolderDialog.getSelectedFolder( bt, "Save box ROI TIF to folder..." );
 				if(sSaveDir == null)
 				{
 					bt.btPanel.progressBar.setString("curve straightening aborted.");
@@ -1264,7 +1265,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//all curve ROIs
 			else
 			{
-				for (int nRoi = 0; nRoi<bt.roiManager.rois.size(); nRoi++)
+				for (int nRoi = 0; nRoi < bt.roiManager.rois.size(); nRoi++)
 				{
 					Roi3D roi = bt.roiManager.rois.get(nRoi);
 					if(bt.roiManager.groups.get(roi.getGroupInd()).bVisible)
@@ -1274,7 +1275,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				}
 				
 			}
-			if(roiOut.size()>0)
+			if(roiOut.size() > 0)
 			{			
 				//run in a separate thread
 				ExtractROIBox<T> extractBoxBG = new ExtractROIBox<>(roiOut, bt, nExpandROIBox, nTimeRange, nExtractBoxOutput, bOnlyVoxelsInsideROI, sSaveDir);				
@@ -1432,7 +1433,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			String sSaveDir = "";
 			if(nStraightenOutput > 0)
 			{
-				sSaveDir = IJ.getDirectory("Save straightened TIF to..");
+				sSaveDir = GetFolderDialog.getSelectedFolder( bt, "Save straightened TIF to folder..." );
 				if(sSaveDir == null)
 				{
 					bt.btPanel.progressBar.setString("curve straightening aborted.");

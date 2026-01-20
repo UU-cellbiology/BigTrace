@@ -21,6 +21,7 @@ import net.imglib2.util.LinAlgHelpers;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
+import bigtrace.gui.GetFolderDialog;
 import bigtrace.gui.NumberField;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
@@ -58,19 +59,19 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 		nfHeight.setIntegersOnly( true );
 		nfHeight.setText(Integer.toString( pan.nRenderHeight));
 		
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		panRenderSettings.add(new JLabel("Render FPS:"),cd);
 		cd.gridx++;
 		panRenderSettings.add(nfFPS, cd);	
 		
-		cd.gridx=0;
+		cd.gridx = 0;
 		cd.gridy++;	
 		panRenderSettings.add(new JLabel("Render width (px):"),cd);
 		cd.gridx++;
 		panRenderSettings.add(nfWidth, cd);			
 		
-		cd.gridx=0;
+		cd.gridx = 0;
 		cd.gridy++;	
 		panRenderSettings.add(new JLabel("Render height (px):"),cd);
 		cd.gridx++;
@@ -89,7 +90,7 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 			pan.nRenderHeight = Integer.parseInt( nfHeight.getText());
 			Prefs.set("BigTrace.nRenderHeight", (double)pan.nRenderHeight);
 			
-			pan.sRenderSavePath = IJ.getDirectory("Save animation frames to..");
+			pan.sRenderSavePath = GetFolderDialog.getSelectedFolder( bt, "Save animation frames to folder.." );
 			
 			if(pan.sRenderSavePath == null)
 			{
@@ -397,16 +398,16 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 			double [] inVector = new double[3];
-			for(d=0;d<3;d++)
+			for(d = 0; d < 3; d++)
 				inVector[d] = Double.parseDouble(nfCoalignVector.get(d).getText());
 			double len = LinAlgHelpers.length(inVector);
-			if(len<0.000001)
+			if(len < 0.000001)
 			{
 				IJ.error("Vector length should be more than zero!");
 				return null;
 			}
 			LinAlgHelpers.normalize(inVector);
-			for(d=0;d<3;d++)
+			for(d = 0; d < 3; d++)
 			{
 				dFinalVector[d] = inVector[d];
 				Prefs.set("BigTrace.finalVec"+Integer.toString(d), dFinalVector[d]);				
@@ -436,15 +437,15 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 		nfFrameRenderMax.setIntegersOnly(true);
 		nfFrameRenderMax.setText(Integer.toString(pan.nRenderFrameTimeLimit));
 		
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		GBCHelper.alighLoose(cd);
 		pAnimSettings.add(new JLabel("Render BVV MultiBox: "),cd);
 		cd.gridx++;
 		pAnimSettings.add(cbMultiBox,cd);
 	
 		
-		cd.gridx=0;
+		cd.gridx = 0;
 		cd.gridy++;
 		pAnimSettings.add(new JLabel("Render scale bar: "),cd);
 		cd.gridx++;

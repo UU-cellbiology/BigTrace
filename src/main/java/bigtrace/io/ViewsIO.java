@@ -183,16 +183,18 @@ public class ViewsIO
 				System.err.println("Not a BigTrace View file format, aborting");
 				return;
 			}
+			
 			if(!line_array[2].equals(BigTraceData.sVersion))
 			{
 				System.out.println("Version mismatch: ROI file "+line_array[2]+", plugin " + BigTraceData.sVersion + 
 						". It should be fine in theory, so loading view anyway.");
-			}			
+			}		
+			//second line
 			line = br.readLine();
 			line_array = line.split(",");
 			if(!line_array[1].equals(bt.btData.sFileNameFullImg))
 			{
-				if (JOptionPane.showConfirmDialog(null, "The view was stored for " + line_array[2] +
+				if (JOptionPane.showConfirmDialog(null, "The view was stored for " + line_array[1] +
 						" file.\nCurrently " + bt.btData.sFileNameFullImg + 
 						" file is loaded.\nDo you want to load it anyway?", "Filename mismatch",
 				        JOptionPane.YES_NO_OPTION) == JOptionPane.NO_OPTION) 

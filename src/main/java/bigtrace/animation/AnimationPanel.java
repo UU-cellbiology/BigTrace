@@ -438,7 +438,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		//run render
 		if(e.getSource() == butRecord)
 		{
-			if(listModel.size()>0)
+			if(listModel.size() > 0)
 			{
 				if(!bt.bInputLock )
 				{
@@ -454,6 +454,10 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 						render.cancel( false );
 					}
 				}
+			}
+			else
+			{
+				bt.btPanel.progressBar.setString("cannot render: add at least one key frame.");
 			}
 		}
 		
