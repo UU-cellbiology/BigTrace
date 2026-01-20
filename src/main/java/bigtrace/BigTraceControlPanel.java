@@ -887,7 +887,8 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{
-			bt.bvv_sources.get(i).setClipInterval(clipInt);
+			bt.bvv_sources.get( i ).setClipState( 1 );
+			bt.bvv_sources.get( i ).setClipInterval(clipInt);
 		}	
 		bt.visualBoxes.clipBox.setIntervalLongArray( bt.btData.nDimCurr );
 		
