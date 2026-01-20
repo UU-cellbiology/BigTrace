@@ -5,9 +5,12 @@ import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -53,16 +56,21 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		
 		dialogFullAutoSettings.setLayout(new GridBagLayout());
 		
+		DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+		symbols.setDecimalSeparator('.');
+		DecimalFormat df3 = new DecimalFormat ("#.#####", symbols);
+		
 		GridBagConstraints gbc = new GridBagConstraints();
 
 		GBCHelper.alighLeft(gbc);
+		
 		gbc.weighty = 0.0;
 		
 		NumberField nfMaxIntFullTraceStart = new NumberField(5);
 		NumberField nfAutoMinCurvePoints = new NumberField(5);
 		
-		nfMaxIntFullTraceStart.setIntegersOnly( true );
-		nfMaxIntFullTraceStart.setText( Integer.toString((int)Prefs.get("BigTrace.dAutoMinStartTraceInt",128.0)) );
+		nfMaxIntFullTraceStart.setIntegersOnly( false );
+		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt",128.0)) );
 		nfAutoMinCurvePoints.setIntegersOnly( true );
 		nfAutoMinCurvePoints.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMinPointsCurve",3)) );
 	
@@ -74,28 +82,48 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		dialogFullAutoSettings.add(nfMaxIntFullTraceStart,gbc);
 		
 		gbc.gridx = 0;
-		gbc.gridy ++;
+		gbc.gridy++;
 		dialogFullAutoSettings.add(new JLabel("Min # points in curve:"),gbc);
 		gbc.gridx++;
 		dialogFullAutoSettings.add(nfAutoMinCurvePoints,gbc);
 		
 		
-		RangeSliderPanel timeRange = null;
+		final RangeSliderPanel timeRange;
+		final JCheckBox cbSingleTimeFrame;
 		if(bt.btData.nNumTimepoints > 1)
 		{
 			
 			final int [] nRange = new int [2];
 			nRange[0] = 0;
-			nRange[1] = bt.btData.nNumTimepoints-1;
+			nRange[1] = bt.btData.nNumTimepoints - 1;
 			timeRange = new RangeSliderPanel(nRange, nRange);
 			//timeRange.makeConstrained( bt.btData.nCurrTimepoint, bt.btData.nCurrTimepoint );
 			
 			gbc.gridy++;
 			gbc.gridx = 0;
 			gbc.gridwidth = 2;
-			dialogFullAutoSettings.add(timeRange,gbc);
+			dialogFullAutoSettings.add(timeRange, gbc);
 			gbc.gridwidth = 1;
+			
+			cbSingleTimeFrame = new JCheckBox();
+			boolean bSingleTimePoint = Prefs.get( "BigTrace.bFullAutoSingleTimeFrame", false );
+			
+			timeRange.setEnabled( !bSingleTimePoint );
+			
+			cbSingleTimeFrame.addItemListener( (e)->{timeRange.setEnabled(!cbSingleTimeFrame.isSelected());} );	
+			cbSingleTimeFrame.setSelected(bSingleTimePoint);			
+
+	
+			gbc.gridx = 0;
 			gbc.gridy++;
+			dialogFullAutoSettings.add(new JLabel("Only current timepoint:"), gbc);
+			gbc.gridx++;
+			dialogFullAutoSettings.add(cbSingleTimeFrame,gbc);
+		}
+		else
+		{
+			timeRange = null;
+			cbSingleTimeFrame = null;
 		}
 		
 		//filler
@@ -125,31 +153,40 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			panelGeneralTrace.getSetOptions();		
 			panelOneClickOptions.getSetOptions();
 
-			final int dAutoMinStartTraceInt = Integer.parseInt(nfMaxIntFullTraceStart.getText());
-			Prefs.set("BigTrace.dAutoMinStartTraceInt",dAutoMinStartTraceInt );
+			final double dAutoMinStartTrace = Double.parseDouble(nfMaxIntFullTraceStart.getText());
+			Prefs.set("BigTrace.dAutoMinStartTraceInt", dAutoMinStartTrace );
 			
 			final int nAutoMinPointsCurve = Integer.parseInt(nfAutoMinCurvePoints.getText());
 			Prefs.set("BigTrace.nAutoMinPointsCurve", nAutoMinPointsCurve );
 			int nFirstTP = 0;
 			int nLastTP = 0;
-			if(timeRange != null)
+			if(timeRange != null && cbSingleTimeFrame != null)
 			{
-				nFirstTP = timeRange.getMin();
-				nLastTP = timeRange.getMax();
+				Prefs.set("BigTrace.bFullAutoSingleTimeFrame", cbSingleTimeFrame.isSelected() );
+				if(cbSingleTimeFrame.isSelected())
+				{
+					nFirstTP = bt.viewer.state().getCurrentTimepoint();
+					nLastTP = bt.viewer.state().getCurrentTimepoint();					
+				}
+				else
+				{
+					nFirstTP = timeRange.getMin();
+					nLastTP = timeRange.getMax();
+				}
 			}
-			launchFullAutoTrace(dAutoMinStartTraceInt, nAutoMinPointsCurve, nFirstTP, nLastTP);
+			launchFullAutoTrace(dAutoMinStartTrace, nAutoMinPointsCurve, nFirstTP, nLastTP);
 		}
 
 	}
 	
-	public void launchFullAutoTrace(final int dAutoMinStartTraceInt, final int nAutoMinPointsCurve, final int nFirstTP, final int nLastTP)
+	public void launchFullAutoTrace(final double dAutoMinStartTrace, final int nAutoMinPointsCurve, final int nFirstTP, final int nLastTP)
 	{
 		fullAutoTrace = new FullAutoTrace<>(bt);
 		
 		fullAutoTrace.nFirstTP = nFirstTP;
 		fullAutoTrace.nLastTP = nLastTP;
 
-		fullAutoTrace.dAutoMinStartTraceInt = dAutoMinStartTraceInt;
+		fullAutoTrace.dAutoMinStartTraceInt = dAutoMinStartTrace;
 
 		fullAutoTrace.nAutoMinPointsCurve = nAutoMinPointsCurve;
 		

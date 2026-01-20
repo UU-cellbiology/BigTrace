@@ -113,6 +113,15 @@ public class RangeSliderPanel extends JPanel implements FocusListener, NumberFie
 		return slider.getUpperValue();
 	}
 	
+	@Override
+	public void setEnabled(boolean bEnabled)
+	{
+		minTF.setEnabled( bEnabled );
+		maxTF.setEnabled( bEnabled );
+		slider.setEnabled( bEnabled );
+		
+	}
+	
 	public void setMinAndMax(int min, int max) {
 		slider.setLowerValue(min);
 		minTF.setText(Integer.toString(min));

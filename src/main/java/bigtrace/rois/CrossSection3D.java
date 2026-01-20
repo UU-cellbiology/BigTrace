@@ -78,21 +78,21 @@ public class CrossSection3D extends AbstractRoi3D
 		name = "plane"+Integer.toString(this.hashCode());
 		nTimePoint = nTimePoint_;
 		nDimBox = new float [2][3];
-		for(int i=0;i<2;i++)
-			for(int j=0;j<3;j++)
-				nDimBox[i][j]=nDimIni_[i][j];
+		for(int i = 0; i < 2; i++)
+			for(int j = 0; j < 3; j++)
+				nDimBox[ i ][ j ] = nDimIni_[ i ][ j ];
 
 	}
 	
 	/** adds initial vertex **/
 	public void addPoint(final RealPoint in_)
 	{
-		if (vertices.size()==1)
+		if (vertices.size() == 1)
 		{
 			//check if the second point is at the same place that the first 
-			double [] dist = new double [3];
+			double [] dist = new double [ 3 ];
 			LinAlgHelpers.subtract(vertices.get(0).positionAsDoubleArray(), in_.positionAsDoubleArray(), dist);
-			if(LinAlgHelpers.length(dist)>0.000001)
+			if(LinAlgHelpers.length(dist) > 0.000001)
 			{
 				vertices.add(new RealPoint(in_));
 			}
@@ -101,7 +101,7 @@ public class CrossSection3D extends AbstractRoi3D
 		{
 			//check that first three points do not lay on the line, 
 			// so we can build a plane
-			if(vertices.size()==2)
+			if(vertices.size() == 2)
 			{
 				double [] dist1 = new double [3];
 				double [] dist2 = new double [3];
@@ -110,7 +110,7 @@ public class CrossSection3D extends AbstractRoi3D
 				LinAlgHelpers.subtract(vertices.get(1).positionAsDoubleArray(), vertices.get(0).positionAsDoubleArray(), dist1);
 				LinAlgHelpers.subtract(in_.positionAsDoubleArray(),vertices.get(1).positionAsDoubleArray(), dist2);
 				LinAlgHelpers.cross(dist1, dist2, cross);
-				if(LinAlgHelpers.length(cross)>0.000001)
+				if(LinAlgHelpers.length(cross) > 0.000001)
 				{
 					vertices.add(new RealPoint(in_));
 				}
@@ -122,34 +122,35 @@ public class CrossSection3D extends AbstractRoi3D
 		}
 		updateRenderVertices();
 	}
+
 	//removes the point from the "end" and returns "true"
-	//if it is the last point, returns "false"
+	//if it is NOT the last point, otherwise returns "false"
 	public boolean removePoint()
-	 {
-		 
-		 int nP= vertices.size();
-		 if(nP>0)
-			{
-			 	vertices.remove(nP-1);
-			 	updateRenderVertices();
-			 	if(nP==1)
-			 		return false;
-				return true;
-			}
-		 return false;
-	 }
+	{	
+		int nP = vertices.size();
+
+		if(nP > 0)
+		{
+			vertices.remove(nP - 1);
+			updateRenderVertices();
+			if(nP == 1)
+				return false;
+			return true;
+		}
+		return false;
+	}
 
 	@Override
-	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size) {
+	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size) 
+	{
 		verticesVis.draw(gl, pvm, screen_size, btdata);
-		planeVis.draw(gl, pvm, btdata);
-		
+		planeVis.draw(gl, pvm, btdata);		
 	}
 	
 	public void setVertices(ArrayList<RealPoint> vertices_)
 	{
 		vertices = new ArrayList<>();
-		for(int i=0;i<vertices_.size();i++)
+		for(int i = 0; i < vertices_.size(); i++)
 			vertices.add(new RealPoint(vertices_.get(i)));		
 		updateRenderVertices();
 		
@@ -158,17 +159,15 @@ public class CrossSection3D extends AbstractRoi3D
 
 	@Override
 	public void setPointColor(Color pointColor_) 
-	{
-		
-		pointColor = new Color(pointColor_.getRed(),pointColor_.getGreen(),pointColor_.getBlue(),pointColor_.getAlpha());
+	{		
+		pointColor = new Color(pointColor_.getRed(), pointColor_.getGreen(), pointColor_.getBlue(), pointColor_.getAlpha());
 		verticesVis.setColor(pointColor);
 	}
 	
 	@Override
 	public void setLineColor(Color lineColor_) 
-	{
-		
-		lineColor = new Color(lineColor_.getRed(),lineColor_.getGreen(),lineColor_.getBlue(),lineColor_.getAlpha());
+	{		
+		lineColor = new Color(lineColor_.getRed(), lineColor_.getGreen(), lineColor_.getBlue(), lineColor_.getAlpha());
 		planeVis.setColor(lineColor);
 	}
 
@@ -185,8 +184,7 @@ public class CrossSection3D extends AbstractRoi3D
 	@Override
 	public void setLineThickness(float line_thickness) 
 	{
-
-		lineThickness=line_thickness;
+		lineThickness = line_thickness;
 		planeVis.setThickness(lineThickness);
 		updateRenderVertices();
 	}
@@ -194,17 +192,14 @@ public class CrossSection3D extends AbstractRoi3D
 	@Override
 	public void setPointSize(float point_size) 
 	{
-
-		pointSize=point_size;
-		verticesVis.setSize(pointSize);
-		
+		pointSize = point_size;
+		verticesVis.setSize(pointSize);		
 	}
 
 	@Override
 	public void setRenderType(int nRenderType) 
 	{
-
-		renderType=nRenderType;
+		renderType = nRenderType;
 		planeVis.setRenderType(renderType);
 		updateRenderVertices();
 	}
@@ -237,10 +232,10 @@ public class CrossSection3D extends AbstractRoi3D
 			
 			writer.write("Vertices,"+Integer.toString(vertices.size())+"\n");
 			vert = new float[3];
-			for (iPoint = 0;iPoint<vertices.size();iPoint++)
+			for (iPoint = 0; iPoint < vertices.size(); iPoint++)
 			{ 
 				vertices.get(iPoint).localize(vert);
-				for(i=0;i<3;i++)
+				for(i = 0; i < 3; i++)
 				{
 					writer.write(df3.format(vert[i])+",");
 				}
@@ -279,10 +274,10 @@ public class CrossSection3D extends AbstractRoi3D
 			//for now;
 			//fittedPlane = new Plane3D(vertices.get(0),vertices.get(1),vertices.get(2));
 			fittedPlane = fitPlane(vertices);
-			polygonVert = new ArrayList<  >();
+			polygonVert = new ArrayList<>();
 			ArrayList<ArrayList< RealPoint >> boxEdges = Box3D.getEdgesPairPoints(nDimBox);
 			
-			for(int i = 0;i<boxEdges.size();i++)
+			for(int i = 0; i < boxEdges.size(); i++)
 			{
 		
 				if(Intersections3D.planeEdgeIntersect(fittedPlane,boxEdges.get(i).get(0),boxEdges.get(i).get(1),intersectionPoint))
@@ -326,7 +321,7 @@ public class CrossSection3D extends AbstractRoi3D
 		    	LinAlgHelpers.subtract(lhs, origin, lhs);
 		    	LinAlgHelpers.subtract(rhs, origin, rhs);
 		    	LinAlgHelpers.cross(lhs,rhs, v);
-		    	if(LinAlgHelpers.dot(v, planeNormal)<0)
+		    	if(LinAlgHelpers.dot(v, planeNormal) < 0)
 		    		return 1;
 				return -1;
 		    }
@@ -343,8 +338,8 @@ public class CrossSection3D extends AbstractRoi3D
 		//double [][] matrixU;
 		int d;
 		//subtract centroid
-		for(int i=0;i<vertices.size();i++)
-			for(d=0;d<3;d++)
+		for(int i = 0; i < vertices.size() ;i++)
+			for( d = 0; d < 3; d++)
 			{
 				matrixD[i][d]=vertices.get(i).getDoublePosition(d)-centroidRP.getDoublePosition(d);
 			}
@@ -353,7 +348,7 @@ public class CrossSection3D extends AbstractRoi3D
 		final double [][] matrixV = svd.getV().getArray();
 		//matrixU = svd.getU().getArray();
 		RealPoint normalRP = new RealPoint(3);
-		for(d=0;d<3;d++)
+		for(d = 0; d < 3; d++)
 		{
 			normalRP.setPosition(matrixV[d][2], d);
 		}
@@ -365,22 +360,23 @@ public class CrossSection3D extends AbstractRoi3D
 		
 		
 	}
+	
 	public static RealPoint centroid(final ArrayList<RealPoint> vertices)
 	{
-		if(vertices.size()<1)
+		if(vertices.size() < 1)
 			return null;
-		final int nDim=vertices.get(0).numDimensions();
+		final int nDim = vertices.get(0).numDimensions();
 		final double nPoints = vertices.size();
 		int d;
 		double [] meanV = new double [nDim];
-		for(int i=0;i<vertices.size();i++)
+		for(int i = 0; i < vertices.size(); i++)
 		{
-			for(d=0;d<nDim;d++)
+			for(d = 0; d < nDim; d++)
 			{
-				meanV[d]+=vertices.get(i).getDoublePosition(d);
+				meanV[d] += vertices.get(i).getDoublePosition(d);
 			}
 		}
-		for(d=0;d<nDim;d++)
+		for(d = 0; d < nDim; d++)
 		{
 			meanV[d] /= nPoints;
 		
@@ -392,13 +388,13 @@ public class CrossSection3D extends AbstractRoi3D
 	public double getMinDist(Line3D line) {
 		
 		double [] intersectionPoint = new double[3];
-		double dMinDist = (-1.0)*Double.MAX_VALUE;
+		double dMinDist = (-1.0) * Double.MAX_VALUE;
 		double currDist = 0.0;
-		if(fittedPlane==null)
+		if(fittedPlane == null)
 		{
-			for (int i=0;i<vertices.size();i++)
+			for (int i = 0; i < vertices.size(); i++)
 			{
-				currDist= Line3D.distancePointLine(vertices.get(i), line);
+				currDist = Line3D.distancePointLine(vertices.get(i), line);
 			
 				if(currDist <dMinDist)
 				{
@@ -407,7 +403,7 @@ public class CrossSection3D extends AbstractRoi3D
 			}
 			return dMinDist;
 		}
-		if(Intersections3D.planeLineIntersect(fittedPlane,line,  intersectionPoint))
+		if(Intersections3D.planeLineIntersect(fittedPlane, line, intersectionPoint))
 		{
 			//see if the point inside the polygon
 			if(Intersections3D.pointInsideConvexPolygon(polygonVert, intersectionPoint,fittedPlane.n))
@@ -438,7 +434,8 @@ public class CrossSection3D extends AbstractRoi3D
 	}
 	*/
 	@Override
-	public Interval getBoundingBox() {
+	public Interval getBoundingBox() 
+	{
 		ArrayList<RealPoint> allvertices;
 		//in VOXEL coordinates
 		if(this.polygonVert==null)
@@ -449,8 +446,8 @@ public class CrossSection3D extends AbstractRoi3D
 		{
 			allvertices = this.polygonVert;
 		}
-		long [][] bBox = new long [2][3];
-		for (int d = 0; d<3;d++)
+		long [][] bBox = new long [ 2 ][ 3 ];
+		for (int d = 0; d < 3; d++)
 		{
 			bBox[0][d] = Long.MAX_VALUE; 
 			bBox[1][d]= (-1)* Long.MAX_VALUE; 

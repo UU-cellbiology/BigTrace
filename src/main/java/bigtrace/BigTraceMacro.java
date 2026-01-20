@@ -117,19 +117,19 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 					return null;
 				}
 
-				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue() );
-					
+				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue() );					
 			}
+			
 			if (name.equals("btRunFullAutoTrace")) 
 			{
 				int nFirstTP = 0;
-				int nLastTP = bt.btData.nNumTimepoints-1;
-				if(args[2] != null && args[3] !=null )
+				int nLastTP = bt.btData.nNumTimepoints - 1;
+				if(args[2] != null && args[3] != null )
 				{
 					nFirstTP = (int)Math.round(((Double)args[2]).doubleValue());
 					nLastTP = (int)Math.round(((Double)args[3]).doubleValue());
 				}
-				macroRunFullAutoTrace((int)Math.round(((Double)args[0]).doubleValue()),(int)Math.round(((Double)args[1]).doubleValue()),nFirstTP,nLastTP);
+				macroRunFullAutoTrace(((Double)args[0]).doubleValue(),(int)Math.round(((Double)args[1]).doubleValue()),nFirstTP,nLastTP);
 			}
 			if (name.equals("btClose")) 
 			{
@@ -147,7 +147,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		return null;
 	}
 	
-	public void macroRunFullAutoTrace(final int nMinIntensity, final int nMinNumPoints, final int nFirstFrame, final int nLastFrame) throws InterruptedException
+	public void macroRunFullAutoTrace(final double dMinIntensity, final int nMinNumPoints, final int nFirstFrame, final int nLastFrame) throws InterruptedException
 	{
 		while(bt.bInputLock)
 		{
@@ -164,12 +164,12 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			nLastTP = Math.min( bt.btData.nNumTimepoints - 1, nLastTP );
 		}
 		IJ.log( "Running full autotrace with parameters:" );
-		IJ.log( "Min intensity trace start:" + Integer.toString( nMinIntensity ));
+		IJ.log( "Min intensity trace start:" + Double.toString( dMinIntensity ));
 		IJ.log( "Min # points in curve:" + Integer.toString( nMinNumPoints ));
 		IJ.log( "First time frame: " + Integer.toString( nFirstFrame ));
 		IJ.log( "Last time frame: " + Integer.toString( nLastFrame ));
 		
-		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( nMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
+		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
 	}
 	
 	public void macroSetTracingThickness(final double [] sigmas) throws InterruptedException
