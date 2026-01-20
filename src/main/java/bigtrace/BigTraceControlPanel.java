@@ -895,15 +895,13 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	}
 	
 	synchronized void voxelChanged(double [] newVoxelSize)
-	{
-		
+	{		
 		//change the scale of the volume
 		final AffineTransform3D transform = new AffineTransform3D();
-		
-		
+				
 		final AffineTransform3D newtransform = new AffineTransform3D();
+		
 		bt.viewer.state().getViewerTransform(transform);
-
 		
 		double[] scaleChange = new double [3];
 		
@@ -946,7 +944,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		{
 			bt.bvv_sources.get(i).setRenderType(nRenderType);
 		}	
-		if(bt.bvv_trace!=null)
+		if(bt.bvv_trace != null)
 			bt.bvv_trace.setRenderType(nRenderType);
 		if(nRenderType == BigTraceData.DATA_RENDER_VOLUMETRIC)
 		{

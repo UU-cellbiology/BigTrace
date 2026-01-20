@@ -54,16 +54,20 @@ import bigtrace.measure.RoiMeasure3D;
 import bigtrace.tracks.TrackingPanel;
 
 
-public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener, ActionListener {
-	
-
+public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener, ActionListener 
+{
 	final BigTrace <T> bt;
 
 	private static final long serialVersionUID = -2843907862066423151L;
-	public static final int ADD_POINT=0, ADD_POINT_LINE=1, ADD_POINT_SEMIAUTOLINE=2, ADD_POINT_ONECLICKLINE=3, ADD_POINT_PLANE=4;
-	///public static final int SECTORS_DEF=16;
 
-	public final ArrayList<Roi3D> rois =  new ArrayList<>();
+	public static final int ADD_POINT = 0, 
+							ADD_POINT_LINE = 1, 
+							ADD_POINT_SEMIAUTOLINE = 2, 
+							ADD_POINT_ONECLICKLINE = 3, 
+							ADD_POINT_PLANE = 4;
+
+	public final ArrayList<Roi3D> rois = new ArrayList<>();
+	
 	public AtomicInteger activeRoi = new AtomicInteger (-1);// = -1;
 
 	public ArrayList<Roi3DGroup> groups = new ArrayList<>();
@@ -78,7 +82,6 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	public ColorUserSettings selectColors = new ColorUserSettings(); 
 	public static int mode = (int) Prefs.get("BigTrace.RoiManagerMode", ADD_POINT_LINE);
 	public boolean bShowAll = true;
-
 	
 	//MEASURE OBJECT/PANEL
 	public RoiMeasure3D<T> roiMeasure = null;
@@ -90,9 +93,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	public final RoiManager3DDialogs<T> rmDiag;
 
 	//ROI LIST
-	public DefaultListModel<String> listModel; 
-	public JList<String> jlist;
-	JScrollPane listScroller;
+	public DefaultListModel< String > listModel; 
+	public final JList<String> jlist;
+	final JScrollPane listScroller;
 	
 	public static interface Listener {
 		public void activeRoiChanged(int nRoi);				
@@ -102,7 +105,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	final JButton butRename;
 	final JButton butDeselect;
 	final JButton butProperties;
-	public JToggleButton butShowAll;
+	public final JToggleButton butShowAll;
 	final JButton butSaveROIs;
 	final JButton butLoadROIs;
 	final JButton butROIGroups;
@@ -123,8 +126,8 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	
 	public final PanelFullAutoTrace< T > panelFullAutoTrace;
 
-	ImageIcon tabIconOCTrace;
-	ImageIcon tabIconCancel;
+	final ImageIcon tabIconOCTrace;
+	final ImageIcon tabIconCancel;
 	
 	private final ArrayList<Listener> listeners = new ArrayList<>();
 
@@ -282,13 +285,14 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		panTracing.add(roiSettings,ct);
 
 		///RoiLIST and buttons
-		listModel = new  DefaultListModel<>();
-		jlist = new JList<>(listModel);
+		listModel = new DefaultListModel<>();
+		jlist = new JList<>( listModel );
 		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		jlist.setLayoutOrientation(JList.VERTICAL);
 		jlist.setVisibleRowCount(-1);
 		jlist.addListSelectionListener(this);
-		jlist.addMouseListener(new MouseAdapter() {
+		jlist.addMouseListener(new MouseAdapter() 
+		{
 			@Override
 			public void mouseClicked(MouseEvent evt) {
 				if (evt.getClickCount() == 2) {
@@ -477,10 +481,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 public synchronized void addRoi(final Roi3D newRoi)
 	 {		
 		 rois.add(newRoi);		 
-		 //listModel.addElement(newRoi.getName());
 		 listModel.addElement(getFullDisplayedRoiName(newRoi));
-		 jlist.setSelectedIndex(rois.size()-1);
-		 activeRoi.set(rois.size()-1);
+		 jlist.setSelectedIndex( rois.size() - 1 );
+		 activeRoi.set( rois.size() - 1 );
 	 }
 
 	 /** inserts ROI to the ROI list with the provided index **/
@@ -495,7 +498,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 }
 		 rois.add(nInsertN, newRoi);
 		 listModel.insertElementAt(newRoi.getName(), nInsertN);
-		 jlist.setSelectedIndex(nInsertN);
+		 jlist.setSelectedIndex( nInsertN );
 		 activeRoi.set(nInsertN);
 
 	 }
@@ -510,8 +513,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 			 if(bt.btData.bROIDoubleClickClip)
 			 {
 				 bt.btPanel.clipPanel.setBoundingBox(zoomInterval);
-			 }			 
-			 
+			 }			 			 
 		 }
 		 else
 		 {
@@ -552,7 +554,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 {
 		 final int nInd = nRoi.getGroupInd(); 
 		 
-		 if(nInd == 0 || (nInd> groups.size()-1))
+		 if(nInd == 0 || (nInd > groups.size()-1))
 		 {
 			 return sUndefinedGroupName;
 		 }
