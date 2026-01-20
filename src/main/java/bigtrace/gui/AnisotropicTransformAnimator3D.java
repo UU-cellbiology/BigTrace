@@ -6,8 +6,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
 public class AnisotropicTransformAnimator3D extends AbstractTransformAnimator
-{
-	
+{	
 	
 	private final double[] qStart;
 
@@ -56,7 +55,7 @@ public class AnisotropicTransformAnimator3D extends AbstractTransformAnimator
 		if ( qDiff[ 0 ] < 0 )
 			LinAlgHelpers.scale( qDiff, -1, qDiff );
 
-		for (int d = 0;d<3; d++)
+		for (int d = 0; d < 3; d++)
 		{
 			scaleStart[d] = Affine3DHelpers.extractScale( transformStart, d );
 			scaleEnd[d] = Affine3DHelpers.extractScale( transformEnd, d );
@@ -97,7 +96,7 @@ public class AnisotropicTransformAnimator3D extends AbstractTransformAnimator
 		final double [] alpha = new double [3];
 		final double [] scaleCurrent = new double [3];
 		
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			alpha[d]=  Math.pow( scaleRate[d], t );
 			scaleCurrent[d] = scaleStart[d] * alpha[d];
@@ -111,10 +110,10 @@ public class AnisotropicTransformAnimator3D extends AbstractTransformAnimator
 		//final double f = Math.abs( scaleRate - 1.0 ) < 0.0001 ? -t : ( scaleEnd / alpha - scaleEnd ) / scaleDiff;
 		//LinAlgHelpers.scale( xg0Diff, f, xg0Current );
 		final double [] f = new double [3];
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			f[d] = Math.abs( scaleRate[d] - 1.0 ) < 0.0001 ? -t : ( scaleEnd[d] / alpha[d] - scaleEnd[d] ) / scaleDiff[d];
-			xg0Current[d]=f[d]*xg0Diff[d];
+			xg0Current[d] = f[d] * xg0Diff[d];
 		}		
 		
 		

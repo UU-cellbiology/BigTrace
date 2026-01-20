@@ -48,7 +48,7 @@ public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  exte
 	protected Void doInBackground() throws Exception
 	{
 		int currVal = timeSlider.getValue();
-		long dWaitPure = Math.round( 1000.0f*aPanel.kfAnim.getTotalTime()/aPanel.tsSpan);
+		long dWaitPure = Math.round( 1000.0f * aPanel.kfAnim.getTotalTime()/aPanel.tsSpan);
 		int dInc = 1;
 		long dWait;
 		if(aPanel.bUpdateSlider == false)

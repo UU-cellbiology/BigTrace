@@ -70,13 +70,13 @@ public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
 	Scene getScene(float fTimePoint_in)
 	{
 		float fTimePoint;
-		if(fTimePoint_in<0)
+		if(fTimePoint_in < 0)
 		{
 			fTimePoint = 0.0f;
 		}
 		else
 		{
-			if(fTimePoint_in>timeIntervals.get( timeIntervals.size()-1 ))
+			if(fTimePoint_in > timeIntervals.get( timeIntervals.size()-1 ))
 			{
 				fTimePoint = timeIntervals.get( timeIntervals.size()-1 );
 			}
@@ -87,9 +87,9 @@ public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
 		}
 		//find an interval where timepoint lies
 		int nIndex = 0;
-		for(;nIndex <timeIntervals.size();nIndex++)
+		for(; nIndex < timeIntervals.size(); nIndex++)
 		{
-			if(fTimePoint<timeIntervals.get( nIndex ))
+			if(fTimePoint < timeIntervals.get( nIndex ))
 			{
 				break;
 			}
@@ -98,22 +98,22 @@ public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
 		
 		double fraction;
 		double dNorm;
-		if(nIndex >= timeIntervals.size()-1)
+		if(nIndex >= timeIntervals.size() - 1)
 		{
-			nIndex = timeIntervals.size()-1;
-			dNorm = (nTotalTime-timeIntervals.get( nIndex-1 ));			
+			nIndex = timeIntervals.size() - 1;
+			dNorm = (nTotalTime - timeIntervals.get( nIndex-1 ));			
 		}
 		else
 		{
-			dNorm  = (timeIntervals.get( nIndex )-timeIntervals.get( nIndex-1 ));
+			dNorm  = (timeIntervals.get( nIndex ) - timeIntervals.get( nIndex-1 ));
 		}
-		if(dNorm<0.00000001)
+		if(dNorm < 0.00000001)
 		{
 			fraction = 0;
 		}
 		else
 		{
-			fraction = (fTimePoint-timeIntervals.get( nIndex-1 ))/dNorm;
+			fraction = (fTimePoint - timeIntervals.get( nIndex-1 ))/dNorm;
 		}
 		
 		//time frame

@@ -840,7 +840,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 
 	public void updateScene()
 	{			
-		if(listModel.size()>1)
+		if(listModel.size() > 1)
 		{
 			float fTimePoint = (kfAnim.getTotalTime())*(timeSlider.getValue()/(float)tsSpan);
 			bt.setScene( kfAnim.getScene( fTimePoint ) );
