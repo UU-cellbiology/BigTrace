@@ -14,6 +14,7 @@ import javax.swing.JOptionPane;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
+import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -29,6 +30,7 @@ import ij.macro.ExtensionDescriptor;
 import ij.macro.Functions;
 import ij.macro.MacroExtension;
 import ij.plugin.PlugIn;
+import mcu.MCUBVVControls;
 import mpicbg.spim.data.SpimData;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
@@ -331,6 +333,14 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 	    btPanel.finFrame.addWindowListener( closeWA );
 	    bvvFrame.addWindowListener(	closeWA );
+	    //add midi panel controls
+		try {
+			final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
+			new MCUBVVControls(
+					bvv_main.getBvvHandle().getViewerPanel(),
+					controlPanel);
+		} catch (final Exception e) {}	 
+	    
 		bInputLock = false;
 		
 		//check if there is a saved view

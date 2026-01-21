@@ -184,6 +184,13 @@
 		</dependency>
 		
 		<dependency>
+		  <groupId>org.janelia.saalfeldlab</groupId>
+		  <artifactId>n5-utils</artifactId>
+		  <version>0.0.8-SNAPSHOT</version>
+		  <optional>true</optional>
+		</dependency>
+		
+		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
 		</dependency>
