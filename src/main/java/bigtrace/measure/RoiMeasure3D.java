@@ -124,44 +124,44 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		final JPanel panLineTools = new JPanel(new GridBagLayout());  
 		panLineTools.setBorder(new PanelTitle(" Tools "));
 
-		URL icon_path = this.getClass().getResource("/icons/line_profile.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/line_profile.png");
 		ImageIcon tabIcon = new ImageIcon(icon_path);
 		butLineProfile = new JButton(tabIcon);
 		butLineProfile.setToolTipText("Plot Intensity Profile");
 		butLineProfile.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 
-		icon_path = this.getClass().getResource("/icons/line_align.png");
+		icon_path = this.getClass().getResource("/bt_icons/line_align.png");
 		tabIcon = new ImageIcon(icon_path);
 		butLineAlignment = new JButton(tabIcon);
 		butLineAlignment.setToolTipText("Curve Coalignment");
 		butLineAlignment.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 
-		icon_path = this.getClass().getResource("/icons/make_plot.png");
+		icon_path = this.getClass().getResource("/bt_icons/make_plot.png");
 		tabIcon = new ImageIcon(icon_path);
 		butMeasureFile = new JToggleButton(tabIcon);
 		butMeasureFile.setToolTipText("Make plot, press for file export");
 		butMeasureFile.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 		
 
-		icon_path = this.getClass().getResource("/icons/pipe.png");
+		icon_path = this.getClass().getResource("/bt_icons/pipe.png");
 		tabIcon = new ImageIcon(icon_path);
 		butStraighten = new JButton(tabIcon);
 		butStraighten.setToolTipText("Straighten");
 		butStraighten.setPreferredSize(new Dimension(nButtonSize, nButtonSize));
 		
-		icon_path = this.getClass().getResource("/icons/extract_box.png");
+		icon_path = this.getClass().getResource("/bt_icons/extract_box.png");
 		tabIcon = new ImageIcon(icon_path);
 		butExtractBox = new JButton(tabIcon);
 		butExtractBox.setToolTipText("Extract ROI Box");
 		butExtractBox.setPreferredSize(new Dimension(nButtonSize, nButtonSize));
 
-		icon_path = this.getClass().getResource("/icons/slice_volume.png");
+		icon_path = this.getClass().getResource("/bt_icons/slice_volume.png");
 		tabIcon = new ImageIcon(icon_path);
 		butSlice = new JButton(tabIcon);
 		butSlice.setToolTipText("Split volume");
 		butSlice.setPreferredSize(new Dimension(nButtonSize, nButtonSize));
 		
-		icon_path = this.getClass().getResource("/icons/settings.png");
+		icon_path = this.getClass().getResource("/bt_icons/settings.png");
 		tabIcon = new ImageIcon(icon_path);
 		butSettings = new JButton(tabIcon);
 		butSettings.setToolTipText("Settings");
@@ -1538,14 +1538,14 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		{
 			if(butMeasureFile.isSelected())
 			{
-				URL icon_path = this.getClass().getResource("/icons/file_export.png");
+				URL icon_path = this.getClass().getResource("/bt_icons/file_export.png");
 				ImageIcon tabIcon = new ImageIcon(icon_path);
 				butMeasureFile.setIcon(tabIcon);
 				butMeasureFile.setToolTipText("Export to file, press for plot");
 			}
 			else
 			{
-				URL icon_path = this.getClass().getResource("/icons/make_plot.png");
+				URL icon_path = this.getClass().getResource("/bt_icons/make_plot.png");
 				ImageIcon tabIcon = new ImageIcon(icon_path);
 				butMeasureFile.setIcon(tabIcon);
 				butMeasureFile.setToolTipText("Make plot, press for file export");

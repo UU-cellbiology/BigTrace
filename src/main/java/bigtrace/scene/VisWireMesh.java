@@ -86,12 +86,12 @@ public class VisWireMesh {
 	{
 		
 		btdata = btdata_;
-		final Segment lineVp = new SegmentTemplate( VisWireMesh.class, "/scene/simple_color_clip.vp" ).instantiate();
-		final Segment lineFp = new SegmentTemplate( VisWireMesh.class, "/scene/simple_color_clip.fp" ).instantiate();		
+		final Segment lineVp = new SegmentTemplate( VisWireMesh.class, "/bt_scene/simple_color_clip.vp" ).instantiate();
+		final Segment lineFp = new SegmentTemplate( VisWireMesh.class, "/bt_scene/simple_color_clip.fp" ).instantiate();		
 		progLine = new DefaultShader( lineVp.getCode(), lineFp.getCode() );
 				
-		final Segment meshVp = new SegmentTemplate( VisWireMesh.class, "/scene/mesh.vp" ).instantiate();
-		final Segment meshFp = new SegmentTemplate( VisWireMesh.class, "/scene/mesh.fp" ).instantiate();
+		final Segment meshVp = new SegmentTemplate( VisWireMesh.class, "/bt_scene/mesh.vp" ).instantiate();
+		final Segment meshFp = new SegmentTemplate( VisWireMesh.class, "/bt_scene/mesh.fp" ).instantiate();
 		progMesh = new DefaultShader( meshVp.getCode(), meshFp.getCode() );
 	}
 	

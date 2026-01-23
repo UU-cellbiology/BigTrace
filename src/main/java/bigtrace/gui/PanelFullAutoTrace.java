@@ -36,9 +36,9 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 	public PanelFullAutoTrace (final BigTrace<T> bt_)
 	{
 		bt = bt_;
-		URL icon_path = this.getClass().getResource("/icons/autotrace.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/autotrace.png");
 		tabIconAuto = new ImageIcon(icon_path);
-		icon_path = this.getClass().getResource("/icons/cancel.png");
+		icon_path = this.getClass().getResource("/bt_icons/cancel.png");
 		tabIconCancel = new ImageIcon(icon_path);
 	}
 	

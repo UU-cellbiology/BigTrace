@@ -68,15 +68,15 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		panTrackTools.setBorder(new PanelTitle(" Tracking "));
 		int nButtonSize = 40;
 		
-		URL icon_path = this.getClass().getResource("/icons/train.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/train.png");
 		tabIconTrain = new ImageIcon(icon_path);
-		icon_path = this.getClass().getResource("/icons/cancel.png");
+		icon_path = this.getClass().getResource("/bt_icons/cancel.png");
 		tabIconCancel = new ImageIcon(icon_path);
 		butTrack = new JButton(tabIconTrain);
 		butTrack.setToolTipText("Track");
 		butTrack.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 		
-		icon_path = this.getClass().getResource("/icons/settings.png");
+		icon_path = this.getClass().getResource("/bt_icons/settings.png");
 		ImageIcon tabIcon = new ImageIcon(icon_path);
 		butSettings = new JButton(tabIcon);
 		butSettings.setToolTipText("Settings");

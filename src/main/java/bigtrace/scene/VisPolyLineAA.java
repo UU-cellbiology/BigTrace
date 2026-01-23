@@ -60,8 +60,8 @@ public class VisPolyLineAA
 
 	public VisPolyLineAA()
 	{
-		final Segment lineVp = new SegmentTemplate( VisPolyLineAA.class, "/scene/aa_line.vp" ).instantiate();
-		final Segment lineFp = new SegmentTemplate( VisPolyLineAA.class, "/scene/aa_line.fp" ).instantiate();
+		final Segment lineVp = new SegmentTemplate( VisPolyLineAA.class, "/bt_scene/aa_line.vp" ).instantiate();
+		final Segment lineFp = new SegmentTemplate( VisPolyLineAA.class, "/bt_scene/aa_line.fp" ).instantiate();
 		
 		prog = new DefaultShader( lineVp.getCode(), lineFp.getCode() );
 	}

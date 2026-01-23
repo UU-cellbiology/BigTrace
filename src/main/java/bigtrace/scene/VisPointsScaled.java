@@ -56,10 +56,10 @@ public class VisPointsScaled
 
 	public VisPointsScaled()
 	{
-		final Segment pointVp = new SegmentTemplate( VisPointsScaled.class, "/scene/scaled_point.vp" ).instantiate();
-		final Segment pointVpS = new SegmentTemplate( VisPointsScaled.class, "/scene/scaled_point.vp" ).instantiate();
-		final Segment pointFpRound = new SegmentTemplate( VisPointsScaled.class, "/scene/scaled_round_point.fp" ).instantiate();		
-		final Segment pointFpSquare = new SegmentTemplate( VisPointsScaled.class, "/scene/scaled_square_point.fp" ).instantiate();
+		final Segment pointVp = new SegmentTemplate( VisPointsScaled.class, "/bt_scene/scaled_point.vp" ).instantiate();
+		final Segment pointVpS = new SegmentTemplate( VisPointsScaled.class, "/bt_scene/scaled_point.vp" ).instantiate();
+		final Segment pointFpRound = new SegmentTemplate( VisPointsScaled.class, "/bt_scene/scaled_round_point.fp" ).instantiate();		
+		final Segment pointFpSquare = new SegmentTemplate( VisPointsScaled.class, "/bt_scene/scaled_square_point.fp" ).instantiate();
 		progRound = new DefaultShader( pointVp.getCode(), pointFpRound.getCode() );
 		progSquare = new DefaultShader( pointVpS.getCode(), pointFpSquare.getCode() );
 	

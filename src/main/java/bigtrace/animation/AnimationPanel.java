@@ -147,17 +147,17 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		GridBagConstraints cr = new GridBagConstraints();
 
 		
-		URL icon_path = this.getClass().getResource("/icons/render.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/render.png");
 		tabIconRecord = new ImageIcon(icon_path);
 		butRecord = new JButton(tabIconRecord);
 		butRecord.setToolTipText("Render");
 		butRecord.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 		
-		icon_path = this.getClass().getResource("/icons/play.png");
+		icon_path = this.getClass().getResource("/bt_icons/play.png");
 		tabIconPlay = new ImageIcon(icon_path);		
 		butPlayStop = new JButton(tabIconPlay);
 		
-		icon_path = this.getClass().getResource("/icons/cancel.png");
+		icon_path = this.getClass().getResource("/bt_icons/cancel.png");
 		tabIconStop = new ImageIcon(icon_path);		
 		butPlayStop.setToolTipText("Play");
 		butPlayStop.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
@@ -173,13 +173,13 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 			}
 		});
 		
-		icon_path = this.getClass().getResource("/icons/uncoil.png");
+		icon_path = this.getClass().getResource("/bt_icons/uncoil.png");
 		ImageIcon tabIcon = new ImageIcon(icon_path);		
 		butUncoil = new JButton(tabIcon);
 		butUncoil.setToolTipText("Straighten animation");
 		butUncoil.setPreferredSize(new Dimension(nButtonSize , nButtonSize ));
 		
-		icon_path = this.getClass().getResource("/icons/settings.png");
+		icon_path = this.getClass().getResource("/bt_icons/settings.png");
 		tabIcon = new ImageIcon(icon_path);
 		butSettings = new JButton(tabIcon);
 		butSettings.setToolTipText("Settings");

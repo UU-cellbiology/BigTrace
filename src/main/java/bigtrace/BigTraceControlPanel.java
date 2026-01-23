@@ -115,36 +115,36 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		JTabbedPane tabPane = new JTabbedPane(SwingConstants.LEFT);
 		
-		URL icon_path = this.getClass().getResource("/icons/cube_icon.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/cube_icon.png");
 	    ImageIcon tabIcon = new ImageIcon(icon_path);
 
 	    tabPane.addTab("",tabIcon,panelView(), "View/Clip");
 
 	    //ROI MANAGER
-	    icon_path = this.getClass().getResource("/icons/node.png");
+	    icon_path = this.getClass().getResource("/bt_icons/node.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,roiManager,"Tracing");
 	    
 	    //MEASUREMENTS	    
-	    icon_path = this.getClass().getResource("/icons/measure.png");
+	    icon_path = this.getClass().getResource("/bt_icons/measure.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,roiMeasure,"Measure");
 	    
 	    //TRACKS	
 	    if(bt.btData.nNumTimepoints > 1)
 	    {
-		    icon_path = this.getClass().getResource("/icons/tracks.png");
+		    icon_path = this.getClass().getResource("/bt_icons/tracks.png");
 		    tabIcon = new ImageIcon(icon_path);
 		    tabPane.addTab("",tabIcon ,btTracksPanel,"Tracking");
 	    }
 	    
 	    //ANIMATION
-	    icon_path = this.getClass().getResource("/icons/director.png");
+	    icon_path = this.getClass().getResource("/bt_icons/director.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,btAniPanel,"Movie animation");
 	    
 	    //HELP/SHORTCUTS
-	    icon_path = this.getClass().getResource("/icons/shortcut.png");
+	    icon_path = this.getClass().getResource("/bt_icons/shortcut.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,panelInformation(),"Help/Shortcuts");
 
@@ -268,7 +268,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		//VIEW PANEL
 		JPanel panView = new JPanel(new GridBagLayout()); 
 		panView.setBorder(new PanelTitle(" View "));		
-		URL icon_path = this.getClass().getResource("/icons/orig.png");
+		URL icon_path = this.getClass().getResource("/bt_icons/orig.png");
 	    ImageIcon tabIcon = new ImageIcon(icon_path);
 	    JToggleButton butOrigin = new JToggleButton(tabIcon);
 	    butOrigin.setSelected(btdata.bShowOrigin);
@@ -291,7 +291,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		panView.add(butOrigin,c);
 		
 		//BOX AROUND VOLUME
-		icon_path = this.getClass().getResource("/icons/boxvolume.png");
+		icon_path = this.getClass().getResource("/bt_icons/boxvolume.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    JToggleButton butVBox = new JToggleButton(tabIcon);
 	    butVBox.setSelected(btdata.bVolumeBox);
@@ -314,7 +314,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		panView.add(butVBox,c);
 		
 		//SAVE AND LOAD BUTTONS
-		icon_path = this.getClass().getResource("/icons/save_view.png");
+		icon_path = this.getClass().getResource("/bt_icons/save_view.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    butSaveView = new JButton(tabIcon);
 	    butSaveView.setToolTipText( "Save image view" );
@@ -322,7 +322,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		c.gridx++;
 		panView.add(butSaveView,c);	
 
-		icon_path = this.getClass().getResource("/icons/load.png");
+		icon_path = this.getClass().getResource("/bt_icons/load.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    butLoadView = new JButton(tabIcon);
 	    butLoadView.setToolTipText( "Load image view" );
@@ -331,7 +331,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		panView.add(butLoadView,c);	
 
 		//FULLSCREEN BUTTON
-		icon_path = this.getClass().getResource("/icons/fullscreen.png");
+		icon_path = this.getClass().getResource("/bt_icons/fullscreen.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    JButton butFullScreen = new JButton(tabIcon);
 	    butFullScreen.setToolTipText( "Fullscreen" );
@@ -341,7 +341,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 
 		
 		//SETTINGS
-		icon_path = this.getClass().getResource("/icons/settings.png");
+		icon_path = this.getClass().getResource("/bt_icons/settings.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    butSettings = new JButton(tabIcon);
 	    butSettings.setToolTipText("Settings");

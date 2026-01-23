@@ -8,7 +8,7 @@ import bigtrace.gui.RenderSettings;
 import ij.Prefs;
 
 
-@Plugin(type = Command.class, menuPath = "Plugins>BigTrace 0.8.0>Volume Render Settings")
+@Plugin(type = Command.class, menuPath = "Plugins>BigTrace 0.8.1>Volume Render Settings")
 public class BigTraceRenderSettings implements Command {
 
 	
