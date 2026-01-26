@@ -84,7 +84,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	
 	int nChangeTotalTimeMode = (int)Prefs.get("BigTrace.nChangeTotalTimeMode", ANIMTIME_END);
 	
-	final public KeyFrameAnimation<T> kfAnim;
+	final public KeyFrameAnimation kfAnim;
 	
 	final JToggleButton butUpdateSlider;
 
@@ -136,7 +136,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		listModel = new  DefaultListModel<>();
 		jlist = new JList<>(listModel);
 		
-		kfAnim = new KeyFrameAnimation<>(bt,listModel);
+		kfAnim = new KeyFrameAnimation(listModel);
 		kfAnim.setTotalTime( nInitialTotalTime );
 		this.player = null;
 		

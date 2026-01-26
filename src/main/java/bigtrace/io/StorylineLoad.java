@@ -35,7 +35,7 @@ public class StorylineLoad < T extends RealType< T > & NativeType< T > >
 	{
 		String[] line_array;
 		DefaultListModel<KeyFrame> listModel = new  DefaultListModel<>();
-		KeyFrameAnimation<T> kfAnim = aPanel.kfAnim;
+		KeyFrameAnimation kfAnim = aPanel.kfAnim;
 		
 		KeyFrame kfLoad = new KeyFrame("loading");
 		

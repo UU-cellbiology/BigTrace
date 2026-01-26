@@ -321,7 +321,7 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 	boolean dialEditKeyFrame(final int nInd)
 	{
 		final DefaultListModel< KeyFrame > listModel = pan.listModel;
-		final KeyFrameAnimation< T > kfAnim = pan.kfAnim;
+		final KeyFrameAnimation kfAnim = pan.kfAnim;
 		
 		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
 		decimalFormatSymbols.setDecimalSeparator('.');

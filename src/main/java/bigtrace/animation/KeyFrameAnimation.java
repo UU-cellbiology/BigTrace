@@ -5,15 +5,10 @@ import java.util.ArrayList;
 import javax.swing.DefaultListModel;
 
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import bigtrace.BigTrace;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
 
-public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
+public class KeyFrameAnimation
 {
-	final BigTrace<T> bt;
 	int nTotalTime;
 	
 	final public DefaultListModel<KeyFrame> keyFrames;
@@ -21,9 +16,8 @@ public class KeyFrameAnimation < T extends RealType< T > & NativeType< T > >
 	final ArrayList<Float> timeIntervals = new ArrayList<>();
 	final ArrayList<KeyFrame> fullList = new ArrayList<>();
 	
-	public KeyFrameAnimation(final BigTrace<T> bt_, final DefaultListModel<KeyFrame> keyFrames_)
+	public KeyFrameAnimation(final DefaultListModel<KeyFrame> keyFrames_)
 	{
-		this.bt = bt_;
 		keyFrames = keyFrames_;
 	}
 	

@@ -32,7 +32,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 {
 
 	/** current plugin version **/
-	public static String sVersion = "0.8.1";
+	public static String sVersion = "0.8.2";
 	
 	/** plugin instance **/
 	BigTrace<T> bt;
