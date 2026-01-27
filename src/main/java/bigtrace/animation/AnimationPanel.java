@@ -407,7 +407,6 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 				timeNindex [i][1] = i;
 			}
     		Arrays.sort(timeNindex, (a, b) -> Float.compare(a[0], b[0]));
-    		System.out.print( true );
     		final ArrayList<KeyFrame> storeKF = new ArrayList<>(listModel.size());
     		for(int i = 0; i < listModel.size(); i++)
     		{
