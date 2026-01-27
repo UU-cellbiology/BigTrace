@@ -356,15 +356,20 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 				
 		if (reply == JOptionPane.OK_OPTION) 
 		{
-		
-			if(tfName.getText().length()>0)
+			final KeyFrame keyFrame = listModel.get( nInd );
+			if(tfName.getText().length() > 0)
 			{
-				listModel.get( nInd ).name = tfName.getText();
+				keyFrame.name = tfName.getText();
+				listModel.setElementAt( keyFrame, nInd );
 			}
+			
 			float fNewTime = Math.min(Math.max(0, Float.parseFloat( nfTimePoint.getText())), kfAnim.nTotalTime);
-			if(Math.abs( listModel.get( nInd ).fMovieTimePoint - fNewTime)>0.001)
+			
+			if(Math.abs( listModel.get( nInd ).fMovieTimePoint - fNewTime) > 0.001)
 			{
-				listModel.get( nInd ).fMovieTimePoint = fNewTime;
+				keyFrame.fMovieTimePoint = fNewTime;
+				listModel.setElementAt( keyFrame, nInd );
+				pan.sortListModel();
 				return true;
 			}
 			return false;

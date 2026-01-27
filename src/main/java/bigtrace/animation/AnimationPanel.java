@@ -18,6 +18,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 
 import javax.swing.DefaultListModel;
@@ -48,6 +49,7 @@ import bigtrace.gui.PanelTitle;
 import bigtrace.io.StorylineLoad;
 import bigtrace.io.StorylineSave;
 import bigtrace.rois.Roi3D;
+
 import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
@@ -231,34 +233,30 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		timeSlider.setPaintLabels(true);
 		timeSlider.addChangeListener( this );
 
-		//timeSlider.setMinimumSize(new Dimension(50, 1250));
-		//timeSlider.setPreferredSize(new Dimension(50, 1250));
 		sliderPanel.add(timeSlider);
 		
 		cr = new GridBagConstraints();
-		cr.gridx=0;
-		cr.gridy=0;
+		cr.gridx = 0;
+		cr.gridy = 0;
 		cr.gridheight = 7;
-		//cr.gridheight = GridBagConstraints.REMAINDER;
 
 		cr.fill  = GridBagConstraints.BOTH;
-		//cr.weightx=1.00;
-		cr.weighty=0.99;
+		cr.weighty = 0.99;
 		
 
 		keyMarks = new DrawKeyPoints();
 		keyMarks.setMinimumSize( new Dimension(30,250));
 	    keyMarks.setPreferredSize( new Dimension(30,250));
-		//keyMarks.setBorder(new PanelTitle(" Keys"));
-		
-		//cr.weightx=0.4;
-		panAnimPlot.add( keyMarks,cr );
-		cr.gridx++;
-		panAnimPlot.add( sliderPanel,cr );
-		
-		cr.gridx++;
-		///RoiLIST and buttons
 
+		panAnimPlot.add( keyMarks, cr );
+		
+		cr.gridx++;
+		panAnimPlot.add( sliderPanel, cr );
+		
+		cr.gridx++;
+		
+		
+		// RoiLIST and buttons
 		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		jlist.setLayoutOrientation(JList.VERTICAL);
 		jlist.setVisibleRowCount(-1);
@@ -285,14 +283,11 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		listScroller.setPreferredSize(new Dimension(170, 250));
 		//listScroller.setMinimumSize(new Dimension(170, 250));		
 	
-		cr.weightx=0.5;
-		//cr.weighty=0.5;
+		cr.weightx = 0.5;
 		panAnimPlot.add(listScroller,cr);
 		
 		//BUTTONS
 		cr = new GridBagConstraints();
-		//cr.weightx = 0;
-		//cr.weighty = 0;
 		cr.gridy = 0;
 		cr.gridx = 3;
 		cr.fill = GridBagConstraints.NONE;
@@ -399,6 +394,32 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		cr.weightx = 0.01;
 		cr.weighty = 0.01;
 		add(new JLabel(), cr);    
+	}
+	
+	void sortListModel()
+	{
+		if(listModel.size() > 0)
+		{
+			final float [][] timeNindex = new float [listModel.size()][2];
+			for(int i = 0; i < listModel.size(); i++)
+			{
+				timeNindex [i][0] = listModel.get( i ).fMovieTimePoint;
+				timeNindex [i][1] = i;
+			}
+    		Arrays.sort(timeNindex, (a, b) -> Float.compare(a[0], b[0]));
+    		System.out.print( true );
+    		final ArrayList<KeyFrame> storeKF = new ArrayList<>(listModel.size());
+    		for(int i = 0; i < listModel.size(); i++)
+    		{
+    			storeKF.add( listModel.get( (int)timeNindex[i][1] ) );
+    		}
+    		
+    		listModel.clear();
+    		for(int i = 0; i < storeKF.size(); i++)
+    		{
+    			listModel.addElement( storeKF.get( i ) );
+    		}
+		}
 	}
 	
 	void runRender()

@@ -5,8 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
-import javax.swing.DefaultListModel;
-
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
@@ -34,7 +32,7 @@ public class StorylineLoad < T extends RealType< T > & NativeType< T > >
 	public void loadAnimation(String sFilename)
 	{
 		String[] line_array;
-		DefaultListModel<KeyFrame> listModel = new  DefaultListModel<>();
+		
 		KeyFrameAnimation kfAnim = aPanel.kfAnim;
 		
 		KeyFrame kfLoad = new KeyFrame("loading");
@@ -52,8 +50,11 @@ public class StorylineLoad < T extends RealType< T > & NativeType< T > >
 			 {
 				 System.out.println("Version mismatch: storyline file "+line_array[2]+", plugin "+BigTraceData.sVersion+". It should be fine in theory, so loading anyway.");
 			 }
-			  
-		     line = br.readLine();
+			 
+			 aPanel.listModel.clear();
+		     
+			 line = br.readLine();
+			 
 			 while (line != null) 
 			 {				
 				 // process the line.
@@ -74,7 +75,7 @@ public class StorylineLoad < T extends RealType< T > & NativeType< T > >
 					 Scene scLoad = new Scene();
 					 scLoad.load( br );
 					 kfLoad.setScene( scLoad );
-					 listModel.addElement( kfLoad );
+					 aPanel.listModel.addElement( kfLoad );
 					 break;
 				 }
 				 line = br.readLine(); 
@@ -93,7 +94,6 @@ public class StorylineLoad < T extends RealType< T > & NativeType< T > >
 		}
 		
 		//let's update everything
-		aPanel.kfAnim.setListModel( listModel );
 		aPanel.updateKeyIndices();
 		aPanel.updateKeyMarks();
 		kfAnim.updateTransitionTimeline();
