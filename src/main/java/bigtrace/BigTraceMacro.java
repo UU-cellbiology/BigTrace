@@ -153,6 +153,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
+		
 		int nFirstTP = 0;
 		int nLastTP = 0;
 		
@@ -178,6 +180,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
 		String [] axes = new String[] {"X","Y","Z"};
 		IJ.log( "Setting tracing thickness:" );
 		String out ="Axis SDs: ";
@@ -188,6 +191,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			out += axes[d] + " " + Double.toString( bt.btData.sigmaTrace[d])+" ";
 		}
 		IJ.log( out );
+		bt.bInputLock = false;
 
 	} 
 	
@@ -197,10 +201,12 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
 		int nFinCh = Math.max(nChannel,1);
 		nFinCh = Math.min( nFinCh, bt.btData.nTotalChannels );
 		bt.roiManager.setActiveChannel( nFinCh - 1 );
 		IJ.log( "The active tracing/measuring channel is set to " + Integer.toString( nFinCh ) );
+		bt.bInputLock = false;
 	}
 	
 	public void macroSetTracingROI(String sEnable, final double coeff, String sMethod) throws InterruptedException
@@ -209,6 +215,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
 		IJ.log( "Setting ROI thickness from tracing parameters: " );
 		bt.btData.bEstimateROIThicknessFromParams  = false;
 		if(sEnable.equals( "true" ))
@@ -247,6 +254,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			Prefs.set("BigTrace.nTraceROIThicknessMode", (double)bt.btData.nTraceROIThicknessMode);
 			IJ.log( out );
 		}
+		bt.bInputLock = false;
 	}
 	
 	public void macroSetOneClickParameters(int nVertexPlacementPointN, double dDirectionalityOneClick, String sOCIntensityStop, double dOCIntensityThreshold) throws InterruptedException
@@ -255,6 +263,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
 		IJ.log( "Setting one-click tracing parameters:" );
 		
 		bt.btData.nVertexPlacementPointN = Math.max(3, nVertexPlacementPointN);
@@ -281,7 +290,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			Prefs.set("BigTrace.dOCIntensityThreshold",bt.btData.dOCIntensityThreshold);
 			IJ.log( "Intensity threshold min value:" + Double.toString( bt.btData.dOCIntensityThreshold));
 		}
-
+		bt.bInputLock = false;
 	}
 	
 	public void macroLoadROIs(String sFileName, String input) throws InterruptedException
@@ -290,6 +299,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		
+		bt.bInputLock = true;
 		
         if(input == null)
         	return;
@@ -308,7 +319,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.loadROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs loaded from " + sFileName);
-
+    	bt.bInputLock = false;
 	}
 	
 	public void macroSaveROIs(String sFileName, String output) throws InterruptedException
@@ -317,6 +328,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
+		bt.bInputLock = true;
 		String out = "";
         if(output == null)
         {
@@ -345,7 +357,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.saveROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs saved to " + sFileName);
-
+    	bt.bInputLock = false;
 	}
 	
 	void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape) throws InterruptedException
@@ -361,8 +373,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		//build list of ROIs
 		final ArrayList<AbstractCurve3D> curvesOut = new ArrayList<>();
-		
-		for (int nRoi = 0; nRoi<bt.roiManager.rois.size(); nRoi++)
+		IJ.log( "Total " + Integer.toString(bt.roiManager.rois.size()) +" ROIs" );
+		for (int nRoi = 0; nRoi < bt.roiManager.rois.size(); nRoi++)
 		{
 			Roi3D roi = bt.roiManager.rois.get(nRoi);
 			if(bt.roiManager.groups.get(roi.getGroupInd()).bVisible)
@@ -373,8 +385,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				}
 			}
 		}
+		IJ.log( "Found " + Integer.toString(curvesOut.size()) + " curve ROIs" );
+
 		int nAxis = nStraightenAxis;
-		if(nStraightenAxis<0 || nStraightenAxis>2)
+		if(nStraightenAxis < 0 || nStraightenAxis > 2)
 		{
 			nAxis = 0;
 			IJ.log( "First axis parameter should be in the range of 0-2, wher 0 = X axis, 1 = Y axis, 2 = Z axis" );
@@ -385,7 +399,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			nShape  = 1;
 		}
-		if(curvesOut.size()>0)
+		if(curvesOut.size() > 0)
 		{	
 			StraightenCurve<T> straightBG = new StraightenCurve<>(curvesOut, bt, -1.0f, nAxis, nShape, 0, 1, sSaveDir);
 			straightBG.addPropertyChangeListener(bt.btPanel);

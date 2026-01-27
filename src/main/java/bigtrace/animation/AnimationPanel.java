@@ -464,7 +464,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		//run player
 		if(e.getSource() == butPlayStop)
 		{
-			if(listModel.size()>0)
+			if(listModel.size() > 0)
 			{
 				if(!bt.bInputLock )
 				{
@@ -472,11 +472,19 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 				}
 				else
 				{
-					if(bt.bInputLock && butPlayStop.isEnabled() && player!=null && !player.isCancelled() && !player.isDone())
+					if( bt.bInputLock && 
+							butPlayStop.isEnabled() && 
+							player!=null && 
+							!player.isCancelled() && 
+							!player.isDone())
 					{
 						player.cancel( false );
 					}
 				}
+			}
+			else
+			{
+				bt.btPanel.progressBar.setString("cannot play: add at least one key frame.");
 			}
 		}
 		

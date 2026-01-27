@@ -11,9 +11,8 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
 
-public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  extends SwingWorker<Void, String>
 {
 	final BigTrace<T> bt;
 	final AnimationPanel< T > aPanel;
@@ -22,20 +21,11 @@ public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  exte
 	public boolean bLoopBackAndForth = false;
 
 	JButton butPlayStop = null;
+	
 	ImageIcon tabIconPlay = null;
+	
 	boolean bUpdateSliderOff = true;
 	
-	@Override
-	public String getProgressState()
-	{
-		return null;
-	}
-
-	@Override
-	public void setProgressState( String state_ )
-	{
-		
-	}
 	public AnimationPlayer(BigTrace<T> bt, AnimationPanel< T > aPanel_)
 	{
 		this.bt = bt;
@@ -66,7 +56,7 @@ public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  exte
 			dWait = Math.round( dWaitPure / aPanel.fPlaySpeedFactor);
 			Thread.sleep(Math.round( dWait));
 			currVal += dInc;
-			if(currVal >timeSlider.getMaximum())
+			if(currVal > timeSlider.getMaximum())
 			{
 				if(!aPanel.bPlayerBackForth)
 				{
@@ -78,7 +68,7 @@ public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  exte
 					currVal = timeSlider.getMaximum()-1;
 				}
 			}
-			if(currVal <timeSlider.getMinimum())
+			if(currVal < timeSlider.getMinimum())
 			{
 				dInc = 1;
 				currVal = 1;
