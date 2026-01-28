@@ -39,10 +39,8 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 
 	@Override
 	protected Void doInBackground() throws Exception {
-		int nRoi, nRoiN;		
 
-		bt.bInputLock = true;
-    	bt.setLockMode(true);
+		int nRoi, nRoiN;		
     	
         try {
 			final File file = new File(sFilename);

@@ -26,12 +26,11 @@ public class LineProfileBG extends SwingWorker<Void, String> implements BigTrace
 	@Override
 	public void setProgressState(String state_)
 	{
-		progressState=state_;
+		progressState = state_;
 	}
 	@Override
 	protected Void doInBackground() throws Exception {
-		bt.bInputLock = true;
-    	bt.setLockMode(true);
+
     	final int nRoiN = bt.roiManager.rois.size();
     	setProgressState("measuring line profiles...");
     	setProgress(0);

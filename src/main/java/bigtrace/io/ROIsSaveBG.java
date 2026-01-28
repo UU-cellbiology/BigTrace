@@ -36,10 +36,8 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 
 	@Override
 	protected Void doInBackground() throws Exception {
-		int nRoi, nRoiN;		
 
-		bt.bInputLock = true;
-    	bt.setLockMode(true);
+		int nRoi, nRoiN;		
     	
     	//get the group manager to save groups
     	Roi3DGroupManager<T> roiGM = new Roi3DGroupManager<>(bt.roiManager);
@@ -70,7 +68,7 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 
 				nRoiN = bt.roiManager.rois.size();
 				writer.write("ROIsNumber," + Integer.toString(nRoiN)+"\n");
-				for(nRoi=0;nRoi<nRoiN;nRoi++)
+				for(nRoi = 0; nRoi < nRoiN; nRoi++)
 				{
 					  //Sleep for up to one second.
 					try {

@@ -569,8 +569,8 @@ public class Roi3DGroupManager < T extends RealType< T > & NativeType< T > > imp
 	
 	public int loadGroups(BufferedReader br)
 	{
-        float pointSize=0.0f;
-        float lineThickness =0.0f;
+        float pointSize = 0.0f;
+        float lineThickness = 0.0f;
         Color pointColor = Color.BLACK;
         Color lineColor = Color.BLACK;
         String sName = "";

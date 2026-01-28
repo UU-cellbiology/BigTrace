@@ -34,15 +34,13 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 	@Override
 	public void setProgressState(String state_)
 	{
-		progressState=state_;
+		progressState = state_;
 	}
 
 	@Override
-	protected Void doInBackground() throws Exception {
+	protected Void doInBackground() throws Exception 
+	{
 		int nRoi, nRoiN;		
-
-		bt.bInputLock = true;
-    	bt.setLockMode(true);
     	
         try {
 			final File file = new File(sFilename);
@@ -73,7 +71,7 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 				}
 				writer.write( "#smooth_window "+Integer.toString( bt.btData.nSmoothWindow )+"\n" );
 
-				for(nRoi=0; nRoi<nRoiN; nRoi++)
+				for(nRoi = 0; nRoi < nRoiN; nRoi++)
 				{
 					
 					  //Sleep for up to one second.

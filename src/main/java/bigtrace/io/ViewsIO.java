@@ -164,6 +164,7 @@ public class ViewsIO
 		bt.bInputLock = false;
 		bt.setLockMode(false);
 	}	
+	
 	/** loading current view from csv **/
 	public static < T extends RealType< T > & NativeType< T > > void loadView(final BigTrace<T> bt, String sFilename)
 	{

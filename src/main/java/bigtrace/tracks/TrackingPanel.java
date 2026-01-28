@@ -133,16 +133,16 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 			}
 		});
 
-		cr.gridx=0;
-		cr.gridy=0;
+		cr.gridx = 0;
+		cr.gridy = 0;
 		cr.gridheight=GridBagConstraints.REMAINDER;
 
 		cr.fill  = GridBagConstraints.BOTH;
-		cr.weightx=0.99;
-		cr.weighty=0.99;
+		cr.weightx = 0.99;
+		cr.weighty = 0.99;
 		panTracksChange.add(listScroller,cr);
-		cr.weightx=0.0;
-		cr.weighty=0.0;
+		cr.weightx = 0.0;
+		cr.weighty = 0.0;
 		cr.fill = GridBagConstraints.NONE;
 
 		butAlign = new JButton("Align");

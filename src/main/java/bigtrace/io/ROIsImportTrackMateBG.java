@@ -52,8 +52,7 @@ public class ROIsImportTrackMateBG  extends SwingWorker<Void, String> implements
 		ArrayList<Roi3D> allRois = new ArrayList<>();
 		Color cCurrentTrackColor = null;
 		//enter locked mode
-        bt.bInputLock = true;
-        bt.setLockMode(true);
+
 		try
         {
 

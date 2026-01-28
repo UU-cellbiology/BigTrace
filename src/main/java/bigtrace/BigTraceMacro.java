@@ -54,7 +54,6 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
 		extensions[10] = ExtensionDescriptor.newDescriptor("btTest", bt);
 		extensions[11] = ExtensionDescriptor.newDescriptor("btClose", bt);
-		//extensions[7] = ExtensionDescriptor.newDescriptor("btTest", bt);
 		
 	}
 	
@@ -319,7 +318,6 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.loadROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs loaded from " + sFileName);
-    	bt.bInputLock = false;
 	}
 	
 	public void macroSaveROIs(String sFileName, String output) throws InterruptedException
@@ -357,7 +355,6 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.saveROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs saved to " + sFileName);
-    	bt.bInputLock = false;
 	}
 	
 	void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape) throws InterruptedException

@@ -11,13 +11,16 @@ public class ROIsIO
 {
 	public static <T extends RealType< T > & NativeType< T > > void loadROIs(String filename, final int nLoadMode, final BigTrace<T> bt)
 	{
-		if(nLoadMode == 0 )
+		if( nLoadMode == 0 )
 		{
         	bt.roiManager.groups = new ArrayList<>();
         	bt.roiManager.rois.clear();
         	bt.roiManager.listModel.clear();
 		}
 		
+        bt.bInputLock = true;
+        bt.setLockMode(true);
+        
         ROIsLoadBG<T> loadTask = new ROIsLoadBG<>();
         
         loadTask.sFilename = filename;

@@ -572,19 +572,20 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		return val;
 		
 	}
+	
 	void measureROIs(final ArrayList<Roi3D> rois, final boolean resetTable)
 	{
 	
-		if(rois.size()>0)
+		if(rois.size() > 0)
 		{
-
+			bt.bInputLock = true;
+	    	bt.setLockMode(true);
 			ROIsMeasureBG measureBG = new ROIsMeasureBG();		
 			measureBG.rois = rois;
 			measureBG.bt = bt;
 			measureBG.resetTable = resetTable;
 			measureBG.addPropertyChangeListener(bt.btPanel);
-			measureBG.execute();
-			
+			measureBG.execute();	
 		}
 	}
 	
@@ -595,9 +596,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		filename = bt.btData.sFileNameFullImg + "_int_profiles";
 		SaveDialog sd = new SaveDialog("Save ROI Plot Profiles ", filename, ".csv");
         String path = sd.getDirectory();
-        if (path==null)
+        if (path == null)
         	return;
-        filename = path+sd.getFileName();
+        filename = path + sd.getFileName();
+        bt.setLockMode(true);
+        bt.bInputLock = true;
         LineProfileBG profileBG = new LineProfileBG();
         profileBG.bt = bt;
         profileBG.sFilename = filename;
@@ -614,9 +617,9 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		filename = bt.btData.sFileNameFullImg + "_coalign";
 		SaveDialog sd = new SaveDialog("Save ROI Plot Profiles ", filename, ".csv");
         String path = sd.getDirectory();
-        if (path==null)
+        if (path == null)
         	return;
-        filename = path+sd.getFileName();
+        filename = path + sd.getFileName();
         bt.setLockMode(true);
         bt.bInputLock = true;
         final File file = new File(filename);
@@ -639,18 +642,18 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{
 				writer.write("ROI_Name,ROI_Type,ROI_Group,ROI_TimePoint,Length,Angle_with_"+df3.format(coalignVector[0])+"_"+df3.format(coalignVector[1])+"_"+df3.format(coalignVector[2])+"(Rad),X_coord,Y_coord,Z_coord\n");
 			}
-			for(int i = 0; i<bt.roiManager.rois.size();i++)
+			for(int i = 0; i < bt.roiManager.rois.size(); i++)
 			{
 				roi = bt.roiManager.rois.get(i);
 				sPrefix = roi.getName() + ","+Roi3D.intTypeToString(roi.getType())+","+bt.roiManager.getGroupName(roi)+","+Integer.toString(roi.getTimePoint());
-				profile=measureLineCoalignment(roi, false);
-				if(profile!=null)
+				profile = measureLineCoalignment(roi, false);
+				if(profile != null)
 				{
-					for(j=0;j<profile[0].length;j++)
+					for(j = 0; j < profile[0].length; j++)
 					{
-						out="".concat(sPrefix);
+						out = "".concat(sPrefix);
 						
-						for(k=0;k<5;k++)
+						for(k = 0; k < 5; k++)
 						{
 							out = out.concat(","+df3.format(profile[k][j]));
 						}

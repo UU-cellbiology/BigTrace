@@ -658,6 +658,9 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
        	bt.roiManager.rois.clear();
         bt.roiManager.listModel.clear();
         
+        bt.bInputLock = true;
+        bt.setLockMode(true);
+        
         ROIsImportTrackMateBG importTask = new ROIsImportTrackMateBG();
         importTask.nImportColor = nImportColor;
         importTask.sFilename = filename;

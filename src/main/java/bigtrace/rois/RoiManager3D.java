@@ -1368,11 +1368,12 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	/** updates all ROIs images**/
 	public void updateROIsDisplay()
 	{
-			for (Roi3D roi : rois)
-			{
-				roi.updateRenderVertices();
-			}
-			bt.repaintBVV();
+		for (Roi3D roi : rois)
+		{
+			roi.updateRenderVertices();
+		}
+		
+		bt.repaintBVV();
 	}
 	
 	/** function used to select ROI on canvas **/

@@ -7,6 +7,7 @@ import java.io.FileReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.SwingWorker;
 
@@ -33,7 +34,6 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	public String sFilename;
 	public int nLoadMode;
 	String sFinalOut = "";
-
     
 	@Override
 	public String getProgressState()
@@ -50,12 +50,14 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	protected Void doInBackground() throws Exception {
 		String[] line_array;
        
-        int nRoiN=1;
-        int nVertN=0;
+        int nRoiN = 1;
+        
+        int nVertN = 0;
+
         int i,j;
 
-        
         ArrayList<RealPoint> vertices;
+        
         ArrayList<RealPoint> segment;
         
         int nROIGroupInd = 0;
@@ -69,14 +71,12 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
         int nRenderType = 0;
     	String sUnits = "";
     	double [] globCalNew  = new double [3];
-        globCalNew[0]= Double.NaN;
-        globCalNew[1]= Double.NaN;
-        globCalNew[2]= Double.NaN;                
+        globCalNew[0] = Double.NaN;
+        globCalNew[1] = Double.NaN;
+        globCalNew[2] = Double.NaN;                
        
         Roi3DGroupManager<T> roiGM;
-	
-        bt.bInputLock = true;
-        bt.setLockMode(true);
+
 		try ( BufferedReader br = new BufferedReader(new FileReader(sFilename));) 
 		{			       
 	        String line = "";
@@ -84,7 +84,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        if(nLoadMode == 0)
 	        {
 	        	roiGM = new Roi3DGroupManager<>(bt.roiManager);
-	        	if(roiGM.loadGroups(br)<0)
+	        	if(roiGM.loadGroups(br) < 0)
 	        	{
 	        		 System.err.println("Not a BigTrace ROI Group file format or plugin/file version mismatch,\nloading Groups failed.\n"+
 	        	"Try 'Append' loading mode.\n");
@@ -109,9 +109,11 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        		}
 					line_array = line.split(",");
 					
-					if(line_array.length==3 && line_array[0].equals("BigTrace_ROIs"))
+					if(line_array.length == 3 && line_array[0].equals("BigTrace_ROIs"))
 					{
 						bBeginROIpart = true;
+						
+						  System.out.println("First ROI line ok! ");
 					}
 					else
 					{
@@ -123,8 +125,8 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        }
 	        
 	        //initial part check
-	        
 			 line_array = line.split(",");
+			 
 			 if(!line_array[0].equals("BigTrace_ROIs"))
 			 {
 				 System.err.println("Not a BigTrace ROI file format, aborting");
@@ -243,8 +245,8 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					  
 				  case "Vertices":
 					  nVertN = Integer.parseInt(line_array[1]);
-					  vertices =new ArrayList<>(); 
-					  for(i=0;i<nVertN;i++)
+					  vertices = new ArrayList<>(); 
+					  for(i = 0; i < nVertN; i++)
 					  {
 						  line = br.readLine();
 						  line_array = line.split(",");
@@ -288,14 +290,14 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 						  line = br.readLine();
 						  line_array = line.split(",");
 						  int nTotSegm = Integer.parseInt(line_array[1]);
-						  for (i=0;i<nTotSegm;i++)
+						  for (i = 0; i < nTotSegm; i++)
 						  {
 							  //points number
 							  line = br.readLine();
 							  line_array = line.split(",");  
 							  nVertN = Integer.parseInt(line_array[3]);
 							  segment = new ArrayList<>(); 
-							  for(j=0;j<nVertN;j++)
+							  for(j = 0; j < nVertN; j++)
 							  {
 								  line = br.readLine();
 								  line_array = line.split(",");
@@ -321,12 +323,13 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					  
 				  }
 				  line = br.readLine(); 
-				}
+					System.out.println("lineoutside" + line);
+			}
 
 	        br.close();
 			setProgress(100);
-			
-			sFinalOut="loading ROIs done.";
+			System.out.println("finished reading file");
+			sFinalOut = "loading ROIs done.";
 			setProgressState(sFinalOut);
 			
 			/** load voxel calibration **/			
@@ -336,7 +339,6 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					bt.btData.sVoxelUnit = new String(sUnits);
 					bt.btPanel.voxelSizePanel.setVoxelSize(globCalNew, sUnits);
 					sFinalOut = "loading ROIs done (+voxel calibration).";
-					
 					setProgressState(sFinalOut);		
 			}
 			else
@@ -371,7 +373,28 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
      */
     @Override
     public void done() 
-    {
+    {   
+    	//see if we have some errors
+    	try {
+
+    		get();
+    	} 
+    	catch (ExecutionException e) 
+    	{
+    		e.getCause().printStackTrace();
+    		String msg = String.format("Unexpected error during ROI loading: %s", 
+    				e.getCause().toString());
+    		System.out.println(msg);
+    	} 
+    	catch (InterruptedException e) 
+    	{
+    		System.out.println(e.toString());
+    	}
+    	catch (Exception e)
+    	{
+    	}
+        System.out.println("done load lock thread");
+
 		//unlock user interaction
     	bt.bInputLock = false;
         bt.setLockMode(false);
