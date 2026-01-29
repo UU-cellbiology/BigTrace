@@ -323,12 +323,10 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					  
 				  }
 				  line = br.readLine(); 
-					System.out.println("lineoutside" + line);
 			}
 
 	        br.close();
 			setProgress(100);
-			System.out.println("finished reading file");
 			sFinalOut = "loading ROIs done.";
 			setProgressState(sFinalOut);
 			
@@ -393,7 +391,6 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
     	catch (Exception e)
     	{
     	}
-        System.out.println("done load lock thread");
 
 		//unlock user interaction
     	bt.bInputLock = false;

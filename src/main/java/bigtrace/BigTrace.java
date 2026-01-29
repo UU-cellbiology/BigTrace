@@ -470,21 +470,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public synchronized void setLockMode(boolean bLockMode)
 	{	 		 
 		 	 boolean bState = !bLockMode;
-		 	 System.out.println("inside SetLockMode1");
+
 		 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
-		 	 System.out.println("inside SetLockMode2");
-
 		 	 GuiMisc.setPanelStatusAllComponents(btPanel.roiMeasure, bState);
-		 	 System.out.println("inside SetLockMode3");
-
 		 	 GuiMisc.setPanelStatusAllComponents(btPanel.btTracksPanel, bState);
-		 	 System.out.println("inside SetLockMode4");
-
 		 	 GuiMisc.setPanelStatusAllComponents(btPanel.btAniPanel, bState);
-		 	 System.out.println("inside SetLockMode5");
-
 		 	 btPanel.voxelSizePanel.allowVoxelSizeChange(bState);
-		 	 System.out.println("inside SetLockMode6");
 
 		 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
 		 	 //keep it on
