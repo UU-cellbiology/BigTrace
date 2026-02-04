@@ -67,7 +67,7 @@ public class ClipPanel extends JPanel {
 			c.gridx++;
 		}
 		//c.gridx++;
-		c.gridwidth=3;
+		c.gridwidth = 3;
 		c.fill = GridBagConstraints.BOTH;
 		c.weightx = 1.0;
 		layout.setConstraints(slider, c);
@@ -142,7 +142,7 @@ public class ClipPanel extends JPanel {
 	
 	public void setBoundingBox(final long [][] box) 
 	{
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			bbAxes[d].setMinAndMax((int)box[0][d], (int)box[1][d]);
 		}
@@ -152,15 +152,15 @@ public class ClipPanel extends JPanel {
 	public void setBoundingBox(final Interval interval) 
 	{
 		long [][] box = new long[2][3];
-		box[0]=interval.minAsLongArray();
-		box[1]=interval.maxAsLongArray();
+		box[0] = interval.minAsLongArray();
+		box[1] = interval.maxAsLongArray();
 		setBoundingBox(box);
 	}
 	
 	public long [][] getBoundingBox()
 	{
 		long [][] boxout = new long[2][3];
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			boxout[0][d] = bbAxes[d].getMin();
 			boxout[1][d] = bbAxes[d].getMax();			

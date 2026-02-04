@@ -59,10 +59,6 @@ public class SplitVolumePlane < T extends RealType< T > & NativeType< T > > exte
 		//check if there is a fitted plane
 		if (crossSection.fittedPlane == null)
 			return null;
-		
-        bt.bInputLock = true;
-        bt.setLockMode(true);
-        
 
 		try {
 			  Thread.sleep(1);

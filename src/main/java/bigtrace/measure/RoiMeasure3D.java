@@ -1151,8 +1151,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		nfBoxExpand.setIntegersOnly(true);
 
 		GBCHelper.alighLeft(cd);
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		extractROISettings.add(new JLabel("Extract box around:"),cd);
 		cd.gridx++;
 		final String[] sExtractBoxROIsRange = { "Selected ROI", "All visible ROIs" };
@@ -1161,7 +1161,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		extractROISettings.add(extractBoxRoiList, cd);	
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		extractROISettings.add(new JLabel("Extract only voxels inside ROI:"),cd);
 		cd.gridx++;
 		JCheckBox extractVoxelsInsideROI = new JCheckBox();
@@ -1169,7 +1169,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		extractROISettings.add(extractVoxelsInsideROI,cd);
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		extractROISettings.add(new JLabel("Box size:"),cd);
 		cd.gridx++;
 		String[] sExtractRoiType = { "Tight", "Enlarge/shrink below" };
@@ -1179,7 +1179,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		
 		nfBoxExpand.setText(Integer.toString((int)Prefs.get("BigTrace.nExpandROIBox", 5)));
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		extractROISettings.add(new JLabel("Expand box by (px):"),cd);
 		cd.gridx++;
 		extractROISettings.add(nfBoxExpand,cd);
@@ -1189,7 +1189,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if(bt.btData.nNumTimepoints > 1 )
 		{
 			cd.gridy++;
-			cd.gridx=0;
+			cd.gridx = 0;
 			extractROISettings.add(new JLabel("Time range per ROI:"),cd);
 			extractBoxTimeList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractBoxTime", 0));
 			cd.gridx++;
@@ -1197,7 +1197,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			
 		}
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		extractROISettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
 		String[] sExtractBoxOutput = { "show in ImageJ", "save as TIF" };
@@ -1279,7 +1279,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				
 			}
 			if(roiOut.size() > 0)
-			{			
+			{		
+
+		        bt.bInputLock = true;
+		        bt.setLockMode(true);
+		        
 				//run in a separate thread
 				ExtractROIBox<T> extractBoxBG = new ExtractROIBox<>(roiOut, bt, nExpandROIBox, nTimeRange, nExtractBoxOutput, bOnlyVoxelsInsideROI, sSaveDir);				
 				extractBoxBG.addPropertyChangeListener(bt.btPanel);
@@ -1317,8 +1321,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 
 		GBCHelper.alighLeft(cd);
 
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		straightenSettings.add(new JLabel("Straighten:"),cd);
 		cd.gridx++;
 		String[] sStraightenROIsRange = { "Selected ROI", "All visible ROIs" };
@@ -1327,7 +1331,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		straightenSettings.add(straightenRoiList,cd);	
 	
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("Curve thickness:"),cd);
 		cd.gridx++;
 		String[] sStraightenType = { "Use ROI settings", "Override here" };
@@ -1349,7 +1353,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		String[] sStraightenAxis = { "X", "Y", "Z" };
 		JComboBox<String> cbStraightenAxis = new JComboBox<>(sStraightenAxis);
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		straightenSettings.add(new JLabel("Line becomes output axis:"),cd);
 		cd.gridx++;
 		cbStraightenAxis.setSelectedIndex((int)Prefs.get("BigTrace.nStraightenAxis", 0));
@@ -1358,7 +1362,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		String[] sShapeOutput = { "Square", "Round" };
 		JComboBox<String> cbStraightenShape = new JComboBox<>(sShapeOutput);
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		straightenSettings.add(new JLabel("Shape:"),cd);
 		cd.gridx++;
 		cbStraightenShape.setSelectedIndex((int)Prefs.get("BigTrace.nStraightenShape", 0));
@@ -1369,7 +1373,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if(bt.btData.nNumTimepoints > 1)
 		{
 			cd.gridy++;
-			cd.gridx=0;
+			cd.gridx = 0;
 			straightenSettings.add(new JLabel("Time range per ROI:"),cd);
 			straightenTimeList.setSelectedIndex((int)Prefs.get("BigTrace.nStraightenTime", 0));
 			cd.gridx++;
@@ -1473,8 +1477,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				}
 				
 			}
-			if(curvesOut.size()>0)
+			if(curvesOut.size() > 0)
 			{			
+				//lock interaction
+		        bt.bInputLock = true;
+		        bt.setLockMode(true);
 				//run in a separate thread
 				StraightenCurve<T> straightBG = new StraightenCurve<>(curvesOut, bt, fRadiusStraighted, nStraightenAxis, nStraightenShape, nTimeRange, nStraightenOutput, sSaveDir);
 				straightBG.addPropertyChangeListener(bt.btPanel);
@@ -1510,6 +1517,10 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		{
 			nSliceType = sliceTypeList.getSelectedIndex();
 			Prefs.set("BigTrace.nSliceType", nSliceType);
+			
+			//lock interaction
+	        bt.bInputLock = true;
+	        bt.setLockMode(true);
 			//run in a separate thread
 			SplitVolumePlane<T> splitBG = new SplitVolumePlane<>(crossSection, bt, nSliceType);		
 	        splitBG.addPropertyChangeListener(bt.btPanel);

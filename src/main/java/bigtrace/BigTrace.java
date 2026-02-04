@@ -114,7 +114,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	/** Frame of BigVolumeViewer **/
 	public VolumeViewerFrame bvvFrame;
 	
-	/** flag to check if user interface is frozen **/
+	/** flag to check if user interface is frozen.
+	 * It should be modified only in the main thread (or in done() of SwingWorker,
+	 * since when running in macro mode main thread becomes EDT => problems! **/
 	public volatile boolean bInputLock = false;
 	
 	/** visualization of coordinates origin axes **/

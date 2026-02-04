@@ -38,8 +38,6 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 	}
 	@Override
 	protected Void doInBackground() throws Exception {
-        bt.bInputLock = true;
-        bt.setLockMode(true);
 
 		try {
 			  Thread.sleep(1);

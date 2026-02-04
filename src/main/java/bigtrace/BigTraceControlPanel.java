@@ -682,8 +682,8 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 
 		GBCHelper.alighLeft(cd);
 		
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		String[] sExtractClippedTime = { "current time point", "range (specify below)" };
 		JComboBox<String> extractClippedTimeList = new JComboBox<>(sExtractClippedTime);
 		int [] nRange = new int [2];
@@ -697,16 +697,16 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			cd.gridx++;
 			clipExtractSettings.add(extractClippedTimeList,cd);
 			cd.gridy++;
-			cd.gridx=0;
+			cd.gridx = 0;
 			//cd.gridx++;
 
-			cd.gridwidth=2;
+			cd.gridwidth = 2;
 			clipExtractSettings.add(timeRange,cd);
-			cd.gridwidth=1;
+			cd.gridwidth = 1;
 			cd.gridy++;
 		}
 		
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		clipExtractSettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
 		String[] sExtractClippedOutput = { "show in ImageJ", "save as TIF" };
@@ -717,7 +717,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		if(bt.bApplyLLSTransform)
 		{
 			cd.gridy++;
-			cd.gridx=0;	
+			cd.gridx = 0;	
 			clipExtractSettings.add(new JLabel("Intensity interpolation:"),cd);
 			cd.gridx++;
 			String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
@@ -751,7 +751,10 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			nExtractClippedOutput = extractClippedOutputList.getSelectedIndex();
 			Prefs.set("BigTrace.nExtractClippedOutput", nExtractClippedOutput);
-			
+	        
+			//lock interaction
+			bt.bInputLock = true;
+	        bt.setLockMode(true);
 			//run in a separate thread
 			ExtractClip<T> extractClippedBG = new ExtractClip<>(bt, nTimePointMin, nTimePointMax, nExtractClippedOutput);
 

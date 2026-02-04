@@ -68,16 +68,13 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 	@Override
 	public void setProgressState(String state_) {
 		
-		progressState=state_;
+		progressState = state_;
 		
 	}
 	
 	@Override
 	protected Void doInBackground() throws Exception {
-
-        bt.bInputLock = true;
-        bt.setLockMode(true);
-        
+     
 
 		try {
 			  Thread.sleep(1);
