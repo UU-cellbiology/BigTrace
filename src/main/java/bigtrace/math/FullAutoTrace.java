@@ -53,12 +53,18 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 	{
 		progressState = state_;
 		firePropertyChange( "ProgressBarString", "a", "b");
-
 	}
 	
 	@Override
 	protected Void doInBackground() throws Exception 
 	{	
+		runFullAutoTrace();
+		return null;
+	}
+
+	
+	public void runFullAutoTrace()
+	{
 		
 		oneClickTrace.bNewTrace = true;
 		oneClickTrace.bUnlockInTheEnd = false;
@@ -87,14 +93,14 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 				if(isCancelled())
 				{
 					bt.visualBoxes.bShowTraceBox = false;
-					return null;				
+					return;				
 				}
 
 				ValuePair<Double, RealPoint> newMax = mask.findMaskedMax();
 				//final ValuePair<Double, RealPoint> newMax = mask.findMaskedMaxAboveThreshold(dAutoMinStartTraceInt);
 				//System.out.println(newMax.getA());
 
-				if(newMax.getA()>dAutoMinStartTraceInt)
+				if(newMax.getA() > dAutoMinStartTraceInt)
 				{
 					oneClickTrace.startPoint = newMax.getB();			
 					setProgressState("current curve start intensity " + Double.toString( newMax.getA() ));
@@ -119,14 +125,16 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					bKeepTracing = false;
 				}
 			}
-			setProgress(100*(nTP-nFirstTP+1)/(nLastTP-nFirstTP+1));
+			setProgress(100 * ( nTP - nFirstTP + 1)/( nLastTP - nFirstTP + 1));
 		}
 		oneClickTrace.releaseMultiThread();
 		//System.out.println("done");
 		//System.out.println(nCount);
-		return null;
+		return;
+		
 	}
-	   /*
+	
+	/*
      * Executed in event dispatching thread
      */
     @Override

@@ -27,7 +27,18 @@ public class ROIsIO
         loadTask.nLoadMode = nLoadMode;
         loadTask.bt = bt;
         loadTask.addPropertyChangeListener(bt.btPanel);
-        loadTask.execute();	
+        
+        if(!bt.btMacro.bMacroMode)
+        {
+        	loadTask.execute();
+        }
+        else
+        {
+        	loadTask.runROIsload();            
+        	bt.setLockMode(false);
+        	bt.bInputLock = false;
+            
+        }
 	}
 
 	public static <T extends RealType< T > & NativeType< T > > void saveROIs(String fullFilename, final int nSaveMode, final BigTrace<T> bt)
@@ -43,22 +54,49 @@ public class ROIsIO
 			saveTask.sFilename = fullFilename;
 			saveTask.bt = bt;
 			saveTask.addPropertyChangeListener(bt.btPanel);
-			saveTask.execute();
+			if( !bt.btMacro.bMacroMode )
+			{
+				saveTask.execute();
+			}
+			else
+			{
+				saveTask.runROIsSave();
+			}
 			break;
 		case 1: 	
 			ROIsExportCSV<T> exportTask = new ROIsExportCSV<>();
 			exportTask.sFilename = fullFilename;
 			exportTask.bt = bt;
 			exportTask.addPropertyChangeListener(bt.btPanel);
-			exportTask.execute();
+			if( !bt.btMacro.bMacroMode )
+			{
+				exportTask.execute();
+			}
+			else
+			{
+				exportTask.runROIsExportCSV();
+			}			
 			break;
 		case 2: 
 			ROIsExportSWC<T> exportSWCTask = new ROIsExportSWC<>();
 			exportSWCTask.sFilename = fullFilename;
 			exportSWCTask.bt = bt;
 			exportSWCTask.addPropertyChangeListener(bt.btPanel);
-			exportSWCTask.execute();
+			if( !bt.btMacro.bMacroMode )
+			{
+				exportSWCTask.execute();
+			}
+			else
+			{
+				exportSWCTask.runROIsExportSWC();
+			}
 			break;
+		}
+		
+		if( bt.btMacro.bMacroMode )
+		{
+			bt.setLockMode(false);
+			bt.bInputLock = false;
 		}
 	}
 }

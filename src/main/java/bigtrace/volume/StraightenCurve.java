@@ -73,74 +73,78 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 	}
 	
 	@Override
-	protected Void doInBackground() throws Exception {
-     
+	protected Void doInBackground() throws Exception 
+	{
+		runStraightenCurve();
+		
+		return null;
+	}
 
-		try {
-			  Thread.sleep(1);
-		  } catch (InterruptedException ignore) {}
-		setProgress(1);
-		setProgressState("Starting straightening..");
-		
-		//get the all data RAI
-		//XYZTC
-		RandomAccessibleInterval<T> full_RAI = bt.btData.getAllDataRAI();
-		
-		//output calibration
-		cal.setUnit(bt.btData.sVoxelUnit);
-		cal.setTimeUnit(bt.btData.sTimeUnit);
-		cal.pixelWidth = bt.btData.dMinVoxelSize;
-		cal.pixelHeight = bt.btData.dMinVoxelSize;
-		cal.pixelDepth = bt.btData.dMinVoxelSize;
-		final int nTotROIs = curveROIArr.size();  
-		if(nTotROIs == 0)
-			return null;
-		String sRoiName;
-		if(nTotROIs == 1)
-		{
-			sRoiName = bt.roiManager.getFullDisplayedRoiName(curveROIArr.get(0));
-			IntervalView<T> extractedRAI = extractCurveRAI(curveROIArr.get(0),  full_RAI, true);
-			if(extractedRAI == null)
-			{
-				IJ.log( "error straightening ROI "+sRoiName+", too few vertices." );
-			}
-			else
-			{
-				outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_straight",cal, bt.btData.nNumTimepoints));
-			}
-		}
-		else
-		{
+	public void runStraightenCurve()
+	{
+	     try {
+				  Thread.sleep(1);
+			  } catch (InterruptedException ignore) {}
+			setProgress(1);
+			setProgressState("Starting straightening..");
 			
-			for(int nRoi = 0; nRoi < nTotROIs; nRoi++)
+			//get the all data RAI
+			//XYZTC
+			RandomAccessibleInterval<T> full_RAI = bt.btData.getAllDataRAI();
+			
+			//output calibration
+			cal.setUnit(bt.btData.sVoxelUnit);
+			cal.setTimeUnit(bt.btData.sTimeUnit);
+			cal.pixelWidth = bt.btData.dMinVoxelSize;
+			cal.pixelHeight = bt.btData.dMinVoxelSize;
+			cal.pixelDepth = bt.btData.dMinVoxelSize;
+			final int nTotROIs = curveROIArr.size();  
+			if(nTotROIs == 0)
+				return;
+			String sRoiName;
+			if(nTotROIs == 1)
 			{
-				sRoiName = bt.roiManager.getFullDisplayedRoiName(curveROIArr.get(nRoi));
-				try {
-					  Thread.sleep(1);
-				  } catch (InterruptedException ignore) {}
-				setProgress(100*nRoi/(nTotROIs));
-				setProgressState("extracting ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
-				IntervalView<T> extractedRAI = extractCurveRAI(curveROIArr.get(nRoi),  full_RAI, false);
+				sRoiName = bt.roiManager.getFullDisplayedRoiName(curveROIArr.get(0));
+				IntervalView<T> extractedRAI = extractCurveRAI(curveROIArr.get(0),  full_RAI, true);
 				if(extractedRAI == null)
 				{
-					IJ.log( "error straightening ROI "+sRoiName+", too few vertices." );
+					IJ.log( "error straightening ROI " + sRoiName + ", too few vertices." );
 				}
 				else
 				{
-					setProgressState("storing ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
-					if(!outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_straight",cal, bt.btData.nNumTimepoints)))
-					{
-						IJ.log("Error saving straighten ROIs to "+sSaveFolderPath);
-						break;
-					}
+					outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_straight",cal, bt.btData.nNumTimepoints));
 				}
 			}
-			setProgressState("ROI straightening finished.");
-			setProgress(100);
-		}
-			
-
-		return null;
+			else
+			{
+				
+				for(int nRoi = 0; nRoi < nTotROIs; nRoi++)
+				{
+					sRoiName = bt.roiManager.getFullDisplayedRoiName(curveROIArr.get(nRoi));
+					try {
+						  Thread.sleep(1);
+					  } catch (InterruptedException ignore) {}
+					setProgress(100*nRoi/(nTotROIs));
+					setProgressState("extracting ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
+					IntervalView<T> extractedRAI = extractCurveRAI(curveROIArr.get(nRoi),  full_RAI, false);
+					if(extractedRAI == null)
+					{
+						IJ.log( "error straightening ROI "+sRoiName+", too few vertices." );
+					}
+					else
+					{
+						setProgressState("storing ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
+						if(!outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_straight",cal, bt.btData.nNumTimepoints)))
+						{
+							IJ.log("Error saving straighten ROIs to "+sSaveFolderPath);
+							break;
+						}
+					}
+				}
+				setProgressState("ROI straightening finished.");
+				setProgress(100);
+			}				
+			return;		
 	}
 	
 	boolean outputImagePlus(ImagePlus ip)
@@ -249,7 +253,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 				curr_XY = Roi3D.scaleGlobInv(curr_XY, bt.btData.globCal);
 				for(int nTimePoint = nMinTimePoint;nTimePoint<=nMaxTimePoint;nTimePoint++)
 				{
-					for (int nCh=0;nCh<nChannelN;nCh++)
+					for (int nCh = 0; nCh < nChannelN; nCh++)
 					{
 
 						curr_XY.localize(currXYmCh);
@@ -292,9 +296,9 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 	{
 		 ArrayList< RealPoint > planeXY = new  ArrayList< > ();
 		 		 
-		 for (int i=-nRadius;i<=nRadius;i++)
+		 for (int i = -nRadius; i<= nRadius; i++)
 		 {
-			 for (int j=-nRadius;j<=nRadius;j++)
+			 for (int j = -nRadius; j <= nRadius; j++)
 			 {
 				 planeXY.add(new RealPoint(i*dPixSize,j*dPixSize,0.0));
 			 }

@@ -34,12 +34,18 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 	@Override
 	public void setProgressState(String state_)
 	{
-		progressState=state_;
+		progressState = state_;
 	}
-
+	
 	@Override
-	protected Void doInBackground() throws Exception {
-
+	protected Void doInBackground() throws Exception 
+	{
+		runROIsExportCSV();
+		return null;
+	}	
+	
+	public void runROIsExportCSV()
+	{
 		int nRoi, nRoiN;		
     	
         try {
@@ -61,13 +67,13 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 				String sRadius;
 				int nRoiCurrN = 0;
 				//writer.write("ROIsNumber," + Integer.toString(nRoiN)+"\n");
-				for(nRoi=0; nRoi<nRoiN; nRoi++)
+				for(nRoi = 0; nRoi < nRoiN; nRoi++)
 				{
-					  //Sleep for up to one second.
+					//Sleep for up to one second.
 					try {
 						Thread.sleep(1);
 					} catch (InterruptedException ignore) {}
-					setProgress(nRoi*100/nRoiN);
+					setProgress(nRoi * 100 / nRoiN);
 					if(bt.roiManager.rois.get( nRoi ) instanceof AbstractCurve3D)
 					{
 						nRoiCurrN++;
@@ -78,10 +84,10 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 						sRoiGroup = bt.roiManager.groups.get(currRoi.getGroupInd()).getName();
 						sRadius = df3.format( currRoi.getLineThickness() * 0.5 * bt.btData.dMinVoxelSize);
 						ArrayList< RealPoint > points = currRoi.getJointSegmentResampled();
-						for(int nP=0; nP<points.size(); nP++)
+						for(int nP = 0; nP < points.size(); nP++)
 						{
 							writer.write( Integer.toString( nRoiCurrN ) +"," );
-							for (int d=0;d<3;d++)
+							for (int d = 0; d < 3; d++)
 							{
 								writer.write( df3.format(points.get( nP ).getDoublePosition( d ) ) +"," );								
 							}
@@ -98,8 +104,10 @@ public class ROIsExportCSV < T extends RealType< T > & NativeType< T > > extends
 			IJ.log(e.getMessage());
 			//e.printStackTrace();
 		}
-		return null;
+		return;
+		
 	}
+
     /*
      * Executed in event dispatching thread
      */

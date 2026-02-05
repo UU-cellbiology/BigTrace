@@ -115,8 +115,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public VolumeViewerFrame bvvFrame;
 	
 	/** flag to check if user interface is frozen.
-	 * It should be modified only in the main thread (or in done() of SwingWorker,
-	 * since when running in macro mode main thread becomes EDT => problems! **/
+	 * It should be modified only in the main thread (or in done method of SwingWorker,
+	 * since when running in macro mode main thread becomes EDT = problems! **/
 	public volatile boolean bInputLock = false;
 	
 	/** visualization of coordinates origin axes **/
@@ -173,8 +173,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		btData = new BigTraceData<>(this);
 		btLoad = new BigTraceLoad<>(this);
-		
-		
+			
 		if(arg.equals(""))
 		{
 			btData.sFileNameFullImg = IJ.getFilePath("Open TIF/BDV/Bioformats file (3D, composite, time)...");
@@ -228,16 +227,22 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 		roiManager = new RoiManager3D<>(this);
 		
-		initSourcesCanvas(0.25*Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
+		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
+		if(!btMacro.bMacroMode)
+		{
+			//not sure we really need it, but anyway
+	        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+	            @Override
+				public void run() {
+	                createAndShowGUI();
+	            }
+	        });
+		}
+		else
+		{
+			createAndShowGUI();
+		}
 		
-		//not sure we really need it, but anyway
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            @Override
-			public void run() {
-                createAndShowGUI();
-            }
-        });
-        
 
 	}
 		
@@ -245,8 +250,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		int i;
 		//basis vectors 
-		RealPoint basis = new RealPoint(-0.1*axis_length, -0.1*axis_length,-0.1*axis_length);				
-		for(i=0;i<3;i++)
+		RealPoint basis = new RealPoint(-0.1 * axis_length, -0.1 * axis_length,-0.1 * axis_length);				
+		for(i = 0; i < 3; i++)
 		{		
 			ArrayList< RealPoint > point_coords = new ArrayList< >();
 			point_coords.add(new RealPoint(basis));
@@ -262,7 +267,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		float [][] nDimBox = new float [2][3];
 		
-		for(i=0;i<3;i++)
+		for(i = 0; i < 3; i++)
 		{
 			//why is this shift?! I don't know,
 			// but looks better like this

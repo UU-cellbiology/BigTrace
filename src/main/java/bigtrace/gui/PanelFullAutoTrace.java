@@ -198,7 +198,17 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		butAuto.setToolTipText( "Stop auto trace" );
 		fullAutoTrace.butAuto = butAuto;
 		fullAutoTrace.tabIconRestore = tabIconAuto;
-		fullAutoTrace.execute();
+		if( !bt.btMacro.bMacroMode )
+		{
+			fullAutoTrace.execute();
+		}
+		else
+		{
+			fullAutoTrace.runFullAutoTrace();			
+			bt.setLockMode(true);
+			bt.bInputLock = true;
+			
+		}
 	}
 
 	@Override

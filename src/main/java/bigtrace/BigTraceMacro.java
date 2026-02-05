@@ -152,8 +152,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
-		bt.bInputLock = true;
-		
+				
 		int nFirstTP = 0;
 		int nLastTP = 0;
 		
@@ -298,9 +297,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
-		
-		bt.bInputLock = true;
-		
+			
         if(input == null)
         	return;
         int nLoadMode = 0;
@@ -326,7 +323,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			Thread.sleep(1000);
 		}
-		bt.bInputLock = true;
+		
 		String out = "";
         if(output == null)
         {
@@ -361,13 +358,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		while(bt.bInputLock)
 		{
-			Thread.sleep(100);
+			Thread.sleep(1000);
 		}
 		
 		//it should be later unlocked by StraightenCurve,
 		//if we call it 
 		bt.bInputLock = true;
-		
+		bt.setLockMode(true);
 		//build list of ROIs
 		final ArrayList<AbstractCurve3D> curvesOut = new ArrayList<>();
 		IJ.log( "Total " + Integer.toString(bt.roiManager.rois.size()) +" ROIs" );
@@ -400,15 +397,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{	
 			StraightenCurve<T> straightBG = new StraightenCurve<>(curvesOut, bt, -1.0f, nAxis, nShape, 0, 1, sSaveDir);
 			straightBG.addPropertyChangeListener(bt.btPanel);
-			straightBG.execute();
+			straightBG.runStraightenCurve();
 		}
 		else
 		{
 			IJ.log("Cannot find proper curve ROIs to straighten.");
 			bt.btPanel.progressBar.setString("curve straightening aborted.");
-			bt.bInputLock = false;
 		}
-		
+		bt.setLockMode(false);
+		bt.bInputLock = false;
 	}
 
 	public void macroShapeInterpolation(String sShapeInterpol, int nSmoothWindow) throws InterruptedException
@@ -446,7 +443,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		while(bt.bInputLock)
 		{
-			Thread.sleep(100);
+			Thread.sleep(1000);
 		}
 		bt.bInputLock = true;
 		switch (sInterpol)
@@ -476,7 +473,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		while(bt.bInputLock)
 		{
-			Thread.sleep(100);
+			Thread.sleep(1000);
 		}
 		bt.closeWindows();
 		IJ.log("BigTrace closed.");

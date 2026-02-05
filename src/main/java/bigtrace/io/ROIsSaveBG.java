@@ -33,10 +33,16 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 	{
 		progressState = state_;
 	}
-
+	
 	@Override
-	protected Void doInBackground() throws Exception {
+	protected Void doInBackground() throws Exception 
+	{
+		runROIsSave();
+		return null;
+	}
 
+	public void runROIsSave()
+	{
 		int nRoi, nRoiN;		
     	
     	//get the group manager to save groups
@@ -87,9 +93,11 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 			IJ.log(e.getMessage());
 			//e.printStackTrace();
 		}
-		return null;
+		return;
+	
 	}
-    /*
+
+	/*
      * Executed in event dispatching thread
      */
     @Override

@@ -88,6 +88,7 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 		
 		return null;
 	}
+	
 	@Override
 	public String getProgressState() {
 		
@@ -97,7 +98,7 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 	@Override
 	public void setProgressState(String state_) {
 		
-		progressState=state_;
+		progressState = state_;
 		
 	}
 	

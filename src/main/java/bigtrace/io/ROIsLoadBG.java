@@ -45,11 +45,18 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	{
 		progressState = state_;
 	}
-
+	
 	@Override
-	protected Void doInBackground() throws Exception {
+	protected Void doInBackground() throws Exception 
+	{
+		runROIsload();
+		return null;
+	}
+	
+	public void runROIsload()
+	{
 		String[] line_array;
-       
+	       
         int nRoiN = 1;
         
         int nVertN = 0;
@@ -88,7 +95,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        	{
 	        		 System.err.println("Not a BigTrace ROI Group file format or plugin/file version mismatch,\nloading Groups failed.\n"+
 	        	"Try 'Append' loading mode.\n");
-	        		 return null;
+	        		 return;
 	        	}
 	        	bt.roiManager.updateGroupsList();
 	        	line = br.readLine();
@@ -105,7 +112,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        		{
 	        			bBeginROIpart = true;
 	        			br.close();
-	        			return null;
+	        			return;
 	        		}
 					line_array = line.split(",");
 					
@@ -130,7 +137,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 			 if(!line_array[0].equals("BigTrace_ROIs"))
 			 {
 				 System.err.println("Not a BigTrace ROI file format, aborting");
-				 return null;
+				 return;
 			 }
 			 if(!line_array[2].equals(BigTraceData.sVersion))
 			 {
@@ -362,9 +369,11 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
              //bt.roiManager.setLockMode(false);
         }*/
 
-		return null;
+		return ;
+		
 	}
-	
+
+
 
     /*
      * Executed in event dispatching thread
@@ -374,7 +383,6 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
     {   
     	//see if we have some errors
     	try {
-
     		get();
     	} 
     	catch (ExecutionException e) 

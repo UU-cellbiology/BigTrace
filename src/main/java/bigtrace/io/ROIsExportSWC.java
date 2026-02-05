@@ -40,6 +40,12 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 	@Override
 	protected Void doInBackground() throws Exception 
 	{
+		runROIsExportSWC();
+		return null;
+	}
+
+	public void runROIsExportSWC()
+	{
 		int nRoi, nRoiN;		
     	
         try {
@@ -114,8 +120,10 @@ public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends 
 			IJ.log(e.getMessage());
 			//e.printStackTrace();
 		}
-		return null;
+		return;
+		
 	}
+	
     /*
      * Executed in event dispatching thread
      */
