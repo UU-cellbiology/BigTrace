@@ -6,23 +6,20 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
 import bigtrace.animation.AnimationPanel;
 import bigtrace.animation.KeyFrame;
 import ij.IJ;
 
-public class StorylineSave < T extends RealType< T > & NativeType< T > > 
+public class StorylineSave
 {
 	
 	/** plugin instance **/
-	final BigTrace<T> bt;
-	final AnimationPanel< T > aPanel;
+	final BigTrace<?> bt;
+	final AnimationPanel aPanel;
 	
-	public StorylineSave(final BigTrace<T> bt_, AnimationPanel< T > aPanel_)
+	public StorylineSave(final BigTrace<?> bt_, AnimationPanel aPanel_)
 	{
 		bt = bt_;	
 		this.aPanel = aPanel_;

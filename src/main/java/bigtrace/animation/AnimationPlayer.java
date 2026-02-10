@@ -1,131 +1,113 @@
 package bigtrace.animation;
 
-import java.util.concurrent.ExecutionException;
-
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JSlider;
-import javax.swing.SwingWorker;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import javax.swing.Timer;
 
 import bigtrace.BigTrace;
 
-public class AnimationPlayer < T extends RealType< T > & NativeType< T > >  extends SwingWorker<Void, String>
+public class AnimationPlayer
 {
-	final BigTrace<T> bt;
-	final AnimationPanel< T > aPanel;
-	final JSlider timeSlider;
-	
-	public boolean bLoopBackAndForth = false;
-
-	JButton butPlayStop = null;
-	
-	ImageIcon tabIconPlay = null;
-	
-	boolean bUpdateSliderOff = true;
-	
-	public AnimationPlayer(BigTrace<T> bt, AnimationPanel< T > aPanel_)
+	final BigTrace<?> bt;
+	final AnimationPanel aPanel;
+	private boolean playing = false;
+    private final Timer timer;
+    private float playbackSpeed = 1.0f;
+    private float currentTime = 0f;
+    private long lastTickNanos;
+    private float fIncSign = 1;
+    
+    private boolean bSliderUpdateState;
+    
+	public AnimationPlayer(final BigTrace<?> bt_, AnimationPanel aPanel_)
 	{
-		this.bt = bt;
+		this.bt = bt_;
 		this.aPanel = aPanel_;
-		this.timeSlider =  aPanel.timeSlider;
-
+		timer = new Timer(1000 / 60, e -> tick());
 	}
-
-	@Override
-	protected Void doInBackground() throws Exception
-	{
-		int currVal = timeSlider.getValue();
-		long dWaitPure = Math.round( 1000.0f * aPanel.kfAnim.getTotalTime()/aPanel.tsSpan);
-		int dInc = 1;
-		long dWait;
-		if(aPanel.bUpdateSlider == false)
-		{
-			bUpdateSliderOff = true;
-			aPanel.bUpdateSlider = true;
-		}
-		else
-		{
-			bUpdateSliderOff = false;
-		}
-		//float dT = 0.5f;
-		while(true)
-		{
-			dWait = Math.round( dWaitPure / aPanel.fPlaySpeedFactor);
-			Thread.sleep(Math.round( dWait));
-			currVal += dInc;
-			if(currVal > timeSlider.getMaximum())
-			{
-				if(!aPanel.bPlayerBackForth)
-				{
-					currVal = timeSlider.getMinimum();
-				}
-				else
-				{
-					dInc = -1;
-					currVal = timeSlider.getMaximum()-1;
-				}
-			}
-			if(currVal < timeSlider.getMinimum())
-			{
-				dInc = 1;
-				currVal = 1;
-			}
-			
-			
-			timeSlider.setValue( currVal );
-			
-			if(isCancelled())
-			{
-				return null;	
-			}
-		}
-		
-		//return null;
-	}
-    /*
-     * Executed in event dispatching thread
-     */
-    @Override
-    public void done() 
-    {
-    	//see if we have some errors
-    	try {
-
-    		get();
-    	} 
-    	catch (ExecutionException e) 
-    	{
-    		e.getCause().printStackTrace();
-    		String msg = String.format("Unexpected error during playing: %s", 
-    				e.getCause().toString());
-    		System.out.println(msg);
-    	} 
-    	catch (InterruptedException e) 
-    	{
-    		// Process e here
-    	}
-    	catch (Exception e)
-    	{
-
-    	}
 	
+    public void play() 
+    {
+        if (playing) 
+        	return;
+        
+        bSliderUpdateState = aPanel.bUpdateSlider;
+        aPanel.bUpdateSlider = false;
+		aPanel.butPlayStop.setIcon( aPanel.tabIconStop );
+		aPanel.butPlayStop.setToolTipText( "Stop playing" );
+		bt.bInputLock = true;
+		bt.setLockMode(true);
+		aPanel.butPlayStop.setEnabled( true );
+        playing = true;
+        lastTickNanos = System.nanoTime();
+        fIncSign = 1;
+        currentTime = aPanel.timeSlider.getValue() * (float) aPanel.kfAnim.nTotalTime / aPanel.tsSpan ;
+        timer.start();
+    }
+    
+    public void stop() 
+    {
+        playing = false;
+        aPanel.bUpdateSlider = bSliderUpdateState;
+        timer.stop();
+        aPanel.butPlayStop.setIcon( aPanel.tabIconPlay );
+		aPanel.butPlayStop.setToolTipText( "Play Preview" );
+		bt.bInputLock = false;
+		bt.setLockMode(false);
 
-    	if(butPlayStop != null && tabIconPlay!= null)
-    	{
-    		butPlayStop.setIcon( tabIconPlay );
-    		butPlayStop.setToolTipText( "Play" );
-    		if(bUpdateSliderOff)
-    		{
-    			aPanel.bUpdateSlider = false;
-    		}
-    	}
+    }
+    
+    private void tick() 
+    {
+    	
+    	long now = System.nanoTime();
+    	float deltaSeconds =
+    			(now - lastTickNanos) / 1_000_000_000f;
 
-    	//unlock user interaction
-    	bt.bInputLock = false;
-    	bt.setLockMode(false);
+    	lastTickNanos = now;
 
+    	currentTime += fIncSign * deltaSeconds * playbackSpeed;
+
+        if (!playing) 
+        {
+            timer.stop();
+            return;
+        }
+
+        if (currentTime > aPanel.kfAnim.nTotalTime) 
+        {
+        	if(!aPanel.bPlayerBackForth)
+			{
+        		currentTime = 0;
+			}
+        	else 
+        	{
+        		fIncSign = -1;
+        		currentTime = aPanel.kfAnim.nTotalTime;
+        	}
+        }
+		if(currentTime < 0)
+		{
+			fIncSign = 1;
+			currentTime = 0;
+		}	
+        aPanel.updateScene( currentTime );	
+        
+        // update slider
+        int nSliderPosition = ( int ) ( currentTime * aPanel.tsSpan/aPanel.kfAnim.getTotalTime() );
+        aPanel.timeSlider.setValue( nSliderPosition );
+
+    }
+    
+    public boolean isPlaying()
+    {
+    	return playing;
+    }
+    
+    public void setPlaybackSpeed (final float fSpeed)
+    {
+    	playbackSpeed = fSpeed;
+    }
+    public float getPlaybackSpeed ()
+    {
+    	return playbackSpeed;
     }
 }

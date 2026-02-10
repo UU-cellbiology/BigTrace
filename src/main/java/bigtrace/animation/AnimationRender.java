@@ -2,22 +2,21 @@ package bigtrace.animation;
 
 
 import java.io.File;
-
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.KeyAdapter;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.imageio.ImageIO;
-
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 
 import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.Prefs;
@@ -28,12 +27,12 @@ import bvvpg.core.render.VolumeRenderer.RepaintType;
 import ij.IJ;
 
 
-public class AnimationRender  < T extends RealType< T > & NativeType< T > >  extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class AnimationRender extends SwingWorker<Void, String> implements BigTraceBGWorker
 {
 	
-	final BigTrace<T> bt;
+	final BigTrace<?> bt;
 	
-	final AnimationPanel< T > aPanel;
+	final AnimationPanel aPanel;
 	
 	private String progressState;
 	
@@ -42,6 +41,7 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 	Dimension dimsIni;
 	
 	ImageIcon tabIconRecord = null;
+	JPanel glass = null;
 
 	@Override
 	public String getProgressState()
@@ -54,7 +54,7 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 		progressState = state_;
 	}
 	
-	public AnimationRender(BigTrace<T> bt_,  AnimationPanel< T > aPanel_)
+	public AnimationRender(BigTrace<?> bt_,  AnimationPanel aPanel_)
 	{
 		this.bt = bt_;
 		this.aPanel = aPanel_;
@@ -83,7 +83,6 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 
 		Prefs.showTextOverlay(false);
 		
-		float fTimePoint;
 		
 		float dT = aPanel.kfAnim.nTotalTime/(float)(nTotFrames-1);		
 
@@ -96,7 +95,7 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 			splitPanel.setCollapsed( true );
 		}
 
-		Component component = bt.viewer.getDisplayComponent();	
+		Component component = bt.viewer;	
 		
 		int nHeight = aPanel.nRenderHeight;
 		//check if there is time slider => +25 in height
@@ -106,46 +105,62 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 		}
 		
 		Dimension nRenderDim = new Dimension(aPanel.nRenderWidth, nHeight);
-		bt.bvvFrame.getContentPane().setPreferredSize( nRenderDim);	
-        bt.bvvFrame.setResizable( false );
-        bt.bvvFrame.setEnabled( false );	
+
+        //install glass pane
+		if(glass == null)
+		{
+			glass = new JPanel();
+			glass.setOpaque(false);
+			glass.addMouseListener(new MouseAdapter() {});
+			glass.addKeyListener(new KeyAdapter() {});
+			bt.bvvFrame.setGlassPane( glass );
+		}
+		glass.setVisible(true);
+       // bt.bvvFrame.setEnabled( false );	
+		bt.bvvFrame.getContentPane().setPreferredSize( nRenderDim );
 		bt.bvvFrame.pack();	
-		
-		//wait for the window to update
-		Thread.sleep( 2000 );
-					
-		
+		SwingUtilities.invokeAndWait( ()->
+		{
+			bt.bvvFrame.setResizable( false );
+		});
 		Rectangle rect = bt.viewer.getDisplayComponent().getBounds();
 		BufferedImage bi =
                 new BufferedImage(rect.width, rect.height,
                                     BufferedImage.TYPE_INT_ARGB);
 		RepaintType status;
-		for(int nFr = 0; nFr<nTotFrames; nFr++)
+		//refresh first frame 
+		SwingUtilities.invokeAndWait( ()->
 		{
-			setProgress(nFr*100/(nTotFrames-1));
+			bt.repaintBVV();
+		});
+		for(int nFr = 0; nFr < nTotFrames; nFr++)
+		{
+			setProgress(nFr * 100/ (nTotFrames - 1));
 			setProgressState("rendering frames ("+Integer.toString( nFr+1 )+"/"+Integer.toString(nTotFrames)+")");
+			final float fTimePoint = nFr * dT;
 
-			fTimePoint = nFr*dT;
-			bt.setScene(aPanel.kfAnim.getScene(fTimePoint));
+			SwingUtilities.invokeAndWait( ()->
+			{
+				bt.setScene(aPanel.kfAnim.getScene(fTimePoint));
+			} );
 			//bt.repaintBVV();
 			long nTotalTime = 0;
 			final long nWaitTime = 30;
-			final long nTimeLimitmS = aPanel.nRenderFrameTimeLimit *1000;
+			final long nTimeLimitmS = aPanel.nRenderFrameTimeLimit * 1000;
 			boolean bWait = (bt.viewer.getRepaintStatus() != RepaintType.NONE);
 			//while(bt.viewer.getRepaintStatus() != RepaintType.NONE)
 			while(bWait)
-			{
-				
+			{			
 				Thread.sleep( nWaitTime );
 				status = bt.viewer.getRepaintStatus();
 				//System.out.println(status);
 				nTotalTime += nWaitTime;
 				if(status == RepaintType.NONE)
 					{bWait = false;}
-				if (nTotalTime>nTimeLimitmS)
+				if (nTotalTime > nTimeLimitmS)
 				{
 					bWait = false;
-					IJ.log( "Rendering of frame "+Integer.toString( nFr+1 )+" took more than a minute, proceeding with current result." );
+					IJ.log( "Rendering of frame " + Integer.toString( nFr + 1 ) + " took more than a minute, proceeding with current result." );
 				}
 				if(isCancelled())
 				{
@@ -153,7 +168,8 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 				}	
 			}
 	        component.paint(bi.getGraphics());
-			ImageIO.write( bi, "png", new File( aPanel.sRenderSavePath+String.format("%0"+String.valueOf(nTotFrames).length()+"d", nFr+1)+".png") );
+			ImageIO.write( bi, "png", new File( aPanel.sRenderSavePath + 
+			String.format("%0"+String.valueOf(nTotFrames).length() + "d", nFr + 1) + ".png") );
 			if(isCancelled())
 			{
 				return null;	
@@ -204,8 +220,12 @@ public class AnimationRender  < T extends RealType< T > & NativeType< T > >  ext
 		bt.bvvFrame.pack();
         
 		bt.bvvFrame.setResizable( true );
-        
-        bt.bvvFrame.setEnabled( true );
+        if(glass != null)
+        {
+        	glass.setVisible(false);
+
+        }
+        //bt.bvvFrame.setEnabled( true );
 
 		//IJ.log( Integer.toString( dimsIni.width ) );
 		//IJ.log( Integer.toString( dimsIni.height ) );

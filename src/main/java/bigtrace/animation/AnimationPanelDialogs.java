@@ -15,8 +15,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
 
 import bigtrace.BigTrace;
@@ -29,13 +27,13 @@ import ij.IJ;
 import ij.Prefs;
 import ij.io.OpenDialog;
 
-public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
+public class AnimationPanelDialogs
 {
-	final BigTrace<T> bt;
+	final BigTrace<?> bt;
 	
-	final AnimationPanel<T> pan;
+	final AnimationPanel pan;
 	
-	public AnimationPanelDialogs(final BigTrace<T> bt_, final AnimationPanel<T> pan_)
+	public AnimationPanelDialogs(final BigTrace<?> bt_, final AnimationPanel pan_)
 	{
 		bt = bt_;
 		pan = pan_;
@@ -116,10 +114,10 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
 		
 		final NumberField nfSpeedFactor = new NumberField(4);
-		nfSpeedFactor.setText(df.format(pan.fPlaySpeedFactor));
+		nfSpeedFactor.setText(df.format(pan.player.getPlaybackSpeed()));
 		
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		panPlayerSettings.add(new JLabel("Play speed (0.01-100):"),cd);
 		cd.gridx++;
 		panPlayerSettings.add(nfSpeedFactor, cd);	
@@ -127,7 +125,7 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 		JCheckBox cbBackForth = new JCheckBox();
 		cbBackForth.setSelected( Prefs.get("BigTrace.bPlayerBackForth", false) );
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		panPlayerSettings.add(new JLabel("Loop back and forth"),cd);
 		cd.gridx++;
 		panPlayerSettings.add(cbBackForth,cd);
@@ -136,14 +134,10 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 		if (reply == JOptionPane.OK_OPTION) 
 		{
-			
-			pan.fPlaySpeedFactor = ( float ) Math.min(Math.max( 0.01,Math.abs( Float.parseFloat( nfSpeedFactor.getText()))),100);
+			pan.player.setPlaybackSpeed( ( float ) Math.min(Math.max( 0.01,Math.abs( Float.parseFloat( nfSpeedFactor.getText()))),100));
 			
 			pan.bPlayerBackForth = cbBackForth.isSelected();
-			Prefs.set("BigTrace.bPlayerBackForth", pan.bPlayerBackForth);
-			
-			
-		
+			Prefs.set("BigTrace.bPlayerBackForth", pan.bPlayerBackForth);	
 		}
 	}
 	
@@ -300,7 +294,7 @@ public class AnimationPanelDialogs< T extends RealType< T > & NativeType< T > >
 				}
 			}
 			
-			UnCoilAnimation<T> unAnim = new UnCoilAnimation<>(bt);
+			UnCoilAnimation<?> unAnim = new UnCoilAnimation<>(bt);
 			unAnim.inputROI = ( AbstractCurve3D ) roiIn;
 			unAnim.nFrames = nTotFramesUnCoil;
 			unAnim.nUnCoilTask = nUnCoilTask;

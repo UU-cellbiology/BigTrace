@@ -5,9 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
 import bigtrace.animation.AnimationPanel;
@@ -16,15 +13,15 @@ import bigtrace.animation.KeyFrameAnimation;
 import bigtrace.animation.Scene;
 
 
-public class StorylineLoad < T extends RealType< T > & NativeType< T > > 
+public class StorylineLoad
 {
 	
 	/** plugin instance **/
-	final BigTrace<T> bt;
+	final BigTrace<?> bt;
 	
-	final AnimationPanel< T > aPanel;
+	final AnimationPanel aPanel;
 	
-	public StorylineLoad(final BigTrace<T> bt_,  AnimationPanel< T > aPanel_)
+	public StorylineLoad(final BigTrace<?> bt_,  AnimationPanel aPanel_)
 	{
 		bt = bt_;	
 		aPanel = aPanel_;

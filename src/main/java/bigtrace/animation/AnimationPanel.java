@@ -39,10 +39,6 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import bigtrace.BigTrace;
 import bigtrace.gui.NumberField;
 import bigtrace.gui.PanelTitle;
@@ -54,9 +50,9 @@ import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 
-public class AnimationPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener,  NumberField.Listener, ChangeListener, ActionListener
+public class AnimationPanel extends JPanel implements ListSelectionListener,  NumberField.Listener, ChangeListener, ActionListener
 {
-	final BigTrace<T> bt;
+	final BigTrace<?> bt;
 	
 	final JButton butRecord;
 	final JButton butPlayStop;
@@ -82,7 +78,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	
 	final public NumberField nfTotalTime;
 	
-	public static final int ANIMTIME_START=0, ANIMTIME_END=1, ANIMTIME_STRETCH=2;
+	public static final int ANIMTIME_START = 0, ANIMTIME_END = 1, ANIMTIME_STRETCH = 2;
 	
 	int nChangeTotalTimeMode = (int)Prefs.get("BigTrace.nChangeTotalTimeMode", ANIMTIME_END);
 	
@@ -94,7 +90,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	int tsSpan = 100;
 	
 	/** play preview **/
-	AnimationPlayer<T> player;
+	final AnimationPlayer player;
 	
 	ImageIcon tabIconRecord;
 	
@@ -102,14 +98,12 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	
 	ImageIcon tabIconStop;
 	
-	float fPlaySpeedFactor  = 1.0f ;
-	
 	boolean bPlayerBackForth = Prefs.get("BigTrace.bPlayerBackForth", false);
 	
 	boolean bUpdateSlider = true;
 	
 	/** keyframe render **/
-	AnimationRender<T> render;
+	AnimationRender render;
 	
 	int nRenderFPS = (int)Prefs.get("BigTrace.nRenderFPS", 24.0);
 	
@@ -125,13 +119,13 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	
 	String sRenderSavePath = null;
 	
-	final AnimationPanelDialogs<T> dialogsAnim;
+	final AnimationPanelDialogs dialogsAnim;
 
-	public AnimationPanel(final BigTrace<T> bt)
+	public AnimationPanel(final BigTrace<?> bt)
 	{
 		this.bt = bt;
 		
-		dialogsAnim = new AnimationPanelDialogs<>(bt, this);
+		dialogsAnim = new AnimationPanelDialogs(bt, this);
 		
 		int nInitialTotalTime = 5;
 		
@@ -140,7 +134,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		
 		kfAnim = new KeyFrameAnimation(listModel);
 		kfAnim.setTotalTime( nInitialTotalTime );
-		this.player = null;
+		this.player = new AnimationPlayer(bt, this);
 		
 		JPanel panAnimTools = new JPanel(new GridBagLayout());  
 		panAnimTools.setBorder(new PanelTitle(" Animation "));
@@ -423,7 +417,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	
 	void runRender()
 	{
-		render = new AnimationRender< >(bt, this);
+		render = new AnimationRender(bt, this);
 		bt.bInputLock = true;
 		bt.setLockMode(true);
 		render.addPropertyChangeListener( bt.btPanel );
@@ -436,21 +430,6 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		render.execute();
 	}
 	
-	void runPlayer()
-	{
-		player = new AnimationPlayer< >(bt, this);
-		bt.bInputLock = true;
-		bt.setLockMode(true);
-		player.addPropertyChangeListener( bt.btPanel );
-		
-		butPlayStop.setEnabled( true );
-		butPlayStop.setIcon( tabIconStop );
-		butPlayStop.setToolTipText( "Stop playing" );
-		player.butPlayStop = butPlayStop;
-		player.tabIconPlay = tabIconPlay; 
-		player.execute();
-	}
-	
 	@Override
 	public void actionPerformed( ActionEvent e )
 	{
@@ -460,7 +439,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		{
 			if(listModel.size() > 0)
 			{
-				if(!bt.bInputLock )
+				if(!bt.bInputLock)
 				{
 					if(dialogsAnim.dialRenderSettings())
 					{
@@ -488,18 +467,12 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 			{
 				if(!bt.bInputLock )
 				{
-					runPlayer();
+					if(!player.isPlaying())
+						player.play();
 				}
 				else
 				{
-					if( bt.bInputLock && 
-							butPlayStop.isEnabled() && 
-							player!=null && 
-							!player.isCancelled() && 
-							!player.isDone())
-					{
-						player.cancel( false );
-					}
+					player.stop();
 				}
 			}
 			else
@@ -866,11 +839,10 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	    }
 	}
 
-	public void updateScene()
+	public void updateScene(final float fTimePoint)
 	{			
 		if(listModel.size() > 1)
 		{
-			float fTimePoint = (kfAnim.getTotalTime())*(timeSlider.getValue()/(float)tsSpan);
 			bt.setScene( kfAnim.getScene( fTimePoint ) );
 		}
 	}
@@ -883,7 +855,8 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 		{
 			if(bUpdateSlider)
 			{
-				updateScene();
+				float fTimePoint = (kfAnim.getTotalTime())*(timeSlider.getValue()/(float)tsSpan);
+				updateScene(fTimePoint);
 			}
 		}
 		
@@ -904,7 +877,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
 	        
 	        bt.setLockMode(true);
 	        bt.bInputLock = true;
-	        StorylineSave<T> stSave  = new StorylineSave<>(bt, this);
+	        StorylineSave stSave  = new StorylineSave(bt, this);
 	        stSave.saveAnimation( filename );
 	        bt.setLockMode(false);
 	        bt.bInputLock = false;
@@ -926,7 +899,7 @@ public class AnimationPanel < T extends RealType< T > & NativeType< T > > extend
         filename = path + openDial.getFileName();	
         bt.setLockMode(true);
         bt.bInputLock = true;
-        StorylineLoad<T> stLoad  = new StorylineLoad<>(bt, this);
+        StorylineLoad stLoad  = new StorylineLoad(bt, this);
         stLoad.loadAnimation( filename );
         bt.setLockMode(false);
         bt.bInputLock = false;

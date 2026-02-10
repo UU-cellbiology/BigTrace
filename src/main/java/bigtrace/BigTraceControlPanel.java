@@ -84,7 +84,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	final RoiManager3D<T> roiManager;
 	final RoiMeasure3D<T> roiMeasure;
 	TrackingPanel<T> btTracksPanel;
-	public AnimationPanel <T> btAniPanel;
+	public AnimationPanel btAniPanel;
 
 	double [][] nDisplayMinMax;
 
@@ -111,7 +111,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		btTracksPanel = new TrackingPanel<>(bt);
 		roiManager.setRoiMeasure3D(roiMeasure);
 		roiManager.setTracksPanel(btTracksPanel);
-		btAniPanel = new AnimationPanel<>(bt);
+		btAniPanel = new AnimationPanel(bt);
 		
 		JTabbedPane tabPane = new JTabbedPane(SwingConstants.LEFT);
 		
