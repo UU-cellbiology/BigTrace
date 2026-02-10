@@ -204,7 +204,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		
 	/////////////////////////////////USER INTERFACE "CLICKING"
 	
-	public boolean bStartFullScreen = Prefs.get("BigTrace.bStartFullScreen", true);
+	public boolean bStartFullScreen = Prefs.get("BigTrace.bStartFullScreen", false);
 	
 	/** half size of rectangle around click point (in screen pixels)
 	 * used to find maximum intensity voxel **/
