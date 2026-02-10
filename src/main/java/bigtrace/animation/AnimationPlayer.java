@@ -21,7 +21,7 @@ public class AnimationPlayer
 	{
 		this.bt = bt_;
 		this.aPanel = aPanel_;
-		timer = new Timer(1000 / 60, e -> tick());
+		timer = new Timer(1000 / 30, e -> tick());
 	}
 	
     public void play() 
@@ -45,9 +45,9 @@ public class AnimationPlayer
     
     public void stop() 
     {
+        timer.stop();
         playing = false;
         aPanel.bUpdateSlider = bSliderUpdateState;
-        timer.stop();
         aPanel.butPlayStop.setIcon( aPanel.tabIconPlay );
 		aPanel.butPlayStop.setToolTipText( "Play Preview" );
 		bt.bInputLock = false;
