@@ -95,7 +95,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		if (name.equals("btSetTracingThickness")) 
 		{
 			final double [] sigmas = new double[3];
-			for(int d=0; d<3; d++)
+			for(int d = 0; d < 3; d++)
 			{
 				sigmas[d] = Math.abs(((Double)args[d]).doubleValue());
 			}
