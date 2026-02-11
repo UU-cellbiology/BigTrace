@@ -237,7 +237,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		if (nBitDepth == FormatTools.UINT16 || nBitDepth == FormatTools.UINT8 || nBitDepth == FormatTools.FLOAT)
 		{
 			OpenerSettings settings = OpenerSettings.BioFormats()
-					.location(new File(btdata.sFileNameFullImg))
+					.location(btdata.sFileNameFullImg)
 					.unit("MICROMETER")
 					.setSerie(nOpenSeries)
 					.positionConvention("TOP LEFT")
