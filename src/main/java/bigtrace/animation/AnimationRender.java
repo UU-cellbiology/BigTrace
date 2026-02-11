@@ -37,9 +37,10 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 	
 	JButton butRecord = null;
 	
-	Dimension dimsIni;
+	Dimension dimsIni = null;
 	
 	ImageIcon tabIconRecord = null;
+	
 	JPanel glass = null;
 
 	@Override
@@ -106,16 +107,13 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		Dimension nRenderDim = new Dimension(aPanel.nRenderWidth, nHeight);
 
         //install glass pane
-		if(glass == null)
-		{
-			glass = new JPanel();
-			glass.setOpaque(false);
-			glass.addMouseListener(new MouseAdapter() {});
-			glass.addKeyListener(new KeyAdapter() {});
-			bt.bvvFrame.setGlassPane( glass );
-		}
+		glass = new JPanel();
+		glass.setOpaque(false);
+		glass.addMouseListener(new MouseAdapter() {});
+		glass.addKeyListener(new KeyAdapter() {});
+		bt.bvvFrame.setGlassPane( glass );
 		glass.setVisible(true);
-       // bt.bvvFrame.setEnabled( false );	
+
 		bt.bvvFrame.getContentPane().setPreferredSize( nRenderDim );
 		bt.bvvFrame.pack();	
 		SwingUtilities.invokeAndWait( ()->
@@ -134,7 +132,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		});
 		for(int nFr = 0; nFr < nTotFrames; nFr++)
 		{
-			setProgress(nFr * 100/ (nTotFrames - 1));
+			setProgress(nFr * 100 / (nTotFrames - 1));
 			setProgressState("rendering frames ("+Integer.toString( nFr+1 )+"/"+Integer.toString(nTotFrames)+")");
 			final float fTimePoint = nFr * dT;
 
@@ -174,8 +172,6 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 				return null;	
 			}	
 		}
-
-
 		return null;
 	}
 	
@@ -197,24 +193,27 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
     		String msg = String.format("Unexpected error during animation render: %s", 
     				e.getCause().toString());
     		System.out.println(msg);
-    		bt.viewer.setRenderMode( false );
     	} 
     	catch (InterruptedException e) 
     	{
-    		// Process e here
+    		e.getCause().printStackTrace();
+    		String msg = String.format("Unexpected error during animation render: %s", 
+    				e.getCause().toString());
+    		System.out.println(msg);
     	}
     	catch (Exception e)
     	{
-
     		System.out.println("Animation render interrupted by user.");
-    		bt.viewer.setRenderMode( false );
         	setProgress(100);	
         	setProgressState("Render interrupted by user.");
     	}	
     	
     	bt.viewer.setRenderMode( false );
-
-    	bt.bvvFrame.getContentPane().setPreferredSize( dimsIni);
+    	
+    	if(dimsIni != null)
+    	{
+    		bt.bvvFrame.getContentPane().setPreferredSize( dimsIni);
+    	}
 
 		bt.bvvFrame.pack();
         

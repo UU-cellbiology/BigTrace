@@ -347,8 +347,8 @@ public class AnimationPanel extends JPanel implements ListSelectionListener,  Nu
 		JPanel panTotTime = new JPanel(new GridBagLayout());
 		panTotTime.setBorder(new PanelTitle(""));
 		cr = new GridBagConstraints();
-		cr.gridx=0;
-		cr.gridy=0;
+		cr.gridx = 0;
+		cr.gridy = 0;
 		panTotTime.add(new JLabel("Total time (s)"),cr);
 		cr.gridx++;
 		nfTotalTime = new NumberField(4);

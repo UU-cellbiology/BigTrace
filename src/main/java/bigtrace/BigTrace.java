@@ -341,16 +341,17 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		bInputLock = false;
 		
 		//check if there is a saved view
-		File f = new File(btData.sFileNameFullImg+"_btview.csv");
+		File f = new File(btData.sFileNameFullImg + "_btview.csv");
 		
 		if(f.exists() && !f.isDirectory() && !btMacro.bMacroMode) 
 		{ 
 			if (JOptionPane.showConfirmDialog(null, "There is a saved view state for this file,\ndo you want to load it?", "Load saved view?",
 			        JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) 
 			{
-				ViewsIO.loadView( this, btData.sFileNameFullImg+"_btview.csv" );
+				ViewsIO.loadView( this, btData.sFileNameFullImg + "_btview.csv" );
 			} 
 		}
+		
 		if(btData.bStartFullScreen)
 		{	
 			btPanel.makeFullScreen();
