@@ -17,6 +17,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -867,9 +869,12 @@ public class AnimationPanel extends JPanel implements ListSelectionListener,  Nu
 		if(listModel.size()>0)
 		{
 			String filename;
+			Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+			String sFolder = pathIn.getParent().toString();
+			String fileNamePrefix = pathIn.getFileName().toString();
+			filename = fileNamePrefix + "_btstory";
 			
-			filename = bt.btData.sFileNameFullImg + "_btstory";
-			SaveDialog sd = new SaveDialog("Save storyline ", filename, ".csv");
+			SaveDialog sd = new SaveDialog("Save storyline ", sFolder, filename, ".csv");
 	        String path = sd.getDirectory();
 	        if (path == null)
 	        	return;

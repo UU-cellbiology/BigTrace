@@ -13,6 +13,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
@@ -592,9 +594,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	void measureAllProfiles()
 	{
 		String filename;
-		
-		filename = bt.btData.sFileNameFullImg + "_int_profiles";
-		SaveDialog sd = new SaveDialog("Save ROI Plot Profiles ", filename, ".csv");
+		Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+		String sFolder = pathIn.getParent().toString();
+		String fileNamePrefix = pathIn.getFileName().toString();
+		filename = fileNamePrefix + "_int_profiles";
+		SaveDialog sd = new SaveDialog("Save ROI Plot Profiles ", sFolder, filename, ".csv");
         String path = sd.getDirectory();
         if (path == null)
         	return;
@@ -613,9 +617,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	{
 		String filename;
 		int j,k;
-		
-		filename = bt.btData.sFileNameFullImg + "_coalign";
-		SaveDialog sd = new SaveDialog("Save ROI Plot Profiles ", filename, ".csv");
+		Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+		String sFolder = pathIn.getParent().toString();
+		String fileNamePrefix = pathIn.getFileName().toString();
+		filename = fileNamePrefix + "_coalign";
+		SaveDialog sd = new SaveDialog("Save ROI coalignment profiles ", sFolder, filename, ".csv");
         String path = sd.getDirectory();
         if (path == null)
         	return;

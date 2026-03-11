@@ -16,6 +16,8 @@ import java.awt.event.ItemListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
@@ -429,9 +431,11 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	public void dialSaveView()
 	{
 		String filename;
-		
-		filename = bt.btData.sFileNameFullImg + "_btview";
-		SaveDialog sd = new SaveDialog("Save View/settings ", filename, ".csv");
+		Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+		String sFolder = pathIn.getParent().toString();
+		String fileNamePrefix = pathIn.getFileName().toString();
+		filename = fileNamePrefix + "_btview";
+		SaveDialog sd = new SaveDialog("Save View/settings ", sFolder, filename, ".csv");
         
 		String path = sd.getDirectory();
         if (path == null)

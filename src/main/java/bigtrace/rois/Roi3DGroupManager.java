@@ -13,6 +13,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
@@ -442,14 +444,18 @@ public class Roi3DGroupManager < T extends RealType< T > & NativeType< T > > imp
 	public void dialogSaveGroups()
 	{
 		String filename;
-		//int nGroupN, nGroup;
 		
-		filename = roiManager.bt.btData.sFileNameFullImg + "_btgroups";
-		SaveDialog sd = new SaveDialog("Save ROIs ", filename, ".csv");
+		Path pathIn = Paths.get(roiManager.bt.btData.sFileNameFullImg);
+		String sFolder = pathIn.getParent().toString();
+		String fileNamePrefix = pathIn.getFileName().toString();
+		
+		filename = fileNamePrefix + "_btgroups";
+		SaveDialog sd = new SaveDialog("Save ROIs ", sFolder, filename, ".csv");
         String path = sd.getDirectory();
-        if (path==null)
+        
+        if (path == null)
         	return;
-        filename = path+sd.getFileName();
+        filename = path + sd.getFileName();
 
 
         final File file = new File(filename);

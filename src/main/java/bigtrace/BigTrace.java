@@ -230,13 +230,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
 		if(!btMacro.bMacroMode)
 		{
-			//not sure we really need it, but anyway
-	        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-	            @Override
-				public void run() {
-	                createAndShowGUI();
-	            }
-	        });
+	        javax.swing.SwingUtilities.invokeLater( () -> createAndShowGUI());
 		}
 		else
 		{

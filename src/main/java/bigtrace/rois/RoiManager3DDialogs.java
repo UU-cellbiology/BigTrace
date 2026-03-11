@@ -3,7 +3,8 @@ package bigtrace.rois;
 import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
@@ -520,35 +521,38 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
         
 		String filename = "";
 		SaveDialog sd;
-		String path = "";
-
+		
+		Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+		String sFolder = pathIn.getParent().toString();
+		String fileNamePrefix = pathIn.getFileName().toString();
+		String pathOut = "";
 		switch (nSaveMode)
 		{
 		case 1: 
-			filename = bt.btData.sFileNameFullImg + "_traces";
-			sd = new SaveDialog("Export ROIs ", filename, ".csv");
-			path = sd.getDirectory();
-			if (path == null)
+			filename = fileNamePrefix + "_traces";
+			sd = new SaveDialog("Export ROIs ", sFolder, filename, ".csv");
+			pathOut = sd.getDirectory();
+			if (pathOut == null)
 				return;
-			filename = path + sd.getFileName();
+			filename = pathOut + sd.getFileName();
 			break;
 		case 2: 
-			filename = bt.btData.sFileNameFullImg + "_traces";
-			sd = new SaveDialog("Export ROIs to SWC ", filename, ".swc");
-			path = sd.getDirectory();
-			if (path == null)
+			filename = fileNamePrefix + "_traces";
+			sd = new SaveDialog("Export ROIs to SWC ", sFolder, filename, ".swc");
+			pathOut = sd.getDirectory();
+			if (pathOut == null)
 				return;
 			break;
 		default: 
-			filename = bt.btData.sFileNameFullImg + "_btrois";
-			sd = new SaveDialog("Save ROIs ", filename, ".csv");
-			path = sd.getDirectory();
-			if (path == null)
+			filename = fileNamePrefix + "_btrois";
+			sd = new SaveDialog("Save ROIs ", sFolder, filename, ".csv");
+			pathOut = sd.getDirectory();
+			if (pathOut == null)
 				return;
-			filename = path + sd.getFileName();
+			filename = pathOut + sd.getFileName();
 			break;
 		}
-		filename = path + sd.getFileName();
+		filename = pathOut + sd.getFileName();
 		ROIsIO.saveROIs( filename, nSaveMode, bt );
 	}
 	
