@@ -86,7 +86,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		
 		float dT = aPanel.kfAnim.nTotalTime/(float)(nTotFrames-1);		
 
-		bt.viewer.setRenderMode( true );
+		bt.bvvViewer.setRenderMode( true );
 		
 		SplitPanel splitPanel =  bt.bvvFrame.getSplitPanel();
 		
@@ -95,7 +95,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 			splitPanel.setCollapsed( true );
 		}
 
-		Component component = bt.viewer;	
+		Component component = bt.bvvViewer;	
 		
 		int nHeight = aPanel.nRenderHeight;
 		//check if there is time slider => +25 in height
@@ -120,7 +120,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		{
 			bt.bvvFrame.setResizable( false );
 		});
-		Rectangle rect = bt.viewer.getDisplayComponent().getBounds();
+		Rectangle rect = bt.bvvViewer.getDisplayComponent().getBounds();
 		BufferedImage bi =
                 new BufferedImage(rect.width, rect.height,
                                     BufferedImage.TYPE_INT_ARGB);
@@ -144,12 +144,12 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 			long nTotalTime = 0;
 			final long nWaitTime = 30;
 			final long nTimeLimitmS = aPanel.nRenderFrameTimeLimit * 1000;
-			boolean bWait = (bt.viewer.getRepaintStatus() != RepaintType.NONE);
+			boolean bWait = (bt.bvvViewer.getRepaintStatus() != RepaintType.NONE);
 			//while(bt.viewer.getRepaintStatus() != RepaintType.NONE)
 			while(bWait)
 			{			
 				Thread.sleep( nWaitTime );
-				status = bt.viewer.getRepaintStatus();
+				status = bt.bvvViewer.getRepaintStatus();
 				//System.out.println(status);
 				nTotalTime += nWaitTime;
 				if(status == RepaintType.NONE)
@@ -208,7 +208,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
         	setProgressState("Render interrupted by user.");
     	}	
     	
-    	bt.viewer.setRenderMode( false );
+    	bt.bvvViewer.setRenderMode( false );
     	
     	if(dimsIni != null)
     	{

@@ -165,8 +165,8 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 				Prefs.set("BigTrace.bFullAutoSingleTimeFrame", cbSingleTimeFrame.isSelected() );
 				if(cbSingleTimeFrame.isSelected())
 				{
-					nFirstTP = bt.viewer.state().getCurrentTimepoint();
-					nLastTP = bt.viewer.state().getCurrentTimepoint();					
+					nFirstTP = bt.bvvViewer.state().getCurrentTimepoint();
+					nLastTP = bt.bvvViewer.state().getCurrentTimepoint();					
 				}
 				else
 				{

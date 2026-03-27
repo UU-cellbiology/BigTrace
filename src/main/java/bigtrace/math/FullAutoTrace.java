@@ -80,7 +80,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		for(int nTP = nFirstTP; nTP <= nLastTP; nTP++)
 		{
 			
-			bt.viewer.setTimepoint(nTP);
+			bt.bvvViewer.setTimepoint(nTP);
 			IntervalView<T> traceIV =  bt.getTraceInterval(bt.btData.bTraceOnlyClipped);	
 			mask.initTraceMask( traceIV, false );
 			oneClickTrace.traceMask = mask;

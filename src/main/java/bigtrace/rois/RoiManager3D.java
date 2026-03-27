@@ -970,10 +970,10 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 
             	activeRoi.set(jlist.getSelectedIndex());
             	//update the timepoint
-            	if(getActiveRoi().getTimePoint()!=bt.viewer.state().getCurrentTimepoint())
+            	if(getActiveRoi().getTimePoint()!=bt.bvvViewer.state().getCurrentTimepoint())
             	{
             		bt.btData.bDeselectROITime = false;
-            		bt.viewer.setTimepoint(getActiveRoi().getTimePoint());
+            		bt.bvvViewer.setTimepoint(getActiveRoi().getTimePoint());
             	}
             	//jlist.setSelectedIndex(activeRoi);
             	//update the timepoint

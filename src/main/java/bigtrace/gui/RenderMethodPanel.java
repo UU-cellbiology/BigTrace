@@ -100,7 +100,7 @@ public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > ext
 //	
 				bt.btData.surfaceRender = cbSurfaceRenderList.getSelectedIndex();
 				Prefs.set("BigTrace.surfaceRender", bt.btData.surfaceRender);
-				bt.viewer.showMessage("ROI surface: "+ sSurfaceRenderType[bt.btData.surfaceRender]);
+				bt.bvvViewer.showMessage("ROI surface: "+ sSurfaceRenderType[bt.btData.surfaceRender]);
 				//long start1 = System.currentTimeMillis();
 				bt.repaintBVV();
 				

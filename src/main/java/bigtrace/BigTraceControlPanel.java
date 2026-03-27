@@ -521,8 +521,8 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		NumberField nfClipFar = new NumberField(4);
 		nfClipFar.setText(df3.format(bt.btData.dClipFar));
 	
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		GBCHelper.alighLoose(cd);
 		
 		pViewSettings.add(new JLabel("Background color: "),cd);
@@ -583,7 +583,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		cd.gridx=0;
 		cd.gridy++;
-		cd.gridwidth=2;
+		cd.gridwidth = 2;
 		cd.anchor = GridBagConstraints.CENTER;
 		pViewSettings.add(new JLabel("<html>----  <B>Perspective</B>  ----</html>"),cd);
 		cd.gridwidth=1;
@@ -662,7 +662,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		Prefs.set("BigTrace.dCam", bt.btData.dCam);
 		Prefs.set("BigTrace.dClipNear", bt.btData.dClipNear);
 		Prefs.set("BigTrace.dClipFar", bt.btData.dClipFar);
-		bt.viewer.setCamParams(bt.btData.dCam, bt.btData.dClipNear, bt.btData.dClipFar);
+		bt.bvvViewer.setCamParams(bt.btData.dCam, bt.btData.dClipNear, bt.btData.dClipFar);
 	}
 	
 	public void setCanvasBGColor(final Color bgColor)
@@ -670,8 +670,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		bt.btData.canvasBGColor = new Color(bgColor.getRed(),bgColor.getGreen(),bgColor.getBlue(),bgColor.getAlpha());
 		selectColors.setColor(null, 0);
 		Prefs.set("BigTrace.canvasBGColor", bgColor.getRGB());
-
-		bt.visualBoxes.setColor( BigTraceData.getInvertedColor(bgColor) );
+		final Color invColor = BigTraceData.getInvertedColor(bgColor);
+		bt.visualBoxes.setColor( invColor );
+		bt.bvvViewer.setOverlayTextColor( invColor );
 
 	}
 	
@@ -908,7 +909,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 				
 		final AffineTransform3D newtransform = new AffineTransform3D();
 		
-		bt.viewer.state().getViewerTransform(transform);
+		bt.bvvViewer.state().getViewerTransform(transform);
 		
 		double[] scaleChange = new double [3];
 		
@@ -936,7 +937,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		newtransform.set(m);
 		
 		AffineTransform3D final_transform = bt.getCenteredViewTransform(newtransform, btdata.getDataCurrentSourceClipped(), 1.0);
-		bt.viewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform, final_transform, btdata.nAnimationDuration));
+		bt.bvvViewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform, final_transform, btdata.nAnimationDuration));
 		//recalculate ROI shapes
 		bt.roiManager.updateROIsDisplay();
 	}
@@ -955,11 +956,11 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			bt.bvv_trace.setRenderType(nRenderType);
 		if(nRenderType == BigTraceData.DATA_RENDER_VOLUMETRIC)
 		{
-			bt.viewer.showMessage("volumetric");
+			bt.bvvViewer.showMessage("volumetric");
 		}
 		if(nRenderType == BigTraceData.DATA_RENDER_MAX_INT)
 		{
-			bt.viewer.showMessage("maximum intensity");
+			bt.bvvViewer.showMessage("maximum intensity");
 		}				
 	}
 

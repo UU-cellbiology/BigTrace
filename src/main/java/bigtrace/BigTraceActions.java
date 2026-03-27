@@ -264,7 +264,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 				}
 				
 			}
-			bt.viewer.showMessage("Point removed");
+			bt.bvvViewer.showMessage("Point removed");
 
 		}					
 		
@@ -416,7 +416,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 					}
 	
 					//animate
-					bt.viewer.setTransformAnimator(bt.getCenteredViewAnim(zoomInterval,bt.btData.dZoomBoxScreenFraction));
+					bt.bvvViewer.setTransformAnimator(bt.getCenteredViewAnim(zoomInterval,bt.btData.dZoomBoxScreenFraction));
 				}
 			}
 			else
@@ -425,7 +425,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 				{
 					FinalInterval zoomInterval = VolumeMisc.getZoomBoxCentered((long)(bt.btData.nTraceBoxSize*0.5), target);
 			
-					bt.viewer.setTransformAnimator(bt.getCenteredViewAnim(zoomInterval,bt.btData.dZoomBoxScreenFraction));
+					bt.bvvViewer.setTransformAnimator(bt.getCenteredViewAnim(zoomInterval,bt.btData.dZoomBoxScreenFraction));
 				}
 			}
 
@@ -443,11 +443,11 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 		{
 			if(!bt.bTraceMode)
 			{		
-				bt.viewer.setTransformAnimator(bt.getCenteredViewAnim(bt.btData.getDataCurrentSourceClipped(),1.0));
+				bt.bvvViewer.setTransformAnimator(bt.getCenteredViewAnim(bt.btData.getDataCurrentSourceClipped(),1.0));
 			}
 			else
 			{
-				bt.viewer.setTransformAnimator(bt.getCenteredViewAnim(bt.btData.trace_weights,0.8));
+				bt.bvvViewer.setTransformAnimator(bt.getCenteredViewAnim(bt.btData.trace_weights,0.8));
 			}
 
 		}
