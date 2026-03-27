@@ -297,7 +297,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		btActions  = new BigTraceActions<>(this);
 		setInitialTransform();
-		viewer.addTimePointListener(this);
+		viewer.timePointListeners().add( this );
 	}
 	
 	
