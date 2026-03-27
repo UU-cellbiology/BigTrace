@@ -649,7 +649,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 }
 	 
 	 /** Draw all ROIS **/
-	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size)
+	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size, boolean bOpaqueRun)
 	 {
 	       Roi3D roi;
 	       Color savePointColor = null;
@@ -669,10 +669,16 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	       for (i = 0; i < rois.size(); i++) 
 	       {
 	    	   roi = rois.get(i);
+	    	   
+	    	   if (bOpaqueRun && roi.isTransparent())
+	    		   break;
+
+	    	   if (!bOpaqueRun && !roi.isTransparent())
+	    		   break;
+
 	    	   nShift = roi.getTimePoint() - bt.btData.nCurrTimepoint;
 	    	   if(nShift >= nMinF && nShift <= nMaxF)
 	    	   {
-
 		    	   //save colors in case ROI is active
 		    	   if(i == activeRoi.intValue())
 		    	   {

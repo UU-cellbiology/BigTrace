@@ -12,6 +12,7 @@ public abstract class AbstractRoi3D implements Roi3D {
 	public float pointSize;
 	public Color lineColor;
 	public Color pointColor;
+	boolean bTransparent = false;
 	public String name;
 	public int type;
 	public int renderType;
@@ -84,6 +85,12 @@ public abstract class AbstractRoi3D implements Roi3D {
 	public float getLineThickness() {
 
 		return lineThickness;
+	}
+	
+	@Override
+	public boolean isTransparent()
+	{
+		return bTransparent;
 	}
 	
 	@Override

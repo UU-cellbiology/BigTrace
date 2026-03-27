@@ -17,6 +17,7 @@ import javax.swing.WindowConstants;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import static com.jogamp.opengl.GL.GL_RGBA8;
 
 import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
@@ -63,6 +64,7 @@ import bvvpg.vistools.BvvGamma;
 import bvvpg.source.converters.GammaConverterSetup;
 import bvvpg.core.VolumeViewerFrame;
 import bvvpg.core.VolumeViewerPanel;
+import bvvpg.core.offscreen.OffScreenFrameBufferWithDepth;
 import bvvpg.core.util.MatrixMath;
 import bigtrace.animation.Scene;
 import bigtrace.geometry.Cuboid3D;
@@ -80,6 +82,7 @@ import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.scene.VisPolyLineAA;
 import bigtrace.volume.VolumeMisc;
+import bvb.core.BVVSettings;
 
 
 public class BigTrace < T extends RealType< T > & NativeType< T > > implements PlugIn, MacroExtension, TimePointListener
@@ -113,6 +116,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	/** Frame of BigVolumeViewer **/
 	public VolumeViewerFrame bvvFrame;
+	
+	/** separate framebuffer for the transparent rendering **/
+	OffScreenFrameBufferWithDepth sceneBufTransparent = null;
 	
 	/** flag to check if user interface is frozen.
 	 * It should be modified only in the main thread (or in done method of SwingWorker,
@@ -293,7 +299,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		}
 		
 		bvvViewer = bvv_main.getBvvHandle().getViewerPanel();
-		bvvViewer.setRenderScene(this::renderScene);
+		bvvViewer.setRenderScene(this::renderOpaque);
 		
 		btActions  = new BigTraceActions<>(this);
 		setInitialTransform();
@@ -312,6 +318,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		bvvFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
 		btPanel.finFrame.add(btPanel);
+		
+		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
+
 		
         //Display the window.
 		btPanel.finFrame.setSize(430,600);
@@ -719,24 +728,27 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 
 
-	public void renderScene(final GL3 gl, final RenderData data)
+	public void renderOpaque(final GL3 gl, final RenderData data)
 	{
 		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 0.0f);
+		//clear buffer with color
 		gl.glClear(GL.GL_COLOR_BUFFER_BIT);
-		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};
-		//handl.setRenderScene( ( gl, data ) -> {
+		gl.glDepthFunc( GL.GL_LESS);
+		gl.glEnable(GL.GL_BLEND);
+		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
 		
+		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
 		final Matrix4f pvm = new Matrix4f( data.getPv() );
 		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
 		final Matrix4f camview = MatrixMath.screen( btData.dCam, screen_size[0], screen_size[1], new Matrix4f() ).mul( view );
-
 		
 		//to be able to change point size in shader
 		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
 		
 		synchronized (roiManager)
 		{
-			roiManager.draw(gl, pvm, camview, screen_size);
+			//opaque run
+			roiManager.draw(gl, pvm, camview, screen_size, true);
 		}	
 		
 			//render the origin of coordinates
@@ -746,8 +758,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				{
 					originVis.get(i).draw(gl, pvm, btData);
 				}
-
-
 			}
 			
 			//render a box around  the volume 
@@ -767,9 +777,18 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size);
 				
 			}
-		//panel.requestRepaint(RepaintType.SCENE);
-
 	}
+	
+	public void renderTransparent(final GL3 gl, final RenderData data)
+	{
+		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
+		final Matrix4f pvm = new Matrix4f( data.getPv() );
+		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
+		final Matrix4f camview = MatrixMath.screen( btData.dCam, screen_size[0], screen_size[1], new Matrix4f() ).mul( view );
+		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
+	}
+	
+	
 	
 	public void repaintBVV()
 	{

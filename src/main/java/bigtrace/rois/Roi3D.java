@@ -27,6 +27,8 @@ public interface Roi3D
 	/** render types **/
 	public static final int OUTLINE = 0, WIRE = 1, SURFACE = 2;
 	
+	public static final int TRANSPARENCY_THRESHOLD = 250;
+	
 	/** returns ROI type**/
 	public int getType();
 	
@@ -38,6 +40,9 @@ public interface Roi3D
 	
 	/** Draws ROI into the volume **/
 	public void draw( final GL3 gl, final Matrix4fc pvm,  final Matrix4fc vm, final int [] screen_size);
+	
+	/** report transparency of the shape **/
+	public boolean isTransparent();
 	
 	public void setLineColorRGB(Color lineColor_);
 	public void setPointColorRGB(Color pointColor_);

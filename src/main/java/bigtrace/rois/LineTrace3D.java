@@ -396,6 +396,20 @@ public class LineTrace3D extends AbstractCurve3D
 		}
 		return dMinDist;
 	}
+	
+	/** define if the shape is transparent **/
+	void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
+//		if(getRenderType() == Roi3D.SURFACE )
+//		{
+//			bTransparent = true;
+//		}
+	}
 
 }
 
