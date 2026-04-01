@@ -126,7 +126,7 @@ public class LineTrace3D extends AbstractCurve3D
 	@Override
 	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
-		verticesVis.draw(gl, pvm, screen_size, btdata);
+		//verticesVis.draw(gl, pvm, screen_size, btdata);
 		segmentsVis.draw(gl, pvm, vm, btdata, bWeightedOIT);	
 	}
 	

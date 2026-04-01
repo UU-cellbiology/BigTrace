@@ -83,7 +83,7 @@
         <license.copyrightOwners>Cell Biology, Neurobiology and Biophysics Department of Utrecht University.</license.copyrightOwners>  			
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
-		<bvv-playground.version>0.5.5-SNAPSHOT</bvv-playground.version>
+		<bvv-playground.version>0.5.4</bvv-playground.version>
 		<bdv-loaders.version>0.10.0</bdv-loaders.version>
 	</properties>
 

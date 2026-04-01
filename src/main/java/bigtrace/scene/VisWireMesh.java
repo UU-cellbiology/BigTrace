@@ -687,7 +687,7 @@ public class VisWireMesh {
 					gl.glBindVertexArray( vaosWire[ 0 ] );	
 					if(renderType == Roi3D.OUTLINE)
 					{
-						gl.glLineWidth(fLineThickness);
+						gl.glLineWidth( fLineThickness );
 						gl.glDrawArrays( GL.GL_LINE_STRIP, 0, nPointsN);
 					}
 					
@@ -702,7 +702,6 @@ public class VisWireMesh {
 						for(nPointIt = 0; nPointIt < nPointsN; nPointIt += btdatain.wireCountourStep)
 						{
 							gl.glDrawArrays( GL.GL_LINE_LOOP, nPointIt * nSectorN, nSectorN);
-							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 						//the last contour
 						if((nPointIt - btdatain.wireCountourStep) != (nPointsN-1))
@@ -715,7 +714,6 @@ public class VisWireMesh {
 						for(nPointIt = 0; nPointIt < nSectorN; nPointIt += 1)
 						{
 							gl.glDrawArrays( GL.GL_LINE_STRIP, nShift + nPointIt * nPointsN, nPointsN);
-							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 					}
 					gl.glBindVertexArray( 0 );	

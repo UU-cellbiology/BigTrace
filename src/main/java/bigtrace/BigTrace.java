@@ -692,9 +692,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_trace.removeFromBdv();
 			System.gc();
 		}
-		bvv_trace=null;
+		bvv_trace = null;
 		//handl.setDisplayMode(DisplayMode.SINGLE);
-		if(btData.nTraceBoxView==1)
+		if(btData.nTraceBoxView == 1)
 		{
 			btData.bcTraceChannel.setBC(bvv_sources.get(btData.nChAnalysis));
 		}
@@ -733,10 +733,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 1.0f);
 		//clear buffer with color
-		gl.glClear(GL.GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
-		gl.glDepthFunc( GL.GL_LESS);
-		gl.glEnable(GL.GL_BLEND);
-		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
+		gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+		gl.glDepthFunc( GL.GL_LESS );
+		gl.glEnable( GL.GL_BLEND );
+		gl.glBlendFunc( GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA );
 		
 		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
 		final Matrix4f pvm = new Matrix4f( data.getPv() );
@@ -752,32 +752,32 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			roiManager.draw(gl, pvm, camview, screen_size, false);
 		}	
 		
-			//render the origin of coordinates
-			if (btData.bShowOrigin)
-			{
-				for (int i = 0; i < 3; i++)
-				{
-					originVis.get(i).draw(gl, pvm, btData);
-				}
-			}
-			
-			//render a box around  the volume 
-			if (btData.bVolumeBox)
-			{
-				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
-			}
-			//render a box around  the volume 
-			if (btData.bClipBox)
-			{
-				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
-			}
-			
-			//one click tracing box
-			if(visualBoxes.bShowTraceBox)
-			{
-				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
-				
-			}
+//			//render the origin of coordinates
+//			if (btData.bShowOrigin)
+//			{
+//				for (int i = 0; i < 3; i++)
+//				{
+//					originVis.get(i).draw(gl, pvm, btData);
+//				}
+//			}
+//			
+//			//render a box around  the volume 
+//			if (btData.bVolumeBox)
+//			{
+//				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
+//			}
+//			//render a box around  the volume 
+//			if (btData.bClipBox)
+//			{
+//				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
+//			}
+//			
+//			//one click tracing box
+//			if(visualBoxes.bShowTraceBox)
+//			{
+//				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
+//				
+//			}
 	}
 	
 	public void renderTransparent(final GL3 gl, final RenderData data, final OffScreenFrameBufferWithDepth sceneVolBuffer)
@@ -800,12 +800,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		gl.glDepthMask(true);
 	
 		sceneBufTransparent.unbind( gl, false );
-//		//gl.glClear(GL.GL_COLOR_BUFFER_BIT);
-//		
+		
 		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
 		gl.glDisable( GL_DEPTH_TEST );	
 		sceneBufTransparent.drawQuadAlpha( gl );
-		//sceneBufTransparent.drawQuad( gl );
 
 	}
 	

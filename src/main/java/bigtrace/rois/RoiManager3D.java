@@ -1462,9 +1462,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	public void applyGroupToROI(int nRoiIndex, int nGroupIndex)
 	{
 
-		if(nRoiIndex<0 && nRoiIndex>rois.size()-1)
+		if(nRoiIndex < 0 && nRoiIndex>rois.size() - 1)
 			return;
-		if(nGroupIndex<0 && nGroupIndex>groups.size()-1)
+		if(nGroupIndex < 0 && nGroupIndex > groups.size() - 1)
 			return;
 		final Roi3D currROI = rois.get( nRoiIndex );
 		currROI.setGroup(groups.get(nGroupIndex));
