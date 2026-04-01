@@ -143,7 +143,7 @@ public class Box3D extends AbstractRoi3D
 	}
 	
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size ) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size , final boolean bWeightedOIT) 
 	{
 	
 		for (int i = 0; i < edgesVis.size(); i++)
@@ -393,5 +393,19 @@ public class Box3D extends AbstractRoi3D
 	public < T extends RealType< T > & NativeType< T >  > Cursor< T > getSingle3DVolumeCursor( RandomAccessibleInterval< T > input )
 	{		
 		return Views.interval( input, getBoundingBox() ).cursor();
+	}
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+//		bTransparent = false;
+//		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+//		{
+//			bTransparent = true;
+//		}
+//		if(btdata.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
+//		{
+//			bTransparent = true;
+//		}
 	}
 }

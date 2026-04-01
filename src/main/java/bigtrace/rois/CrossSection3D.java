@@ -141,7 +141,7 @@ public class CrossSection3D extends AbstractRoi3D
 	}
 
 	@Override
-	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size) 
+	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size, final boolean bWeightedOIT) 
 	{
 		verticesVis.draw(gl, pvm, screen_size, btdata);
 		planeVis.draw(gl, pvm, btdata);		
@@ -483,6 +483,16 @@ public class CrossSection3D extends AbstractRoi3D
 	{
 		return null;
 	}
-
+	
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
+	}
 
 }

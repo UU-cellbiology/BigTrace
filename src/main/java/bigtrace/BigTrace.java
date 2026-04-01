@@ -17,6 +17,8 @@ import javax.swing.WindowConstants;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_RGBA8;
 
 import com.formdev.flatlaf.FlatIntelliJLaf;
@@ -82,7 +84,6 @@ import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.scene.VisPolyLineAA;
 import bigtrace.volume.VolumeMisc;
-import bvb.core.BVVSettings;
 
 
 public class BigTrace < T extends RealType< T > & NativeType< T > > implements PlugIn, MacroExtension, TimePointListener
@@ -232,7 +233,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		}	
 
 		roiManager = new RoiManager3D<>(this);
-		
+		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
+
 		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
 		if(!btMacro.bMacroMode)
 		{
@@ -299,9 +301,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		}
 		
 		bvvViewer = bvv_main.getBvvHandle().getViewerPanel();
-		bvvViewer.setRenderScene(this::renderOpaque);
+		bvvViewer.setRenderScene( this::renderOpaque );
+		bvvViewer.setRenderSceneTransparent( this::renderTransparent );
 		
-		btActions  = new BigTraceActions<>(this);
+		btActions  = new BigTraceActions<>( this );
 		setInitialTransform();
 		bvvViewer.timePointListeners().add( this );
 	}
@@ -319,8 +322,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 		btPanel.finFrame.add(btPanel);
 		
-		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
-
 		
         //Display the window.
 		btPanel.finFrame.setSize(430,600);
@@ -730,9 +731,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	public void renderOpaque(final GL3 gl, final RenderData data)
 	{
-		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 0.0f);
+		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 1.0f);
 		//clear buffer with color
-		gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+		gl.glClear(GL.GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
 		gl.glDepthFunc( GL.GL_LESS);
 		gl.glEnable(GL.GL_BLEND);
 		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
@@ -748,7 +749,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		synchronized (roiManager)
 		{
 			//opaque run
-			roiManager.draw(gl, pvm, camview, screen_size, true);
+			roiManager.draw(gl, pvm, camview, screen_size, false);
 		}	
 		
 			//render the origin of coordinates
@@ -763,29 +764,49 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			//render a box around  the volume 
 			if (btData.bVolumeBox)
 			{
-				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size);
+				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
 			}
 			//render a box around  the volume 
 			if (btData.bClipBox)
 			{
-				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size);
+				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
 			}
 			
 			//one click tracing box
 			if(visualBoxes.bShowTraceBox)
 			{
-				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size);
+				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
 				
 			}
 	}
 	
-	public void renderTransparent(final GL3 gl, final RenderData data)
+	public void renderTransparent(final GL3 gl, final RenderData data, final OffScreenFrameBufferWithDepth sceneVolBuffer)
 	{
+		
+		//gl.glClear(GL.GL_COLOR_BUFFER_BIT);
 		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
 		final Matrix4f pvm = new Matrix4f( data.getPv() );
 		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
 		final Matrix4f camview = MatrixMath.screen( btData.dCam, screen_size[0], screen_size[1], new Matrix4f() ).mul( view );
 		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
+		sceneBufTransparent.bind( gl );
+		gl.glDepthMask(true);
+		sceneVolBuffer.drawQuadDepth( gl, true );
+		gl.glBlendFunc(GL.GL_ONE, GL.GL_ONE); // Additive RGB + alpha
+		gl.glBlendEquation(GL.GL_FUNC_ADD);
+		//disable depth writing
+		gl.glDepthMask(false);
+		roiManager.draw(gl, pvm, camview, screen_size, true);
+		gl.glDepthMask(true);
+	
+		sceneBufTransparent.unbind( gl, false );
+//		//gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+//		
+		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
+		gl.glDisable( GL_DEPTH_TEST );	
+		sceneBufTransparent.drawQuadAlpha( gl );
+		//sceneBufTransparent.drawQuad( gl );
+
 	}
 	
 	

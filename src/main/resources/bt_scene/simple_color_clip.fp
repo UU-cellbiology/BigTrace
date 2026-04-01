@@ -8,7 +8,7 @@ uniform int clipactive;
 void main()
 {    
     //ROI clipping
-	if(clipactive>0)
+	if(clipactive > 0)
 	{
 		vec3 s = step(clipmin, posW) - step(clipmax, posW);
 		if(s.x * s.y * s.z == 0.0)

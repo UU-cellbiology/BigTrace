@@ -124,10 +124,10 @@ public class LineTrace3D extends AbstractCurve3D
 
 
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
 		verticesVis.draw(gl, pvm, screen_size, btdata);
-		segmentsVis.draw(gl, pvm, vm, btdata);	
+		segmentsVis.draw(gl, pvm, vm, btdata, bWeightedOIT);	
 	}
 	
 	@Override
@@ -397,19 +397,6 @@ public class LineTrace3D extends AbstractCurve3D
 		return dMinDist;
 	}
 	
-	/** define if the shape is transparent **/
-	void defineTransparency()
-	{
-		bTransparent = false;
-		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
-		{
-			bTransparent = true;
-		}
-//		if(getRenderType() == Roi3D.SURFACE )
-//		{
-//			bTransparent = true;
-//		}
-	}
 
 }
 

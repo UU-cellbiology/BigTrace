@@ -39,10 +39,12 @@ public interface Roi3D
 	public void setName(String name);
 	
 	/** Draws ROI into the volume **/
-	public void draw( final GL3 gl, final Matrix4fc pvm,  final Matrix4fc vm, final int [] screen_size);
+	public void draw( final GL3 gl, final Matrix4fc pvm,  final Matrix4fc vm, final int [] screen_size, final boolean bWeightedOIT);
 	
 	/** report transparency of the shape **/
 	public boolean isTransparent();
+	
+	public void defineTransparency();
 	
 	public void setLineColorRGB(Color lineColor_);
 	public void setPointColorRGB(Color pointColor_);

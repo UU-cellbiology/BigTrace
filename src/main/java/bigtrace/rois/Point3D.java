@@ -78,7 +78,7 @@ public class Point3D extends AbstractRoi3D {
 	
 
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
 		if(vertexVis!=null)
 			vertexVis.draw( gl, pvm, screen_size, btdata);
@@ -323,5 +323,15 @@ public class Point3D extends AbstractRoi3D {
 	
 		final EllipsoidNeighborhood<T> ellipse = new EllipsoidNeighborhood<>(input, center,  radiuses); 
 		return ellipse.localizingCursor();
+	}
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
 	}
 }

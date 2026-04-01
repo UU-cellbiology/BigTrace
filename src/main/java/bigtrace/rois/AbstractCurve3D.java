@@ -596,4 +596,19 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		
 		return new MeshCursor<>( input.randomAccess(), volumeMesh, new double[] { 1., 1., 1. } );
 	}
+	
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
+		if(btdata.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
+		{
+			bTransparent = true;
+		}
+	}
 }

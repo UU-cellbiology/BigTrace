@@ -649,7 +649,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 }
 	 
 	 /** Draw all ROIS **/
-	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size, boolean bOpaqueRun)
+	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT)
 	 {
 	       Roi3D roi;
 	       Color savePointColor = null;
@@ -670,15 +670,18 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	       {
 	    	   roi = rois.get(i);
 	    	   
-	    	   if (bOpaqueRun && roi.isTransparent())
-	    		   break;
-
-	    	   if (!bOpaqueRun && !roi.isTransparent())
-	    		   break;
-
 	    	   nShift = roi.getTimePoint() - bt.btData.nCurrTimepoint;
+	    	   
 	    	   if(nShift >= nMinF && nShift <= nMaxF)
 	    	   {
+		    	   //see in which render run (opaque or transparent) ROI belongs
+	    		   roi.defineTransparency();
+		    	   if (bWeightedOIT && !roi.isTransparent())
+		    		   continue;
+
+		    	   if (!bWeightedOIT && roi.isTransparent())
+		    		   continue;
+		    	   
 		    	   //save colors in case ROI is active
 		    	   if(i == activeRoi.intValue())
 		    	   {
@@ -698,14 +701,14 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    	   {
 		    		   if(groups.get(roi.getGroupInd()).bVisible)
 		    		   {
-		    			   roi.draw(gl, pvm, vm, screen_size);
+		    			   roi.draw(gl, pvm, vm, screen_size, bWeightedOIT);
 		    		   }
 		    		   else
 		    		   {
 		    			   //still draw active ROI
 			    		   if(i == activeRoi.intValue())
 			    		   {
-			    			   roi.draw(gl, pvm, vm, screen_size);
+			    			   roi.draw(gl, pvm, vm, screen_size, bWeightedOIT);
 			    		   }	    			   
 		    		   }
 		    	   }
@@ -713,7 +716,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		    	   {
 		    		   if(i == activeRoi.intValue())
 		    		   {
-		    			   roi.draw(gl, pvm, vm, screen_size);
+		    			   roi.draw(gl, pvm, vm, screen_size, bWeightedOIT);
 		    		   }
 		    	   }
 		    	  
