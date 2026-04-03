@@ -841,7 +841,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				frameTitle(filename)
 				);
 
-		for(int i=0;i<btData.nTotalChannels;i++)
+		for(int i = 0; i < btData.nTotalChannels; i++)
 		{
 	
 			bvv_sources.add(BvvFunctions.show( Views.hyperSlice(all_ch_RAI,4,i), "ch_"+Integer.toString(i+1), Bvv.options().addTo(Tempbvv)));
@@ -859,6 +859,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_sources.get(i).setDisplayRange(btLoad.channelRanges[0][i], btLoad.channelRanges[1][i]);
 			bvv_sources.get(i).setAlphaRange(btLoad.channelRanges[0][i], btLoad.channelRanges[1][i]);
 			bvv_sources.get(i).setRenderType(btData.nRenderMethod);
+			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 
 		}
 		
@@ -873,9 +874,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
 		List<BvvStackSource<?>> sourcesSPIM = BvvFunctions.show(spimData,Bvv.options().
-				dCam(btData.dCam).
-				dClipNear(btData.dClipNear).
-				dClipFar(btData.dClipFar).				
+				dCam( btData.dCam ).
+				dClipNear( btData.dClipNear ).
+				dClipFar( btData.dClipFar ).				
 				renderWidth( btData.renderParams.renderWidth).
 				renderHeight( btData.renderParams.renderHeight).
 				numDitherSamples( btData.renderParams.numDitherSamples ).
@@ -889,10 +890,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				//sourceTransform(afDataTransform)
 				);		
 		
-		for(int i=0;i<sourcesSPIM.size();i++)
+		for(int i = 0; i < sourcesSPIM.size(); i++)
 		{
-			bvv_sources.add(sourcesSPIM.get(i));
-			bvv_sources.get(i).setRenderType(btData.nRenderMethod);
+			bvv_sources.add( sourcesSPIM.get(i) );
+			bvv_sources.get(i).setRenderType( btData.nRenderMethod) ;
+			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 		}
 
 		bvv_main = bvv_sources.get(0);
@@ -901,34 +903,32 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//translate all sources so they are at the zero
 		AffineTransform3D transformTranslation = new AffineTransform3D();
 		double [] shiftTR = new double [3];
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			shiftTR[d]=Double.MAX_VALUE;
+			shiftTR[d] = Double.MAX_VALUE;
 		}
 		
 		for ( SourceAndConverter< ? > source : bvvViewer.state().getSources() )
 		{
-			AffineTransform3D transformSource = new AffineTransform3D();
-		
+			AffineTransform3D transformSource = new AffineTransform3D();		
 			for(int nTP = 0; nTP < btData.nNumTimepoints; nTP++)
 			{
 				if(source.getSpimSource().isPresent( nTP ))
 				{
 					(( TransformedSource< ? > ) source.getSpimSource() ).getSourceTransform(nTP, 0, transformSource);
-		
-					for(int d=0;d<3;d++)
+					for(int d = 0; d < 3; d++)
 					{
-						if(transformSource.get(d, 3)<shiftTR[d])
+						if(transformSource.get(d, 3) < shiftTR[d])
 						{
-							shiftTR[d]=transformSource.get(d, 3);
+							shiftTR[d] = transformSource.get(d, 3);
 						}
 					}
 				}
 			}
 		}		
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			shiftTR[d]*=(-1);
+			shiftTR[d] *= (-1);
 		}
 		transformTranslation.identity();
 		transformTranslation.translate(shiftTR);
@@ -950,7 +950,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 			AffineTransform3D transformFinal = transformScale.concatenate(transformTranslation);
 			(( TransformedSource< ? > ) source.getSpimSource() ).setFixedTransform(transformFinal);
-
 		}
 
 		if(bApplyLLSTransform)
@@ -964,22 +963,19 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				(( TransformedSource< ? > ) source.getSpimSource() ).setIncrementalTransform(transformExtra);
 				//(( TransformedSource< ? > ) source.getSpimSource() ).setIncrementalTransform(afDataTransform);
 				//adjust pixel size to homogeneous scaling
-				for(int d=0;d<3;d++)
+				for(int d = 0; d < 3; d++)
 				{
 					//store original values
 					btData.inputCal[d] = btData.globCal[d];
 					//since we are resampling
 					btData.globCal[d] = btData.dMinVoxelSize;
 				}
-
 			}
 			//check the alignment
 			//BvvFunctions.show(btdata.getDataSourceFull(0, 0),"test",Bvv.options().addTo(bvv_main));
 			//ImageJFunctions.show(btdata.getDataSourceFull(0, 0));
 		}
-
 		BvvGamma.initBrightness( 0.001, 0.999, bvvViewer.state(), bvvViewer.getConverterSetups());
-
 	}
 	
 	public void setInitialTransform()
@@ -996,8 +992,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 	
 	public void resetViewXY()
-	{
-		
+	{		
 		double scale;
 		final long [][] nBox;
 		if(!bTraceMode)
