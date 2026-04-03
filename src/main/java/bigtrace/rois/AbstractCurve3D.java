@@ -610,5 +610,9 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		{
 			bTransparent = true;
 		}
+		if(this.renderType == Roi3D.WIRE && btdata.wireAntiAliasing)
+		{
+			bTransparent = true;
+		}
 	}
 }

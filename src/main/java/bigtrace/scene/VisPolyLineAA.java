@@ -139,8 +139,7 @@ public class VisPolyLineAA
 		gl.glGenVertexArrays( 1, vaos, 0 );
 		vao = vaos[ 0 ];
 		
-		//this can be done once
-		
+		//this can be done once		
 		gl.glBindVertexArray( vao );
 		
 		for(int i = 0; i < 3; i++)
@@ -180,42 +179,42 @@ public class VisPolyLineAA
 		final float [] vertNext = new float [nTotLength];
 		
 	
-		for(int nV = 1; nV<nPointsN+1; nV++)
+		for(int nV = 1; nV < nPointsN + 1; nV++)
 		{
-			for(int nDup = 0; nDup<2; nDup++)
+			for(int nDup = 0; nDup < 2; nDup++)
 			{
-				for (int d=0;d<3; d++)
+				for (int d = 0; d < 3; d++)
 				{	
-					vertAll[nV*6+nDup*3+d] = vertices[(nV-1)*3+d];
+					vertAll[6 * nV + 3 * nDup + d] = vertices[(nV - 1) * 3 + d];
 				}
 			}
 		}
-		for(int nDup = 0; nDup<2; nDup++)
+		for(int nDup = 0; nDup < 2; nDup++)
 		{
-			for (int d=0;d<3; d++)
+			for (int d = 0; d < 3; d++)
 			{	
-				vertAll[nDup*3+d] = vertices[d];
+				vertAll[nDup * 3 + d] = vertices[d];
 			}
 		}
-		for(int nDup = 0; nDup<2; nDup++)
+		for(int nDup = 0; nDup < 2; nDup++)
 		{
-			for (int d=0;d<3; d++)
+			for (int d = 0; d < 3; d++)
 			{	
-				vertAll[(nPointsN+1)*6+nDup*3+d] = vertices[(nPointsN-1)*3+d];
+				vertAll[(nPointsN + 1)*6 + nDup*3 + d] = vertices[(nPointsN - 1)*3 + d];
 			}
 		}
-		for(int i = 0; i<nTotLength; i++)
+		for(int i = 0; i < nTotLength; i++)
 		{
-			vertCurr[i] = vertAll[i+6];
+			vertCurr[i] = vertAll[i + 6];
 			vertPrev[i] = vertAll[i];
-			vertNext[i] = vertAll[i+12];
+			vertNext[i] = vertAll[i + 12];
 		}
 		
 		//cumulative length
-		for(int i = 1; i<nPointsN;i++)
+		for(int i = 1; i < nPointsN; i++)
 		{
 			double dLen = 0;
-			for(int d=0; d<3; d++)
+			for(int d = 0; d < 3; d++)
 			{
 				dLen += Math.pow( vertices[i*3+d]-vertices[(i-1)*3+d], 2 );
 			}
@@ -223,23 +222,21 @@ public class VisPolyLineAA
 		}
 		
 		lineLength = nCumLength[nPointsN-1];
-		for(int nV = 0; nV<nPointsN; nV++)
+		for(int nV = 0; nV < nPointsN; nV++)
 		{
-				UV[nV*4] = nCumLength[nV];
-				UV[nV*4+1] = 1.0f;
-				UV[nV*4+2] = nCumLength[nV];
-				UV[nV*4+3] = -1.0f;
+				UV[nV*4]     = nCumLength[nV];
+				UV[nV*4 + 1] = 1.0f;
+				UV[nV*4 + 2] = nCumLength[nV];
+				UV[nV*4 + 3] = -1.0f;
 		}
 
 		// ..:: VERTEX BUFFERS & ARRAY OBJECTS ::..
-
 		if(!bBuffersGenerated)
 		{
 			generateBuffers( gl );
 		}	
 
-		//upload data to GPU
-		
+		//upload data to GPU		
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, vbos[ 0 ] );
 		gl.glBufferData( GL.GL_ARRAY_BUFFER, vertCurr.length * Float.BYTES, FloatBuffer.wrap( vertCurr ), GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
@@ -255,10 +252,7 @@ public class VisPolyLineAA
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, vbos[ 3 ] );
 		gl.glBufferData( GL.GL_ARRAY_BUFFER, UV.length * Float.BYTES, FloatBuffer.wrap( UV ), GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
-
-		
-
-		
+	
 	}
 
 	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdata)
@@ -272,7 +266,7 @@ public class VisPolyLineAA
 		int noffset = 0;
 		int[] sizeVP = new int[4];
 		gl.glGetIntegerv( GL.GL_VIEWPORT, sizeVP, noffset );
-		Vector2f viewPort =  new Vector2f(sizeVP[2],sizeVP[3]);
+		Vector2f viewPort =  new Vector2f(sizeVP[2], sizeVP[3]);
 		prog.getUniform2f("viewport").set(viewPort);
 		prog.getUniformMatrix4f( "pvm" ).set( pvm );	
 		prog.getUniform4f("color").set(l_color);
@@ -297,16 +291,16 @@ public class VisPolyLineAA
 		
 		
 		
-		gl.glDepthFunc( GL.GL_ALWAYS);
+		//gl.glDepthFunc( GL.GL_ALWAYS);
 		//gl.glDepthFunc( GL.GL_LESS);
-		gl.glEnable(GL.GL_BLEND);
-		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA); 
+		//gl.glEnable(GL.GL_BLEND);
+		//gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA); 
 		gl.glBindVertexArray( vao );
-		gl.glDepthMask(false);
+		//gl.glDepthMask(false);
 		
 		gl.glDrawArrays( GL.GL_TRIANGLE_STRIP, 0, nTotVert);
 		
-		gl.glDepthMask(true);
+		//gl.glDepthMask(true);
 		gl.glBindVertexArray( 0 );
 		
 	}

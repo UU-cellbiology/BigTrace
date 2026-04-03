@@ -29,7 +29,6 @@ import static com.jogamp.opengl.GL.GL_FLOAT;
 
 public class VisPointsScaled
 {
-
 	private final Shader progRound;
 	
 	private final Shader progSquare;
@@ -192,7 +191,7 @@ public class VisPointsScaled
 
 	}
 
-	public void draw(final GL3 gl, final Matrix4fc pvm, final int [] screen_size, final BigTraceData<?> btdata )
+	public void draw(final GL3 gl, final Matrix4fc pvm, final int [] screen_size, final BigTraceData<?> btdata, final boolean bWeightedOIT )
 	{
 		
 		if (fPointSize < 0.0001)
@@ -245,6 +244,7 @@ public class VisPointsScaled
 		progRound.getUniform1i("clipactive").set(btdata.nClipROI);
 		progRound.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0], btdata.nDimCurr[0][1], btdata.nDimCurr[0][2]));
 		progRound.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0], btdata.nDimCurr[1][1], btdata.nDimCurr[1][2]));
+		progRound.getUniform1i("wOIT").set(bWeightedOIT?1:0);
 		progRound.setUniforms( context );
 		
 		progSquare.getUniform1f( "pointSizeReal" ).set( (float) (1.25 * fPointSize * btdata.dMinVoxelSize) );
@@ -258,6 +258,7 @@ public class VisPointsScaled
 		progSquare.getUniform1i("clipactive").set(btdata.nClipROI);
 		progSquare.getUniform3f("clipmin").set(new Vector3f(btdata.nDimCurr[0][0],btdata.nDimCurr[0][1],btdata.nDimCurr[0][2]));
 		progSquare.getUniform3f("clipmax").set(new Vector3f(btdata.nDimCurr[1][0],btdata.nDimCurr[1][1],btdata.nDimCurr[1][2]));
+		progSquare.getUniform1i("wOIT").set(bWeightedOIT?1:0);
 		progSquare.setUniforms( context );
 
 		progRound.use( context );
@@ -272,7 +273,7 @@ public class VisPointsScaled
 		{
 			gl.glDrawArrays( GL.GL_POINTS, 0, nPointsN);
 			progSquare.use( context );
-			gl.glDrawArrays( GL.GL_POINTS, nPointsN-1, 1);
+			gl.glDrawArrays( GL.GL_POINTS, nPointsN - 1, 1);
 		}
 		gl.glBindVertexArray( 0 );
 	}

@@ -17,7 +17,6 @@ import javax.swing.WindowConstants;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_RGBA8;
 
@@ -752,32 +751,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			roiManager.draw(gl, pvm, camview, screen_size, false);
 		}	
 		
-//			//render the origin of coordinates
-//			if (btData.bShowOrigin)
-//			{
-//				for (int i = 0; i < 3; i++)
-//				{
-//					originVis.get(i).draw(gl, pvm, btData);
-//				}
-//			}
-//			
-//			//render a box around  the volume 
-//			if (btData.bVolumeBox)
-//			{
-//				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
-//			}
-//			//render a box around  the volume 
-//			if (btData.bClipBox)
-//			{
-//				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
-//			}
-//			
-//			//one click tracing box
-//			if(visualBoxes.bShowTraceBox)
-//			{
-//				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
-//				
-//			}
+			
 	}
 	
 	public void renderTransparent(final GL3 gl, final RenderData data, final OffScreenFrameBufferWithDepth sceneVolBuffer)
@@ -796,7 +770,37 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		gl.glBlendEquation(GL.GL_FUNC_ADD);
 		//disable depth writing
 		gl.glDepthMask(false);
+		
+		//draw transparent things
+		
+		//render the origin of coordinates
+		if (btData.bShowOrigin)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				originVis.get(i).draw(gl, pvm, btData);
+			}
+		}
+		//render a box around  the volume 
+		if (btData.bVolumeBox)
+		{
+			visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
+		}
+		//render a box around  the volume 
+		if (btData.bClipBox)
+		{
+			visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
+		}
+		
+		//one click tracing box
+		if(visualBoxes.bShowTraceBox)
+		{
+			visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
+			
+		}
 		roiManager.draw(gl, pvm, camview, screen_size, true);
+		
+		
 		gl.glDepthMask(true);
 	
 		sceneBufTransparent.unbind( gl, false );
