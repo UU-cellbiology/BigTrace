@@ -68,22 +68,16 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 			return null;
 		}
 
-		int nTotFrames = aPanel.kfAnim.nTotalTime*aPanel.nRenderFPS;
+		int nTotFrames = aPanel.kfAnim.nTotalTime * aPanel.nRenderFPS;
 		
-		if(!aPanel.bRenderMultiBox)
-		{
-			Prefs.showMultibox(false);
-		}
+
+		Prefs.showMultibox( aPanel.bRenderMultiBox );
 		
-		if(aPanel.bRenderScaleBar)
-		{
-			Prefs.showScaleBar(true);
-			Prefs.showScaleBarInMovie( true );
-		}
+		Prefs.showScaleBar( aPanel.bRenderScaleBar );
+		Prefs.showScaleBarInMovie( aPanel.bRenderScaleBar );
 
 		Prefs.showTextOverlay(false);
-		
-		
+
 		float dT = aPanel.kfAnim.nTotalTime/(float)(nTotFrames-1);		
 
 		bt.bvvViewer.setRenderMode( true );
@@ -120,6 +114,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		{
 			bt.bvvFrame.setResizable( false );
 		});
+		
 		Rectangle rect = bt.bvvViewer.getDisplayComponent().getBounds();
 		BufferedImage bi =
                 new BufferedImage(rect.width, rect.height,
@@ -223,25 +218,17 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
         	glass.setVisible(false);
 
         }
-        //bt.bvvFrame.setEnabled( true );
-
-		//IJ.log( Integer.toString( dimsIni.width ) );
-		//IJ.log( Integer.toString( dimsIni.height ) );
     	
 		if(butRecord != null && tabIconRecord!= null)
     	{
     		butRecord.setIcon( tabIconRecord );
     		butRecord.setToolTipText( "Render" );
     	}
-		if(!aPanel.bRenderMultiBox)
-		{
-			Prefs.showMultibox(true);
-		}
-		if(aPanel.bRenderScaleBar)
-		{
-			Prefs.showScaleBar(false);
-			Prefs.showScaleBarInMovie( false);
-		}
+		Prefs.showMultibox( bt.btData.bShowMultiBox );
+		
+		Prefs.showScaleBar( bt.btData.bShowScaleBar );
+		Prefs.showScaleBarInMovie( bt.btData.bShowScaleBar );
+		
 		Prefs.showTextOverlay(true);
 		
     	//unlock user interaction

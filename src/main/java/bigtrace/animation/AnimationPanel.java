@@ -52,7 +52,7 @@ import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 
-public class AnimationPanel extends JPanel implements ListSelectionListener,  NumberField.Listener, ChangeListener, ActionListener
+public class AnimationPanel extends JPanel implements ListSelectionListener, NumberField.Listener, ChangeListener, ActionListener
 {
 	final BigTrace<?> bt;
 	

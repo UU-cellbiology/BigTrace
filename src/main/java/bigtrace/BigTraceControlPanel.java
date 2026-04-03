@@ -53,7 +53,6 @@ import bigtrace.rois.ColorUserSettings;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.tracks.TrackingPanel;
 import bigtrace.volume.ExtractClip;
-
 import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
@@ -487,6 +486,12 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		JCheckBox cbStartFullScreen = new JCheckBox();
 		cbStartFullScreen.setSelected(bt.btData.bStartFullScreen);
+
+		JCheckBox cbShowScaleBar = new JCheckBox();
+		cbShowScaleBar.setSelected(bt.btData.bShowScaleBar);
+		
+		JCheckBox cbShowMultiBox = new JCheckBox();
+		cbShowMultiBox.setSelected(bt.btData.bShowMultiBox);
 		
 		JCheckBox cbLazyLoadTIFF = new JCheckBox();
 		cbLazyLoadTIFF.setSelected(bt.btData.bUseLazyLoadForTiff);
@@ -534,6 +539,18 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		pViewSettings.add(new JLabel("Start in full screen mode: "),cd);
 		cd.gridx++;
 		pViewSettings.add(cbStartFullScreen,cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show scale bar: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowScaleBar,cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show MultiBox: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowMultiBox,cd);
 
 		cd.gridx = 0;
 		cd.gridy++;
@@ -624,6 +641,14 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			bt.btData.bStartFullScreen = cbStartFullScreen.isSelected();
 			Prefs.set("BigTrace.bStartFullScreen", bt.btData.bStartFullScreen );
+			
+			bt.btData.bShowScaleBar = cbShowScaleBar.isSelected();
+			Prefs.set("BigTrace.bShowScaleBar", bt.btData.bShowScaleBar);
+			bdv.util.Prefs.showScaleBar(bt.btData.bShowScaleBar);
+			
+			bt.btData.bShowMultiBox = cbShowMultiBox.isSelected();
+			Prefs.set("BigTrace.bShowMultiBox", bt.btData.bShowMultiBox);
+			bdv.util.Prefs.showMultibox( bt.btData.bShowMultiBox ) ;
 			
 			bt.btData.bUseLazyLoadForTiff = cbLazyLoadTIFF.isSelected();
 			Prefs.set("BigTrace.bUseLazyLoadForTiff", bt.btData.bUseLazyLoadForTiff );
