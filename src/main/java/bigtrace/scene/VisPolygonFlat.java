@@ -54,7 +54,7 @@ public class VisPolygonFlat
 		btdata = btdata_;
 		
 		final Segment pointVp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_clip.vp" ).instantiate();
-		final Segment pointFp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_depth.fp" ).instantiate();
+		final Segment pointFp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_clip.fp" ).instantiate();
 	
 		prog = new DefaultShader( pointVp.getCode(), pointFp.getCode() );
 	}
@@ -303,7 +303,7 @@ public class VisPolygonFlat
 		}
 	}
 
-	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdatain)
+	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdatain, final boolean bWeightedOIT)
 	{
 		int nGridIt;
 		if ( !initialized )
@@ -314,36 +314,16 @@ public class VisPolygonFlat
 			JoglGpuContext context = JoglGpuContext.get( gl );
 	
 			prog.getUniformMatrix4f( "pvm" ).set( pvm );
-			prog.getUniform1i("clipactive").set(btdatain.nClipROI);
+			prog.getUniform1i("clipactive").set( btdatain.nClipROI );
 			prog.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
 			prog.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
-			
-			if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && renderType == Roi3D.SURFACE)
-			{
-				Vector4f l_color_t = new Vector4f(l_color);
-				l_color_t.w = 0.6f;
-				prog.getUniform4f("colorin").set(l_color_t);
-				prog.getUniform1i("surfaceRender").set(3);
-			}
-			else
-			{				
-				prog.getUniform4f("colorin").set(l_color);
-				prog.getUniform1i("surfaceRender").set(0);
-			}
-//			if(renderType != Roi3D.SURFACE)
-//			{
-//				prog.getUniform1i("surfaceRender").set(0);
-//			}
-//			else
-//			{
-//				prog.getUniform1i("surfaceRender").set(BigTraceData.surfaceRender);
-//			}
+			prog.getUniform1i("wOIT").set(bWeightedOIT?1:0);			
+			prog.getUniform4f("colorin").set(l_color);
+
 			prog.setUniforms( context );
 			prog.use( context );
 
 			gl.glBindVertexArray( vao );
-
-			gl.glDepthFunc( GL.GL_LESS);
 			
 			if(renderType == Roi3D.OUTLINE)
 			{
@@ -356,24 +336,19 @@ public class VisPolygonFlat
 				gl.glLineWidth(fLineThickness);
 				gl.glDrawArrays( GL.GL_LINE_LOOP, 0, nPointsN);
 				
-				for(nGridIt = 0;nGridIt<nGridEdges;nGridIt++)
+				for(nGridIt = 0; nGridIt < nGridEdges; nGridIt++)
 				{
-					gl.glDrawArrays( GL.GL_LINE_STRIP, nPointsN + nGridIt*2, 2);
+					gl.glDrawArrays( GL.GL_LINE_STRIP, nPointsN + nGridIt * 2, 2);
 				}
 			}
 
 			if(renderType == Roi3D.SURFACE)
 			{
-				if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
-				{
-					gl.glDepthFunc( GL.GL_ALWAYS);
-				}
-				gl.glLineWidth(1.0f);
-				gl.glDrawArrays( GL.GL_TRIANGLE_FAN, 0, nPointsN);
-				
+				gl.glLineWidth( 1.0f );
+				gl.glDrawArrays( GL.GL_TRIANGLE_FAN, 0, nPointsN);				
 			}
+			
 			gl.glBindVertexArray( 0 );
-			gl.glDepthFunc( GL.GL_LESS);
 		}
 	}
 	

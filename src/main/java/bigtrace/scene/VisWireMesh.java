@@ -680,8 +680,9 @@ public class VisWireMesh {
 					progLine.getUniformMatrix4f( "pvm" ).set( pvm );
 					progLine.getUniform4f("colorin").set(l_color);
 					progLine.getUniform1i("clipactive").set(btdatain.nClipROI);
-					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
-					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
+					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0], btdatain.nDimCurr[0][1], btdatain.nDimCurr[0][2]));
+					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0], btdatain.nDimCurr[1][1], btdatain.nDimCurr[1][2]));
+					progLine.getUniform1i("wOIT").set(bWeightedOIT?1:0);
 					progLine.setUniforms( context );
 					progLine.use( context );		
 					gl.glBindVertexArray( vaosWire[ 0 ] );	

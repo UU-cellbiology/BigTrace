@@ -4,6 +4,7 @@ in vec3 posW;
 uniform vec3 clipmin;
 uniform vec3 clipmax;
 uniform int clipactive;
+uniform int wOIT;
 
 void main()
 {    
@@ -17,6 +18,14 @@ void main()
 		}
 	}
 	
-	fragColor = colorin;
+	vec4 colorout = vec4(colorin);
+
+	if(wOIT > 0)
+	{
+		colorout.a = colorout.a * exp(-gl_FragCoord.z * 0.8);
+		colorout.xyz = colorout.xyz*colorout.a;
+	}
+
+    fragColor = colorout; 
 	
 }

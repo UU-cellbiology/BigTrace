@@ -144,7 +144,7 @@ public class CrossSection3D extends AbstractRoi3D
 	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size, final boolean bWeightedOIT) 
 	{
 		verticesVis.draw(gl, pvm, screen_size, btdata, bWeightedOIT);
-		planeVis.draw(gl, pvm, btdata);		
+		planeVis.draw(gl, pvm, btdata, bWeightedOIT);		
 	}
 	
 	public void setVertices(ArrayList<RealPoint> vertices_)
