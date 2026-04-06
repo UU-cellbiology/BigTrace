@@ -1524,7 +1524,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	{
 		 
 		 cbActiveGroup.removeAllItems();
-		 for(int i=0;i<groups.size();i++)
+		 for(int i = 0; i < groups.size(); i++)
 		 {
 			 cbActiveGroup.addItem(groups.get(i).getName());
 		 }

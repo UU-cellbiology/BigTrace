@@ -204,10 +204,8 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		}
 		else
 		{
-			fullAutoTrace.runFullAutoTrace();			
-			bt.setLockMode(false);
-			bt.bInputLock = false;
-			
+			fullAutoTrace.runFullAutoTrace();	
+			fullAutoTrace.wrapUp();
 		}
 	}
 

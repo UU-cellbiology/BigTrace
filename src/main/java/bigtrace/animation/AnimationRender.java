@@ -125,6 +125,7 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 		{
 			bt.repaintBVV();
 		});
+		
 		for(int nFr = 0; nFr < nTotFrames; nFr++)
 		{
 			setProgress(nFr * 100 / (nTotFrames - 1));

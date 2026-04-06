@@ -11,6 +11,7 @@ import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
@@ -235,16 +236,28 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
 
 		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
-		if(!btMacro.bMacroMode)
+		
+		if(btMacro.bMacroMode)
 		{
-	        javax.swing.SwingUtilities.invokeLater( () -> createAndShowGUI());
+			btMacro.enqueue( () -> createAndShowGUIBlocking());
 		}
 		else
 		{
-			createAndShowGUI();
+			createAndShowGUIBlocking();
 		}
-		
-
+	}
+	
+	private void createAndShowGUIBlocking() 
+	{
+	    try {
+	        if (SwingUtilities.isEventDispatchThread()) {
+	            createAndShowGUI();
+	        } else {
+	            SwingUtilities.invokeAndWait(this::createAndShowGUI);
+	        }
+	    } catch (Exception e) {
+	        throw new RuntimeException(e);
+	    }
 	}
 		
 	public void initOriginAndBox(double axis_length)
@@ -359,6 +372,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{	
 			btPanel.makeFullScreen();
 		}
+		btMacro.bMacroMode = false;
 	}
 		
 	public void closeWindows()
@@ -1504,7 +1518,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		BigTrace testI = new BigTrace(); 
 		
 		//testI.run("");
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
+		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP-3d.tif");
 
@@ -1512,7 +1526,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/FR21_SC_nuc10-1.tif");
 		
-		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
+		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
 
 //		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10-2xZ_crop.tif");
 		

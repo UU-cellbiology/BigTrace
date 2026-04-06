@@ -162,7 +162,12 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
         	setProgressState("Auto-tracing interrupted by user.");
         	setProgress(100);	
     	}
-    	
+    	wrapUp();
+
+    }
+    
+    public void wrapUp()
+    {
     	if(butAuto != null && tabIconRestore != null)
     	{
     		butAuto.setIcon( tabIconRestore );

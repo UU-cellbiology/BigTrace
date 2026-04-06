@@ -1,6 +1,9 @@
 package bigtrace;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -25,7 +28,11 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	public ExtensionDescriptor[] extensions;
 	
 	/** whether we run in the macro mode **/
-	public boolean bMacroMode = false;
+	public volatile boolean bMacroMode = false;
+	
+	private CompletableFuture<Void> tail = CompletableFuture.completedFuture(null);
+	
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	
 	public BigTraceMacro(final BigTrace<T> bt_)
 	{
@@ -57,40 +64,52 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 	}
 	
+	public synchronized CompletableFuture<Void> enqueue(Runnable task) 
+	{
+	    tail = tail
+	            .exceptionally(ex -> {
+	                ex.printStackTrace();
+	                return null;
+	            })
+	            .thenRunAsync(task, executor);
+
+	        return tail;
+	}
+	
 	public String handleExtension(String name, Object[] args) 
 	{
 
 		if (name.equals("btLoadROIs")) 
 		{
-			macroLoadROIs( (String)args[0],(String)args[1]);
+			enqueue( () -> macroLoadROIs( (String)args[0],(String)args[1]));
 		}
 		if (name.equals("btSaveROIs")) 
 		{
-			macroSaveROIs( (String)args[0],(String)args[1]);
+			enqueue( () -> macroSaveROIs( (String)args[0],(String)args[1]));
 		}
 		if (name.equals("btStraighten")) 
 		{
 			if(args[2] == null)
 			{
 				//backwards compartibility
-				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square");					
+				enqueue( () -> macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square"));					
 			}
 			else
 			{
-				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]);
+				enqueue( () -> macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]));
 			}
 		}
 		if (name.equals("btShapeInterpolation")) 
 		{
-			macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue()));
+			enqueue( () -> macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue())));
 		}
 		if (name.equals("btIntensityInterpolation")) 
 		{
-			macroIntensityInterpolation( (String)args[0]);
+			enqueue( () -> macroIntensityInterpolation( (String)args[0]));
 		}
 		if (name.equals("btSetActiveChannel")) 
 		{
-			macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue())));
+			enqueue( () -> macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue()))));
 		}
 		if (name.equals("btSetTracingThickness")) 
 		{
@@ -100,34 +119,37 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				sigmas[d] = Math.abs(((Double)args[d]).doubleValue());
 			}
 
-			macroSetTracingThickness(sigmas);
-
+			enqueue( () -> macroSetTracingThickness(sigmas));
 		}
 		if (name.equals("btSetTracingROI")) 
 		{
-			macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);				
+			enqueue( () -> macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]));				
 		}
+		
 		if (name.equals("btSetOneClickParameters")) 
 		{
 			if(args[2] == null || args[3] == null)
 			{
-				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0);
+				enqueue( () -> macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0));
 				return null;
 			}
 
-			macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue() );					
+			enqueue( () -> macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue() ));					
 		}
 
 		if (name.equals("btRunFullAutoTrace")) 
 		{
-			int nFirstTP = 0;
-			int nLastTP = bt.btData.nNumTimepoints - 1;
+			int nFirstTPi = 0;
+			int nLastTPi = bt.btData.nNumTimepoints - 1;
 			if(args[2] != null && args[3] != null )
 			{
-				nFirstTP = (int)Math.round(((Double)args[2]).doubleValue());
-				nLastTP = (int)Math.round(((Double)args[3]).doubleValue());
+				nFirstTPi = (int)Math.round(((Double)args[2]).doubleValue());
+				nLastTPi = (int)Math.round(((Double)args[3]).doubleValue());
 			}
-			macroRunFullAutoTrace(((Double)args[0]).doubleValue(),(int)Math.round(((Double)args[1]).doubleValue()),nFirstTP,nLastTP);
+			final int nFirstTP = nFirstTPi;
+			final int nLastTP = nLastTPi;
+
+			enqueue( () -> macroRunFullAutoTrace(((Double)args[0]).doubleValue(),(int)Math.round(((Double)args[1]).doubleValue()),nFirstTP,nLastTP));
 		}
 		
 		if (name.equals("btClose")) 
@@ -143,7 +165,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	
 		int nFirstTP = 0;
 		int nLastTP = 0;
-		
+		bMacroMode = true;
+
 		if (bt.btData.nNumTimepoints != 1)
 		{
 			nFirstTP = Math.min(nFirstFrame, nLastFrame);
@@ -158,11 +181,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "Last time frame: " + Integer.toString( nLastFrame ));
 		
 		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
+		bMacroMode = false;
+
 	}
 	
 	public void macroSetTracingThickness(final double [] sigmas)
 	{
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		String [] axes = new String[] {"X","Y","Z"};
 		IJ.log( "Setting tracing thickness:" );
 		String out ="Axis SDs: ";
@@ -174,28 +201,35 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		IJ.log( out );
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 
 	} 
 	
 	public void macroSetActiveChannel (final int nChannel) 
 	{
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		int nFinCh = Math.max(nChannel,1);
 		nFinCh = Math.min( nFinCh, bt.btData.nTotalChannels );
 		bt.roiManager.setActiveChannel( nFinCh - 1 );
 		IJ.log( "The active tracing/measuring channel is set to " + Integer.toString( nFinCh ) );
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 	
 	public void macroSetTracingROI(String sEnable, final double coeff, String sMethod)
 	{
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		IJ.log( "Setting ROI thickness from tracing parameters: " );
 		bt.btData.bEstimateROIThicknessFromParams  = false;
 		if(sEnable.equals( "true" ))
 		{
-			bt.btData.bEstimateROIThicknessFromParams = true;
-			
+			bt.btData.bEstimateROIThicknessFromParams = true;	
 		}
 		else
 		{
@@ -215,11 +249,11 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			{
 			case "avg":
 				nMethod = 1;
-				out = out +" AVG";
+				out = out + " AVG";
 				break;
 			case "min":
 				nMethod = 2;
-				out = out +" MIN";
+				out = out + " MIN";
 				break;
 			default:
 				out = out +" MAX";
@@ -229,11 +263,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log( out );
 		}
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 	
 	public void macroSetOneClickParameters(int nVertexPlacementPointN, double dDirectionalityOneClick, String sOCIntensityStop, double dOCIntensityThreshold)
 	{
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		IJ.log( "Setting one-click tracing parameters:" );
 		
 		bt.btData.nVertexPlacementPointN = Math.max(3, nVertexPlacementPointN);
@@ -261,11 +299,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log( "Intensity threshold min value:" + Double.toString( bt.btData.dOCIntensityThreshold));
 		}
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 	
+	/** **/
 	public void macroLoadROIs(String sFileName, String input)
 	{
-
+		bMacroMode = true;
         if(input == null)
         	return;
         int nLoadMode = 0;
@@ -283,11 +324,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.loadROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs loaded from " + sFileName);
+		bMacroMode = false;
+
 	}
 	
 	public void macroSaveROIs(String sFileName, String output)
 	{
-	
+		bMacroMode = true;
+
 		String out = "";
         if(output == null)
         {
@@ -316,13 +360,17 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         }
         ROIsIO.saveROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs saved to " + sFileName);
+		bMacroMode = false;
+
 	}
 	
-	void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape)
+	public void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape)
 	{	
 		//it should be later unlocked by StraightenCurve,
 		//if we call it 
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		bt.setLockMode(true);
 		//build list of ROIs
 		final ArrayList<AbstractCurve3D> curvesOut = new ArrayList<>();
@@ -365,11 +413,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		bt.setLockMode(false);
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 
 	public void macroShapeInterpolation(String sShapeInterpol, int nSmoothWindow)
 	{
 		bt.bInputLock = true;
+		bMacroMode = true;
+
 		switch (sShapeInterpol)
 		{
 		case "Voxel":
@@ -392,10 +444,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log("BigTrace ROI smoothing window set to "+Integer.toString( bt.btData.nSmoothWindow )+".");
 		bt.roiManager.updateROIsDisplay();
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 	
-	void macroIntensityInterpolation(String sInterpol)
+	/** sets current intensity interpolation settings.
+	 * possible input values are Neighbor, Linear, Lanczos **/
+	public void macroIntensityInterpolation(String sInterpol)
 	{
+		bMacroMode = true;
 
 		bt.bInputLock = true;
 		switch (sInterpol)
@@ -418,10 +475,12 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		bt.btData.setInterpolationFactory();
 		bt.bInputLock = false;
+		bMacroMode = false;
+
 	}
 
-	
-	void macroCloseBT()
+	/** closes BigTrace **/
+	public void macroCloseBT()
 	{
 
 		bt.closeWindows();
