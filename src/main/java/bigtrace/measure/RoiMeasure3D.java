@@ -1351,7 +1351,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		DecimalFormat df = new DecimalFormat("0.00", decimalFormatSymbols);
 		nfRadius.setText(df.format(Prefs.get("BigTrace.fRadiusStraighted", 5)));
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		straightenSettings.add(new JLabel("Override radius (px):"),cd);
 		cd.gridx++;
 		straightenSettings.add(nfRadius,cd);
@@ -1387,7 +1387,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			
 		}
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
 		String[] sStraightenOutput = { "show in ImageJ", "save as TIF" };
@@ -1396,14 +1396,14 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		straightenSettings.add(straightenOutputList,cd);
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("ROI Shape:"),cd);
 		cd.gridx++;
 		String[] sShapeInterpolationType = { "Voxel", "Smooth", "Spline"};
 		straightenSettings.add(new JLabel(sShapeInterpolationType[bt.btData.shapeInterpolation]),cd);
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("Intensity interpolation:"),cd);
 		cd.gridx++;
 		String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
@@ -1459,7 +1459,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//single ROI
 			if(nROIList == 0)
 			{
-				if(curveLine.vertices.size()<2)					
+				if(curveLine.vertices.size() < 2)					
 				{
 					IJ.log("Curve ROI must have more then two vertices.");
 					bt.btPanel.progressBar.setString("curve straightening aborted.");
@@ -1477,7 +1477,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 					{
 						if((roi.getType() == Roi3D.LINE_TRACE) || (roi.getType() == Roi3D.POLYLINE))
 						{
-							curvesOut.add((AbstractCurve3D) roi);
+							final AbstractCurve3D roiCurve = (AbstractCurve3D) roi;
+							if(roiCurve.vertices.size() >1 )
+							{
+								curvesOut.add( roiCurve );
+							}
 						}
 					}
 				}
