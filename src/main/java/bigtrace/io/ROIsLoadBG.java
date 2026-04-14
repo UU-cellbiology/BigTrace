@@ -14,6 +14,7 @@ import javax.swing.SwingWorker;
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
 import bigtrace.BigTraceData;
+import bigtrace.gui.TaskBT;
 import bigtrace.rois.CrossSection3D;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Point3D;
@@ -336,21 +337,27 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 			setProgress(100);
 			sFinalOut = "loading ROIs done.";
 			setProgressState(sFinalOut);
-			
-			/** load voxel calibration **/			
-			if((!Double.isNaN(globCalNew[0]))&&(!Double.isNaN(globCalNew[1]))&&(!Double.isNaN(globCalNew[2]))&&(!sUnits.equals("")))
+			final String sUnitFin = new String(sUnits);
+			TaskBT.runOnEDTAndWait( () -> 
 			{
-
-					bt.btData.sVoxelUnit = new String(sUnits);
-					bt.btPanel.voxelSizePanel.setVoxelSize(globCalNew, sUnits);
-					sFinalOut = "loading ROIs done (+voxel calibration).";
-					setProgressState(sFinalOut);		
-			}
-			else
-			{
-				bt.roiManager.updateROIsDisplay();
-			}
-			
+				if(bt.btMacro.bMacroMode)
+				{
+					bt.roiManager.updateRoiListModel();
+				}
+				/** load voxel calibration **/			
+				if((!Double.isNaN(globCalNew[0]))&&(!Double.isNaN(globCalNew[1]))&&(!Double.isNaN(globCalNew[2]))&&(!sUnitFin.equals("")))
+				{
+	
+						bt.btData.sVoxelUnit = new String( sUnitFin );
+						bt.btPanel.voxelSizePanel.setVoxelSize(globCalNew, sUnitFin );
+						sFinalOut = "loading ROIs done (+voxel calibration).";
+						setProgressState(sFinalOut);		
+				}
+				else
+				{
+					bt.roiManager.updateROIsDisplay();
+				}
+			});
 
 		}
 		//catching errors in file opening
@@ -361,13 +368,6 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 			System.err.print(e.getMessage());
 		}
         
-		//some error reading the file
-      /*  if(bFirstPartCheck!=4)
-        {
-        	 System.err.println("Not a Bigtrace ROI file format or plugin/file version mismatch, loading ROIs could be incomplete.");
-             //bt.bInputLock = false;
-             //bt.roiManager.setLockMode(false);
-        }*/
 
 		return ;
 		

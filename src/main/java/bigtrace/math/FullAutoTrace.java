@@ -13,6 +13,7 @@ import net.imglib2.view.IntervalView;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
+import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
 
 public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
@@ -93,6 +94,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 				if(isCancelled())
 				{
 					bt.visualBoxes.bShowTraceBox = false;
+					wrapUp();
 					return;				
 				}
 
@@ -130,6 +132,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		oneClickTrace.releaseMultiThread();
 		//System.out.println("done");
 		//System.out.println(nCount);
+		
 		return;
 		
 	}
@@ -168,17 +171,24 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
     
     public void wrapUp()
     {
-    	if(butAuto != null && tabIconRestore != null)
+    	TaskBT.runOnEDTAndWait( () ->
     	{
-    		butAuto.setIcon( tabIconRestore );
-    		butAuto.setToolTipText( "Full auto tracing" );
-    	}
-    	bt.visualBoxes.bShowTraceBox = false;
-    	oneClickTrace.releaseMultiThread();
-    	
-    	//unlock user interaction
-    	bt.bInputLock = false;
-    	bt.setLockMode(false);
+    		if(butAuto != null && tabIconRestore != null)
+    		{
+    			butAuto.setIcon( tabIconRestore );
+    			butAuto.setToolTipText( "Full auto tracing" );
+    		}
+    		bt.visualBoxes.bShowTraceBox = false;
+    		oneClickTrace.releaseMultiThread();
+
+    		//unlock user interaction
+    		bt.bInputLock = false;
+    		bt.setLockMode(false);
+    		if(bt.btMacro.bMacroMode)
+    		{
+    			bt.roiManager.updateRoiListModel();
+    		}
+    	});
     }
     
 }

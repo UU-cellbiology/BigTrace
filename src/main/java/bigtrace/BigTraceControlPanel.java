@@ -148,17 +148,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	    icon_path = this.getClass().getResource("/bt_icons/shortcut.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,panelInformation(),"Help/Shortcuts");
-
-	    roiManager.addRoiManager3DListener(new RoiManager3D.Listener() {
-
-			@Override
-			public void activeRoiChanged(int nRoi) {
-				//render_pl();
-			}
-	    	
-	    });
-	    
-	    
+	    	    
 	    tabPane.setSize(350, 300);
 	    tabPane.setSelectedIndex(1);
 

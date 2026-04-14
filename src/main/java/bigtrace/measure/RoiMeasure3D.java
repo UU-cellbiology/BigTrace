@@ -31,6 +31,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
@@ -88,23 +89,20 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	boolean bIgnoreClipped = Prefs.get("BigTrace.bIgnoreClipped",false);
 	
 	public JComboBox<String> cbActiveChannel;
-	// Order must agree with order of checkboxes in Set Measurements dialog box
+	
+	/** Order must agree with order of checkboxes in Set Measurements dialog box **/
 	private static final int[] listMeasurements = { VOLUME, LENGTH,  MEAN, STD_DEV, MEAN_LINEAR, STD_LINEAR, INTEGRATED, DIST_ENDS, STRAIGHTNESS, ENDS_COORDS, ENDS_DIR};
 	private static final String[] colTemplates = { "Volume", "Length", "Mean_intensity", "SD_intensity",  
 													"Mean_linear_intensity", "SD_linear_intensity","Integrated_intensity", 
 													"Distance_between_ends", "Straightness", "End_","Direction_"};
 	
-
 	private static int systemMeasurements = (int)Prefs.get("BigTrace.Measurements",VOLUME+LENGTH+MEAN);
-
 
 	private double [] coalignVector;
 	private boolean bAlignCosine = Prefs.get("BigTrace.bAlignCosine", true);
 	
 	private static ResultsTable systemRT = new ResultsTable();
 	private ResultsTable rt;
-	
-
 
 	public RoiMeasure3D(BigTrace<T> bt)
 	{
@@ -217,6 +215,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		//synchronized ROI list
 		jlist = new JList<>(bt.roiManager.listModel);
 		listScroller = new JScrollPane(jlist);
+		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		jlist.addListSelectionListener(this);
 		listScroller.setPreferredSize(new Dimension(300, 400));
 		listScroller.setMinimumSize(new Dimension(170, 250));

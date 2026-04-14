@@ -11,7 +11,6 @@ import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
@@ -74,6 +73,7 @@ import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
 import bigtrace.gui.GuiMisc;
+import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
 import bigtrace.io.ViewsIO;
 import bigtrace.math.OneClickTrace;
@@ -168,7 +168,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			Functions.registerExtensions(this);
 			IJ.log("Started BigTrace v." + BigTraceData.sVersion + " in macro mode.");			
 		}	
-		
+
 		//switch to FlatLaf theme		
 		try {
 		    UIManager.setLookAndFeel( new FlatIntelliJLaf() );
@@ -239,27 +239,18 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		if(btMacro.bMacroMode)
 		{
-			btMacro.enqueue( () -> createAndShowGUIBlocking());
+			btMacro.enqueue( () -> 
+			{
+				 createAndShowGUI();				
+			});
 		}
 		else
 		{
-			createAndShowGUIBlocking();
+			TaskBT.runOnEDTAndWait( () -> createAndShowGUI());		
 		}
-	}
-	
-	private void createAndShowGUIBlocking() 
-	{
-	    try {
-	        if (SwingUtilities.isEventDispatchThread()) {
-	            createAndShowGUI();
-	        } else {
-	            SwingUtilities.invokeAndWait(this::createAndShowGUI);
-	        }
-	    } catch (Exception e) {
-	        throw new RuntimeException(e);
-	    }
-	}
 		
+	}
+			
 	public void initOriginAndBox(double axis_length)
 	{
 		int i;
@@ -273,7 +264,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			basis.move(axis_length, i);
 			//origin_data.addPointToActive(basis);
 			point_coords.add(new RealPoint(basis));
-			basis.move((-1.0)*axis_length, i);
+			basis.move((-1.0) * axis_length, i);
 			float [] color_orig = new float[3];
 			color_orig[i] = 1.0f;
 			originVis.add(new VisPolyLineAA( point_coords, 5.0f,new Color(color_orig[0],color_orig[1],color_orig[2])));						
@@ -493,7 +484,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 		
 	public synchronized void setLockMode(boolean bLockMode)
-	{	 		 
+	{	 		 		
+		TaskBT.runOnEDT( () -> 
+		{
 		 	 boolean bState = !bLockMode;
 
 		 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
@@ -505,6 +498,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
 		 	 //keep it on
 		 	 roiManager.butShowAll.setEnabled(true);
+		});
 	}
 	
 	/** turn on Trace Box mode **/
@@ -1529,68 +1523,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
 
 //		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10-2xZ_crop.tif");
-		
-		///macros test
-//		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT_8bit.tif");
-//		testI.btMacro.macroLoadROIs( "/home/eugene/Desktop/projects/BigTrace/macro/ExM_MT_8bit.tif_btrois.csv","Clean" );
-//		IJ.log( "shapeInt1" );
-//		testI.btMacro.macroShapeInterpolation("Voxel", 10);
-//		testI.btMacro.macroIntensityInterpolation("Neighbor");
-//		IJ.log( "straight1" );
-//		testI.btMacro.macroStraighten(1, "/home/eugene/Desktop/test1/");
-//		IJ.log( "shapeInt2" );
-//		testI.btMacro.macroShapeInterpolation("Spline", 10);
-//		testI.btMacro.macroIntensityInterpolation("Linear");
-//		IJ.log( "straight2" );
-//		testI.btMacro.macroStraighten(1, "/home/eugene/Desktop/test2/");
-
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_tracks/Snejana_small_example.tif");
-		
-		/*
-		testI.roiManager.setLockMode(true);
-		float [] point = new float[3];
-//		point[0]=23;
-//		point[1]=23;
-//		point[2]=10;
-
-		point[0]=37;
-		point[1]=61;
-		point[2]=10;
-
-		RealPoint target = new RealPoint(point);
-
-		testI.runOneClickTrace(target);
-		*/
-	/*	testI.roiManager.setLockMode(true);
-
-		point[0]=24;
-		point[1]=24;
-		point[2]=10;
-		target = new RealPoint(point);
-		
-
-		testI.runOneClickTrace(target);*/
-
-		
-		/**/
-		//directionality test
-		//testI.run("");
-		/*
-		//performance test
-		testI.run("/home/eugene/Desktop/ExM_MT_8bit-small_crop.tif"); 
-		
-		
-		testI.roiManager.setLockMode(true);
-		float [] point = new float[3];
-		point[0]=17;
-		point[1]=61;
-		point[2]=110;
-		RealPoint target = new RealPoint(point);
-
-		testI.runOneClickTrace(target);
-		
-		*/
 		
 	}
 

@@ -191,11 +191,14 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		fullAutoTrace.nAutoMinPointsCurve = nAutoMinPointsCurve;
 		
 		bt.bInputLock = true;
-		bt.setLockMode(true);
+		bt.setLockMode( true );
 		fullAutoTrace.addPropertyChangeListener( bt.btPanel );
-		butAuto.setEnabled( true );
-		butAuto.setIcon( tabIconCancel );
-		butAuto.setToolTipText( "Stop auto trace" );
+		TaskBT.runOnEDT( ()->
+		{
+			butAuto.setEnabled( true );
+			butAuto.setIcon( tabIconCancel );
+			butAuto.setToolTipText( "Stop auto trace" );
+		});
 		fullAutoTrace.butAuto = butAuto;
 		fullAutoTrace.tabIconRestore = tabIconAuto;
 		if( !bt.btMacro.bMacroMode )

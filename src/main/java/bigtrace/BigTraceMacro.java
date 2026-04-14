@@ -71,7 +71,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	                ex.printStackTrace();
 	                return null;
 	            })
-	            .thenRunAsync(task, executor);
+	            .thenRunAsync(() -> {
+	                try {
+	                    task.run();
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                    throw e;
+	                }
+	            }, executor);
 
 	        return tail;
 	}
@@ -81,35 +88,35 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 
 		if (name.equals("btLoadROIs")) 
 		{
-			enqueue( () -> macroLoadROIs( (String)args[0],(String)args[1]));
+			macroLoadROIs( (String)args[0],(String)args[1]);
 		}
 		if (name.equals("btSaveROIs")) 
 		{
-			enqueue( () -> macroSaveROIs( (String)args[0],(String)args[1]));
+			macroSaveROIs( (String)args[0],(String)args[1]);
 		}
 		if (name.equals("btStraighten")) 
 		{
 			if(args[2] == null)
 			{
 				//backwards compartibility
-				enqueue( () -> macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square"));					
+				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square");					
 			}
 			else
 			{
-				enqueue( () -> macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]));
+				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]);
 			}
 		}
 		if (name.equals("btShapeInterpolation")) 
 		{
-			enqueue( () -> macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue())));
+			macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue()));
 		}
 		if (name.equals("btIntensityInterpolation")) 
 		{
-			enqueue( () -> macroIntensityInterpolation( (String)args[0]));
+			macroIntensityInterpolation( (String)args[0]);
 		}
 		if (name.equals("btSetActiveChannel")) 
 		{
-			enqueue( () -> macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue()))));
+			macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue())));
 		}
 		if (name.equals("btSetTracingThickness")) 
 		{
@@ -119,22 +126,22 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				sigmas[d] = Math.abs(((Double)args[d]).doubleValue());
 			}
 
-			enqueue( () -> macroSetTracingThickness(sigmas));
+			macroSetTracingThickness(sigmas);
 		}
 		if (name.equals("btSetTracingROI")) 
 		{
-			enqueue( () -> macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]));				
+			macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);				
 		}
 		
 		if (name.equals("btSetOneClickParameters")) 
 		{
 			if(args[2] == null || args[3] == null)
 			{
-				enqueue( () -> macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0));
+				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0);
 				return null;
 			}
 
-			enqueue( () -> macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue() ));					
+			macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
 		}
 
 		if (name.equals("btRunFullAutoTrace")) 
@@ -149,7 +156,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			final int nFirstTP = nFirstTPi;
 			final int nLastTP = nLastTPi;
 
-			enqueue( () -> macroRunFullAutoTrace(((Double)args[0]).doubleValue(),(int)Math.round(((Double)args[1]).doubleValue()),nFirstTP,nLastTP));
+			macroRunFullAutoTrace(((Double)args[0]).doubleValue(), (int)Math.round(((Double)args[1]).doubleValue()), nFirstTP, nLastTP);
 		}
 		
 		if (name.equals("btClose")) 
@@ -162,7 +169,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	
 	public void macroRunFullAutoTrace(final double dMinIntensity, final int nMinNumPoints, final int nFirstFrame, final int nLastFrame)
 	{
-	
+		enqueue (()-> 
+		{
 		int nFirstTP = 0;
 		int nLastTP = 0;
 		bMacroMode = true;
@@ -182,11 +190,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
 		bMacroMode = false;
-
+		});
 	}
 	
 	public void macroSetTracingThickness(final double [] sigmas)
 	{
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -202,12 +213,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( out );
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 
 	} 
 	
 	public void macroSetActiveChannel (final int nChannel) 
 	{
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -217,11 +231,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "The active tracing/measuring channel is set to " + Integer.toString( nFinCh ) );
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 	
 	public void macroSetTracingROI(String sEnable, final double coeff, String sMethod)
 	{
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -264,11 +281,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 	
 	public void macroSetOneClickParameters(int nVertexPlacementPointN, double dDirectionalityOneClick, String sOCIntensityStop, double dOCIntensityThreshold)
 	{
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -300,12 +320,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 	
 	/** **/
 	public void macroLoadROIs(String sFileName, String input)
 	{
+		enqueue (()-> 
+		{
+
 		bMacroMode = true;
         if(input == null)
         	return;
@@ -325,11 +348,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         ROIsIO.loadROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs loaded from " + sFileName);
 		bMacroMode = false;
-
+		});
 	}
 	
 	public void macroSaveROIs(String sFileName, String output)
 	{
+		enqueue (()-> 
+		{
+
 		bMacroMode = true;
 
 		String out = "";
@@ -361,13 +387,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         ROIsIO.saveROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs saved to " + sFileName);
 		bMacroMode = false;
-
+		});
 	}
 	
 	public void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape)
 	{	
-		//it should be later unlocked by StraightenCurve,
-		//if we call it 
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -414,11 +441,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.setLockMode(false);
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 
 	public void macroShapeInterpolation(String sShapeInterpol, int nSmoothWindow)
 	{
+		enqueue (()-> 
+		{
+
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -445,13 +475,16 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.roiManager.updateROIsDisplay();
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 	
 	/** sets current intensity interpolation settings.
 	 * possible input values are Neighbor, Linear, Lanczos **/
 	public void macroIntensityInterpolation(String sInterpol)
 	{
+		enqueue (()-> 
+		{
+
 		bMacroMode = true;
 
 		bt.bInputLock = true;
@@ -476,18 +509,20 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.btData.setInterpolationFactory();
 		bt.bInputLock = false;
 		bMacroMode = false;
-
+		});
 	}
 
 	/** closes BigTrace **/
 	public void macroCloseBT()
 	{
-
-		bt.closeWindows();
-		IJ.log("BigTrace closed.");
+		enqueue (()-> 
+		{
+			bt.closeWindows();
+			IJ.log("BigTrace closed.");
+		});
 	}
 	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	public static void main(String... args) throws Exception
 	{
 		
@@ -495,20 +530,25 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		BigTrace testI = new BigTrace(); 
 		
 		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
-		try
-		{
-			testI.btMacro.bMacroMode = true;
-			//testI.btMacro.macroLoadROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.csv","Clean");
-			//testI.btMacro.macroSaveROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.swc","SWC");
-			testI.btMacro.macroSetOneClickParameters( 5, 0.6,"false", 100 );
-			testI.btMacro.macroSetTracingThickness(new double [] { 1.2,3.2,3.4});
-			testI.btMacro.macroSetTracingROI("true", 3.0, "AVG");
-			testI.btMacro.macroRunFullAutoTrace(150,3,0,0);
-		}
-		catch ( Exception exc )
-		{
-			// TODO Auto-generated catch block
-			exc.printStackTrace();
-		}
+//		try
+//		{
+//			testI.btMacro.bMacroMode = true;
+//			//testI.btMacro.macroLoadROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.csv","Clean");
+//			//testI.btMacro.macroSaveROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.swc","SWC");
+//			testI.btMacro.macroSetOneClickParameters( 5, 0.6,"false", 100 );
+//			testI.btMacro.macroSetTracingThickness(new double [] { 1.2,3.2,3.4});
+//			testI.btMacro.macroSetTracingROI("true", 3.0, "AVG");
+//			testI.btMacro.macroRunFullAutoTrace(150,3,0,0);
+//		}
+//		catch ( Exception exc )
+//		{
+//			// TODO Auto-generated catch block
+//			exc.printStackTrace();
+//		}
+		String [] loadS = new String [] {"/home/eugene/Desktop/projects/BigTrace/macro/test_fulltrace_bt.csv", "Clean"};
+		testI.btMacro.handleExtension( "btLoadROIs", loadS );
+		Object [] traceS = new Object [] {new Double(260.), new Double(10.), null, null};
+
+		testI.btMacro.handleExtension( "btRunFullAutoTrace", traceS );
 	}
 }
