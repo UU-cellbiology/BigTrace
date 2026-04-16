@@ -91,12 +91,15 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	public JComboBox<String> cbActiveChannel;
 	
 	/** Order must agree with order of checkboxes in Set Measurements dialog box **/
-	private static final int[] listMeasurements = { VOLUME, LENGTH,  MEAN, STD_DEV, MEAN_LINEAR, STD_LINEAR, INTEGRATED, DIST_ENDS, STRAIGHTNESS, ENDS_COORDS, ENDS_DIR};
+	public static final int[] listMeasurements = { VOLUME, LENGTH,  MEAN, STD_DEV, MEAN_LINEAR, STD_LINEAR, INTEGRATED, DIST_ENDS, STRAIGHTNESS, ENDS_COORDS, ENDS_DIR};
 	private static final String[] colTemplates = { "Volume", "Length", "Mean_intensity", "SD_intensity",  
 													"Mean_linear_intensity", "SD_linear_intensity","Integrated_intensity", 
 													"Distance_between_ends", "Straightness", "End_","Direction_"};
-	
-	private static int systemMeasurements = (int)Prefs.get("BigTrace.Measurements",VOLUME+LENGTH+MEAN);
+	public static String[] labels = { "Volume", "Length", "Mean intensity", "SD of intensity", 
+			"Mean linear intensity", "SD linear intensity","Integrated intensity", 
+			"Distance between ends", "Straightness", "Ends coordinates", "End-end direction"};
+
+	public static int systemMeasurements = (int)Prefs.get("BigTrace.Measurements", VOLUME + LENGTH + MEAN);
 
 	private double [] coalignVector;
 	private boolean bAlignCosine = Prefs.get("BigTrace.bAlignCosine", true);
@@ -240,14 +243,13 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			    }
 			});
 
-		//this.add(listScroller);	
-		gbc.gridx=0;
-		gbc.gridy=0;
+		gbc.gridx = 0;
+		gbc.gridy = 0;
 		gbc.gridheight=GridBagConstraints.REMAINDER;
 		
 		gbc.fill  = GridBagConstraints.BOTH;
-		gbc.weightx=0.99;
-		gbc.weighty=0.99;
+		gbc.weightx = 0.99;
+		gbc.weighty = 0.99;
 		panMeasure.add(listScroller,gbc);
 		gbc.weightx=0.0;
 		gbc.weighty=0.0;
@@ -258,7 +260,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		butMeasure.addActionListener(this);
 		gbc.gridx++;
 		gbc.gridy++;
-		gbc.gridheight=1;
+		gbc.gridheight = 1;
 
 		panMeasure.add(butMeasure,gbc);
 
@@ -283,7 +285,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		panChannel.setBorder(new PanelTitle(""));
 
 		String[] nCh = new String[bt.btData.nTotalChannels];
-		for(int i = 0;i < nCh.length; i++)
+		for(int i = 0; i < nCh.length; i++)
 		{
 			nCh[i] = "channel "+Integer.toString(i+1);
 		}
@@ -292,19 +294,18 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		cbActiveChannel.addActionListener(this);
 		
 		gbc = new GridBagConstraints();
-	    gbc.gridx=0;
-		gbc.gridy=0;
+	    gbc.gridx = 0;
+		gbc.gridy = 0;
 		panChannel.add(new JLabel("Measure"),gbc);
 		gbc.gridx++;
 		panChannel.add(cbActiveChannel,gbc);
-		
 		
 		//put all panels together
 		gbc = new GridBagConstraints();
 		setLayout(new GridBagLayout());
 		gbc.insets=new Insets(4,4,2,2);
-		gbc.gridx=0;
-		gbc.gridy=0;
+		gbc.gridx = 0;
+		gbc.gridy = 0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 	
 		//Line Tools
@@ -328,25 +329,18 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	/** show Measure settings dialog**/
 	public void dialSettings()
 	{
-		
 		JPanel pMeasureSettings = new JPanel(new GridLayout(0,2,6,0));
 	
 		ArrayList<JCheckBox> measureStates = new ArrayList<>();
-		
 
-		//String[] labels = new String[listMeasurements.length];
 		boolean[] states = new boolean[listMeasurements.length];
-		for (int i=0;i<listMeasurements.length;i++)
-		{
-			states[i]=(systemMeasurements&(int)(Math.pow( 2, i )))!=0;
-		}
-		
-		String[] labels = { "Volume", "Length", "Mean intensity", "SD of intensity", 
-			"Mean linear intensity", "SD linear intensity","Integrated intensity", 
-			"Distance between_ends", "Straightness", "Ends coordinates","End-end direction"};
 
-		
-		for(int i = 0;i<listMeasurements.length;i++)
+		for (int i = 0; i < listMeasurements.length; i++)
+		{
+			states[i] = (systemMeasurements&(int)(Math.pow( 2, i ))) != 0;
+		}
+				
+		for(int i = 0; i < listMeasurements.length; i++)
 		{
 
 			measureStates.add(new JCheckBox(labels[i]));
@@ -392,8 +386,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 
-			//boolean b = false;
-			for (int i=0; i<listMeasurements.length; i++) {
+			for (int i = 0; i < listMeasurements.length; i++) 
+			{
 				states[i] = measureStates.get(i).isSelected();
 				if (states[i])
 					systemMeasurements |= listMeasurements[i];
@@ -401,8 +395,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 					systemMeasurements &= ~listMeasurements[i];
 			}
 			Prefs.set("BigTrace.Measurements", systemMeasurements);
-			
-			
+						
 			// whether to clip measurements
 			bIgnoreClipped = cbIgnoreClipped.isSelected();
 			Prefs.set("BigTrace.bIgnoreClipped",bIgnoreClipped);
@@ -413,8 +406,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			btData.setInterpolationFactory();
 			
 			
-			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||
-					bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex()||
+			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText()) ||
+					bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex() ||
 							bt.btData.rotationMinFrame != rotationFrameList.getSelectedIndex())
 			{
 				bt.btData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
@@ -519,7 +512,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		val.setPointSize( roi.getPointSize() );
 		val.setLineThickness( roi.getLineThickness() );
 
-		if(systemMeasurements>0)
+		if(systemMeasurements > 0)
 		{
 
 			if((systemMeasurements&LENGTH)!=0) 

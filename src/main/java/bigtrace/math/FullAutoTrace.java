@@ -15,6 +15,7 @@ import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
 import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
+import ij.IJ;
 
 public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
 {
@@ -37,6 +38,8 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 	public JButton butAuto = null;
 	
 	public ImageIcon tabIconRestore = null;
+	
+	int nCount = 0;
 	
 	public FullAutoTrace(BigTrace<T> bt)
 	{
@@ -88,7 +91,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 			oneClickTrace.fullInput = traceIV;
 			
 			boolean bKeepTracing = true;
-			//int nCount = 0;
+
 			while(bKeepTracing)
 			{
 				if(isCancelled())
@@ -113,12 +116,23 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					{
 						mask.markROI( bt.roiManager.getActiveRoi() );
 					}
-					if(bt.roiManager.getActiveRoi() instanceof LineTrace3D)
+					if( bt.roiManager.getActiveRoi() instanceof LineTrace3D )
 					{
 						final LineTrace3D newtrace = (LineTrace3D)bt.roiManager.getActiveRoi();
 						if(newtrace.getNumberOfPointsInJointSegment() < nAutoMinPointsCurve)
 						{
 							bt.roiManager.deleteActiveROI();
+						}
+						else
+						{
+							nCount++;
+							if( bt.btMacro.bMacroMode )
+							{
+								if(nCount % 20 == 0)
+								{
+									IJ.log( "Auto trace progress: found " +Integer.toString( nCount ) + " ROIs, current start intensity is " +Double.toString( newMax.getA() )+".");									
+								}
+							}
 						}
 					}
 				}
@@ -187,6 +201,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
     		if(bt.btMacro.bMacroMode)
     		{
     			bt.roiManager.updateRoiListModel();
+    			IJ.log( "Macro auto trace is finished with " +Integer.toString( nCount )+" new ROIs." );
     		}
     	});
     }

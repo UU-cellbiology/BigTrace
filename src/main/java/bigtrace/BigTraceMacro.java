@@ -9,9 +9,11 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.io.ROIsIO;
+import bigtrace.measure.RoiMeasure3D;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
 import bigtrace.volume.StraightenCurve;
+import bvvpg.vistools.BvvStackSource;
 import ij.IJ;
 import ij.ImageJ;
 import ij.Prefs;
@@ -38,7 +40,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[12];
+		extensions = new ExtensionDescriptor[15];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -59,8 +61,18 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																					MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[10] = ExtensionDescriptor.newDescriptor("btTest", bt);
-		extensions[11] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		
+		extensions[10] = ExtensionDescriptor.newDescriptor("btSetMeasurements", bt, MacroExtension.ARG_STRING);
+		extensions[11] = ExtensionDescriptor.newDescriptor("btSetDisplayRangeGamma", bt,  MacroExtension.ARG_NUMBER,
+																						  MacroExtension.ARG_NUMBER,
+																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
+																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
+		extensions[12] = ExtensionDescriptor.newDescriptor("btSetAlphaRangeGamma", bt, MacroExtension.ARG_NUMBER,
+																					   MacroExtension.ARG_NUMBER,
+																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
+																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
+		extensions[13] = ExtensionDescriptor.newDescriptor("btTest", bt);
+		extensions[14] = ExtensionDescriptor.newDescriptor("btClose", bt);
 		
 	}
 	
@@ -88,35 +100,53 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 
 		if (name.equals("btLoadROIs")) 
 		{
-			macroLoadROIs( (String)args[0],(String)args[1]);
+			enqueue (()-> 
+			{
+				macroLoadROIs( (String)args[0],(String)args[1]);
+			});
 		}
 		if (name.equals("btSaveROIs")) 
 		{
-			macroSaveROIs( (String)args[0],(String)args[1]);
+			enqueue (()-> 
+			{
+				macroSaveROIs( (String)args[0],(String)args[1]);
+			});
 		}
 		if (name.equals("btStraighten")) 
 		{
-			if(args[2] == null)
+			enqueue (()-> 
 			{
-				//backwards compartibility
-				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square");					
-			}
-			else
-			{
-				macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]);
-			}
+				if(args[2] == null)
+				{
+					//backwards compartibility
+					macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], "Square");					
+				}
+				else
+				{
+					macroStraighten((int)Math.round(((Double)args[0]).doubleValue()), (String)args[1], (String)args[2]);
+				}
+			});
 		}
 		if (name.equals("btShapeInterpolation")) 
 		{
-			macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue()));
+			enqueue (()-> 
+			{
+				macroShapeInterpolation( (String)args[0],(int)Math.round(((Double)args[1]).doubleValue()));
+			});
 		}
 		if (name.equals("btIntensityInterpolation")) 
 		{
-			macroIntensityInterpolation( (String)args[0]);
+			enqueue (()-> 
+			{
+				macroIntensityInterpolation( (String)args[0]);
+			});
 		}
 		if (name.equals("btSetActiveChannel")) 
 		{
-			macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue())));
+			enqueue (()-> 
+			{
+				macroSetActiveChannel( (int) Math.abs(Math.round(((Double)args[0]).doubleValue())));
+			});
 		}
 		if (name.equals("btSetTracingThickness")) 
 		{
@@ -125,23 +155,33 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			{
 				sigmas[d] = Math.abs(((Double)args[d]).doubleValue());
 			}
-
-			macroSetTracingThickness(sigmas);
+			enqueue (()-> 
+			{
+				macroSetTracingThickness(sigmas);
+			});
 		}
 		if (name.equals("btSetTracingROI")) 
 		{
-			macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);				
+			enqueue (()-> 
+			{
+				macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);
+			});
 		}
 		
 		if (name.equals("btSetOneClickParameters")) 
 		{
 			if(args[2] == null || args[3] == null)
 			{
-				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0);
+				enqueue (()-> 
+				{
+					macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), "false", 0.0);
+				});
 				return null;
 			}
-
-			macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
+			enqueue (()-> 
+			{
+				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
+			});
 		}
 
 		if (name.equals("btRunFullAutoTrace")) 
@@ -155,13 +195,63 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			}
 			final int nFirstTP = nFirstTPi;
 			final int nLastTP = nLastTPi;
-
-			macroRunFullAutoTrace(((Double)args[0]).doubleValue(), (int)Math.round(((Double)args[1]).doubleValue()), nFirstTP, nLastTP);
+			enqueue (()-> 
+			{
+				macroRunFullAutoTrace(((Double)args[0]).doubleValue(), (int)Math.round(((Double)args[1]).doubleValue()), nFirstTP, nLastTP);
+			});
 		}
+		
+		if (name.equals("btSetMeasurements")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetMeasurements( (String)args[0]);
+			});
+		}
+		
+		if (name.equals("btSetDisplayRangeGamma")) 
+		{
+			final double[] dGamma =  new double [] {1.0};
+			if(args[2] != null)
+			{
+				dGamma[0] = ((Double)args[2]).doubleValue();
+			}
+			final int [] nCh = new int [] { -1 }; //all channels
+			if(args[3] != null)
+			{
+				nCh[0] = (int)Math.round(((Double)args[3]).doubleValue());
+			}			
+			enqueue (()-> 
+			{
+				macroSetDisplayRangeGamma(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), dGamma[0], nCh[0]);
+			});			
+		}
+		
+		if (name.equals("btSetAlphaRangeGamma")) 
+		{
+			final double[] dGamma =  new double [] {1.0};
+			if(args[2] != null)
+			{
+				dGamma[0] = ((Double)args[2]).doubleValue();
+			}
+			final int [] nCh = new int [] { -1 }; //all channels
+			if(args[3] != null)
+			{
+				nCh[0] = (int)Math.round(((Double)args[3]).doubleValue());
+			}			
+			enqueue (()-> 
+			{
+				macroSetAlphaRangeGamma(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), dGamma[0], nCh[0]);
+			});			
+		}
+
 		
 		if (name.equals("btClose")) 
 		{
-			macroCloseBT();			
+			enqueue (()-> 
+			{
+				macroCloseBT();			
+			});
 		}
 		
 		return null;
@@ -169,8 +259,6 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	
 	public void macroRunFullAutoTrace(final double dMinIntensity, final int nMinNumPoints, final int nFirstFrame, final int nLastFrame)
 	{
-		enqueue (()-> 
-		{
 		int nFirstTP = 0;
 		int nLastTP = 0;
 		bMacroMode = true;
@@ -187,17 +275,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "Min # points in curve:" + Integer.toString( nMinNumPoints ));
 		IJ.log( "First time frame: " + Integer.toString( nFirstFrame ));
 		IJ.log( "Last time frame: " + Integer.toString( nLastFrame ));
-		
+		IJ.log( " -- One-click tracing parameters --" );
+		printOneClickParams();
 		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
 		bMacroMode = false;
-		});
 	}
 	
 	public void macroSetTracingThickness(final double [] sigmas)
 	{
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -208,20 +293,15 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			bt.btData.sigmaTrace[d] = sigmas[d];
 			Prefs.set("BigTrace.sigmaTrace" + axes[d], bt.btData.sigmaTrace[d]);
-			out += axes[d] + " " + Double.toString( bt.btData.sigmaTrace[d])+" ";
+			out += axes[d] + " " + Double.toString( bt.btData.sigmaTrace[d]) + " ";
 		}
 		IJ.log( out );
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
-
 	} 
 	
 	public void macroSetActiveChannel (final int nChannel) 
 	{
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -231,14 +311,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "The active tracing/measuring channel is set to " + Integer.toString( nFinCh ) );
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
 	
 	public void macroSetTracingROI(String sEnable, final double coeff, String sMethod)
 	{
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -281,14 +357,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
 	
 	public void macroSetOneClickParameters(int nVertexPlacementPointN, double dDirectionalityOneClick, String sOCIntensityStop, double dOCIntensityThreshold)
 	{
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -296,12 +368,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		bt.btData.nVertexPlacementPointN = Math.max(3, nVertexPlacementPointN);
 		Prefs.set("BigTrace.nVertexPlacementPointN", (double)(bt.btData.nVertexPlacementPointN));
-		IJ.log( "Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
 		
 		bt.btData.dDirectionalityOneClick = Math.min(1.0, (Math.max(0, Math.abs(dDirectionalityOneClick))));
-		Prefs.set("BigTrace.dDirectionalityOneClick",bt.btData.dDirectionalityOneClick);
-		IJ.log( "Directionality constrain: " + bt.btData.dDirectionalityOneClick );
-		
+		Prefs.set("BigTrace.dDirectionalityOneClick",bt.btData.dDirectionalityOneClick);		
 		
 		String sIntStop = sOCIntensityStop.toLowerCase();
 		bt.btData.bOCIntensityStop = false;
@@ -310,25 +379,31 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			bt.btData.bOCIntensityStop = true;
 		}
 		Prefs.set("BigTrace.bOCIntensityStop", bt.btData.bOCIntensityStop);	
-		IJ.log( "Use intensity threshold: " + bt.btData.bOCIntensityStop );	
 		
 		if(bt.btData.bOCIntensityStop)
 		{
 			bt.btData.dOCIntensityThreshold = Math.max(0, Math.abs( dOCIntensityThreshold ));
 			Prefs.set("BigTrace.dOCIntensityThreshold",bt.btData.dOCIntensityThreshold);
-			IJ.log( "Intensity threshold min value:" + Double.toString( bt.btData.dOCIntensityThreshold));
 		}
+		printOneClickParams();
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
 	
-	/** **/
+	void printOneClickParams()
+	{
+		IJ.log( "Directionality constrain: " + bt.btData.dDirectionalityOneClick );
+		IJ.log( "Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
+		IJ.log( "Use intensity threshold: " + bt.btData.bOCIntensityStop );	
+		if(bt.btData.bOCIntensityStop)
+		{
+			IJ.log( "Intensity threshold min value:" + Double.toString( bt.btData.dOCIntensityThreshold));
+		}		
+	}	
+	
+	/** macro loads ROIs **/
 	public void macroLoadROIs(String sFileName, String input)
 	{
-		enqueue (()-> 
-		{
-
 		bMacroMode = true;
         if(input == null)
         	return;
@@ -348,14 +423,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         ROIsIO.loadROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs loaded from " + sFileName);
 		bMacroMode = false;
-		});
 	}
 	
 	public void macroSaveROIs(String sFileName, String output)
 	{
-		enqueue (()-> 
-		{
-
 		bMacroMode = true;
 
 		String out = "";
@@ -387,14 +458,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
         ROIsIO.saveROIs( sFileName, nLoadMode, bt );
         IJ.log( "BigTrace ROIs saved to " + sFileName);
 		bMacroMode = false;
-		});
 	}
 	
 	public void macroStraighten(final int nStraightenAxis, String sSaveDir, String sShape)
 	{	
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -441,14 +508,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.setLockMode(false);
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
 
 	public void macroShapeInterpolation(String sShapeInterpol, int nSmoothWindow)
 	{
-		enqueue (()-> 
-		{
-
 		bt.bInputLock = true;
 		bMacroMode = true;
 
@@ -475,18 +538,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.roiManager.updateROIsDisplay();
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
 	
 	/** sets current intensity interpolation settings.
 	 * possible input values are Neighbor, Linear, Lanczos **/
 	public void macroIntensityInterpolation(String sInterpol)
 	{
-		enqueue (()-> 
-		{
-
 		bMacroMode = true;
-
 		bt.bInputLock = true;
 		switch (sInterpol)
 		{
@@ -509,17 +567,93 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.btData.setInterpolationFactory();
 		bt.bInputLock = false;
 		bMacroMode = false;
-		});
 	}
+	
+	public void macroSetMeasurements(String sMeasurements)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		String finSet = "";
+		for (int i = 0; i < RoiMeasure3D.labels.length; i++)
+		{
+			if(sMeasurements.toLowerCase().contains( RoiMeasure3D.labels[i].toLowerCase() ))
+			{
+				finSet = finSet + RoiMeasure3D.labels[i] +" ";
+				RoiMeasure3D.systemMeasurements |= RoiMeasure3D.listMeasurements[i];
+			}
+		}
+		if(finSet.equals( "" ))
+		{
+			IJ.log( "Macro command \"Set measurements\" error cannot detect proper names.");
+		}
+		else
+		{
+			IJ.log( "BigTrace macro: measurements set to: "+ finSet +".");
+		}
 
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	public void macroSetDisplayRangeGamma(final double dMin_, final double dMax_, final double dGamma, final int nCh)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		final double dMin = Math.min( dMin_, dMax_ ); 
+		final double dMax = Math.max( dMin_, dMax_ ); 
+		if(nCh <= 0 || nCh > bt.bvv_sources.size())
+		{
+			for (final BvvStackSource< ? > bvvSource : bt.bvv_sources)
+			{
+				bvvSource.setDisplayRange( dMin, dMax );
+				bvvSource.setDisplayGamma( dGamma );					
+			}				
+			IJ.log( "BigTrace macro set display range and gamma to all channels.");
+		}
+		else
+		{
+			final BvvStackSource< ? > bvvSource = bt.bvv_sources.get( nCh );
+			bvvSource.setDisplayRange( dMin, dMax );
+			bvvSource.setDisplayGamma( dGamma );
+			IJ.log( "BigTrace macro set display range and gamma to channel " + Integer.toString( nCh ) + ".");	
+		}
+
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	public void macroSetAlphaRangeGamma(final double dMin_, final double dMax_, final double dGamma, final int nCh)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		final double dMin = Math.min( dMin_, dMax_ ); 
+		final double dMax = Math.max( dMin_, dMax_ ); 
+		if(nCh <= 0 || nCh > bt.bvv_sources.size())
+		{
+			for (final BvvStackSource< ? > bvvSource : bt.bvv_sources)
+			{
+				bvvSource.setAlphaRange( dMin, dMax );
+				bvvSource.setAlphaGamma( dGamma );					
+			}				
+			IJ.log( "BigTrace macro set alpha range and gamma to all channels.");
+		}
+		else
+		{
+			final BvvStackSource< ? > bvvSource = bt.bvv_sources.get( nCh );
+			bvvSource.setAlphaRange( dMin, dMax );
+			bvvSource.setAlphaGamma( dGamma );
+			IJ.log( "BigTrace macro set alpha range and gamma to channel " + Integer.toString( nCh ) + ".");				
+		}
+
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
 	/** closes BigTrace **/
 	public void macroCloseBT()
 	{
-		enqueue (()-> 
-		{
-			bt.closeWindows();
-			IJ.log("BigTrace closed.");
-		});
+		bt.closeWindows();
+		IJ.log("BigTrace closed.");
 	}
 	
 	@SuppressWarnings({ "rawtypes" })
@@ -530,25 +664,17 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		BigTrace testI = new BigTrace(); 
 		
 		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
-//		try
-//		{
-//			testI.btMacro.bMacroMode = true;
-//			//testI.btMacro.macroLoadROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.csv","Clean");
-//			//testI.btMacro.macroSaveROIs("/home/eugene/Desktop/FR21_SC_nuc10-1.tif_btrois.swc","SWC");
-//			testI.btMacro.macroSetOneClickParameters( 5, 0.6,"false", 100 );
-//			testI.btMacro.macroSetTracingThickness(new double [] { 1.2,3.2,3.4});
-//			testI.btMacro.macroSetTracingROI("true", 3.0, "AVG");
-//			testI.btMacro.macroRunFullAutoTrace(150,3,0,0);
-//		}
-//		catch ( Exception exc )
-//		{
-//			// TODO Auto-generated catch block
-//			exc.printStackTrace();
-//		}
+		
+		String [] loadM = new String [] {"Volume Length SD of Intensity" };
+		testI.btMacro.handleExtension( "btSetMeasurements", loadM);
 		String [] loadS = new String [] {"/home/eugene/Desktop/projects/BigTrace/macro/test_fulltrace_bt.csv", "Clean"};
 		testI.btMacro.handleExtension( "btLoadROIs", loadS );
-		Object [] traceS = new Object [] {new Double(260.), new Double(10.), null, null};
+		//Object [] traceS = new Object [] {new Double(230.), new Double(10.), null, null};
+		//testI.btMacro.handleExtension( "btRunFullAutoTrace", traceS );
+		
+		Object [] intS = new Object [] {new Double(0.), new Double(200.), 0.42, null};
+		testI.btMacro.handleExtension( "btSetAlphaRangeGamma", intS );
+		//testI.btMacro.handleExtension( "btSetDisplayRangeGamma", intS );
 
-		testI.btMacro.handleExtension( "btRunFullAutoTrace", traceS );
 	}
 }

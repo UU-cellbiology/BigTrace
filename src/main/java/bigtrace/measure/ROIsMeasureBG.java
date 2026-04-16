@@ -25,24 +25,31 @@ public class ROIsMeasureBG extends SwingWorker<Void, String> implements BigTrace
 	@Override
 	public void setProgressState(String state_)
 	{
-		progressState=state_;
+		progressState = state_;
 	}
 
 	@Override
-	protected Void doInBackground() throws Exception {
-
+	protected Void doInBackground() throws Exception 
+	{
+		runMeasure();
+		return null;
+	}
+	
+	public void runMeasure()
+	{
     	final int nRoiN = rois.size();
     	vals = new ArrayList<>();
     	setProgressState("measuring ROIs...");
     	setProgress(0);
-		for(int i = 0; i<nRoiN;i++)
+		for(int i = 0; i < nRoiN; i++)
 		{
-			setProgress((i+1)*100/nRoiN);
-			setProgressState("measuring ROI #"+Integer.toString(i+1)+" of "+Integer.toString(nRoiN)+"...");
+			setProgress(( i + 1) * 100/nRoiN);
+			setProgressState("measuring ROI #" + Integer.toString(i + 1) + " of " + Integer.toString(nRoiN)+"...");
 			vals.add(bt.roiManager.roiMeasure.measureRoi(rois.get(i)));
 		}
-		return null;
+		
 	}
+	
     /*
      * Executed in event dispatching thread
      */
@@ -65,6 +72,17 @@ public class ROIsMeasureBG extends SwingWorker<Void, String> implements BigTrace
     	{
     		// Process e here
     	}
+    	
+    	showResultsTable();
+		//unlock user interaction
+    	bt.bInputLock = false;
+    	bt.setLockMode(false);
+		setProgress(100);
+		setProgressState("measuring ROIs done.");
+    }
+    
+    public void showResultsTable()
+    {
     	//show results
     	//measure all -> reset
     	if(resetTable)
@@ -76,11 +94,6 @@ public class ROIsMeasureBG extends SwingWorker<Void, String> implements BigTrace
     	{
     		bt.roiManager.roiMeasure.updateTable(vals.get(0), true);
     	}
-		//unlock user interaction
-    	bt.bInputLock = false;
-    	bt.setLockMode(false);
-		setProgress(100);
-		setProgressState("measuring ROIs done.");
+    	
     }
-
 }
