@@ -5,9 +5,10 @@ import java.awt.Color;
 import bigtrace.BigTraceData;
 
 
-public abstract class AbstractRoi3D implements Roi3D {
+public abstract class AbstractRoi3D implements Roi3D 
+{
 	
-	final BigTraceData<?> btdata;
+	BigTraceData<?> btdata;
 	public float lineThickness;
 	public float pointSize;
 	public Color lineColor;
@@ -43,7 +44,8 @@ public abstract class AbstractRoi3D implements Roi3D {
 	
 	
 	@Override
-	public void setPointColorRGB(Color pointColor_){
+	public void setPointColorRGB(Color pointColor_)
+	{
 		setPointColor(new Color(pointColor_.getRed(),pointColor_.getGreen(),pointColor_.getBlue(),pointColor.getAlpha()));
 	}
 	
@@ -125,10 +127,15 @@ public abstract class AbstractRoi3D implements Roi3D {
 	{
 		nTimePoint = nTimePoint_;
 	}
+	
 	@Override
 	public int getTimePoint()
 	{
 		return nTimePoint;
 	}
-
+	
+	public void setBtData (final BigTraceData<?> btdata_)
+	{
+		btdata = btdata_;
+	}
 }

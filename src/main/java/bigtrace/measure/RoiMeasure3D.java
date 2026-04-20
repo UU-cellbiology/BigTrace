@@ -38,7 +38,6 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.GetFolderDialog;
 import bigtrace.gui.NumberField;
@@ -72,7 +71,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	 */
 	private static final long serialVersionUID = -4635723145578489755L;
 	final BigTrace<T> bt;
-	final BigTraceData<T> btData;
 	
 	final JButton butLineProfile;
 	final JButton butLineAlignment;
@@ -110,7 +108,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	public RoiMeasure3D(BigTrace<T> bt)
 	{
 		this.bt = bt;
-		this.btData = bt.btData;
 		
 		//coalignment vector
 		coalignVector = new double [3];	
@@ -124,7 +121,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		
 		rt = systemRT;
 		
-		btData.setInterpolationFactory();
+		bt.btData.setInterpolationFactory();
 		final JPanel panLineTools = new JPanel(new GridBagLayout());  
 		panLineTools.setBorder(new PanelTitle(" Tools "));
 
@@ -404,7 +401,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//intensity interpolation
 			bt.btData.intensityInterpolation = intensityInterpolationList.getSelectedIndex();
 			Prefs.set("BigTrace.IntInterpolation",bt.btData.intensityInterpolation);
-			btData.setInterpolationFactory();
+			bt.btData.setInterpolationFactory();
 			
 			
 			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText()) ||
@@ -924,8 +921,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{			
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
-					if (li_profile!=null)
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
+					if (li_profile != null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
 					}				
@@ -950,7 +947,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()), bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -1037,7 +1034,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:				
-				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);				
+				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()), bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);				
 				break;			
 		}
 		if (li_profile!=null && bMakePlot)

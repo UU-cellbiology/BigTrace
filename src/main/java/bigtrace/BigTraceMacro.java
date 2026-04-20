@@ -42,7 +42,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[16];
+		extensions = new ExtensionDescriptor[17];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -74,8 +74,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																					   MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[14] = ExtensionDescriptor.newDescriptor("btTest", bt);
-		extensions[15] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[14] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
+		extensions[15] = ExtensionDescriptor.newDescriptor("btTest", bt);
+		extensions[16] = ExtensionDescriptor.newDescriptor("btClose", bt);
 		
 	}
 	
@@ -256,6 +257,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			});			
 		}
 
+		if (name.equals("btOpenNext")) 
+		{
+			enqueue (()-> 
+			{
+				macroOpenNext( (String)args[0]);
+			});
+		}
 		
 		if (name.equals("btClose")) 
 		{
@@ -542,7 +550,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
-
+	
+	/** sets current shape interpolation .
+	 * input values for the sShapeInterpol are Voxel, Smooth, Spline
+	 * plus integer nSmoothWindow **/
 	public void macroShapeInterpolation(final String sShapeInterpol, final int nSmoothWindow)
 	{
 		bt.bInputLock = true;
@@ -613,7 +624,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log(sOut);
 		});
 	}
-	
+	/** A string with a set of (any) delimeter separated measurements names should be provided as input **/
 	public void macroSetMeasurements(final String sMeasurements)
 	{
 		bMacroMode = true;
@@ -641,9 +652,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				IJ.log( "BigTrace macro: measurements set to: "+ sMeasure +".");
 			}
 		});
-
 	}
 	
+	/** Needs full path + filenames as a parameter **/
 	public void macroMeasureAndSave(final String sFilename)
 	{
 		bMacroMode = true;
@@ -727,12 +738,53 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		});
 	}
 	
+	public void macroOpenNext(final String sFilename)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		
+		//remove all the bvv sources
+		for(int i = 0; i < bt.bvv_sources.size(); i++)
+		{
+			bt.bvv_sources.get( i ).removeFromBdv();
+		}
+		bt.bvv_sources.clear();
+		bt.roiManager.rois.clear();
+		TaskBT.runOnEDTAndWait(()->
+		{
+			bt.roiManager.updateRoiListModel();
+
+			bt.btData = new BigTraceData<>(bt);
+			bt.btLoad = new BigTraceLoad<>(bt);
+			bt.btData.sFileNameFullImg = sFilename;
+			bt.loadSources();
+			bt.initSourcesCanvas( false );
+			
+			bt.visualBoxes.clipBox.setBtData( bt.btData );
+			bt.visualBoxes.traceBox.setBtData( bt.btData );
+			bt.visualBoxes.volumeBox.setBtData( bt.btData );
+			bt.btPanel.voxelSizePanel.setVoxelSize( bt.btData.globCal, bt.btData.sVoxelUnit );
+			bt.btPanel.clipPanel.setBounds( bt.btData.nDimCurr[1] );
+			bt.btPanel.updateViewDataSources();
+
+			bt.bvvFrame.setTitle( sFilename );
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log("BigTrace macro: opened new file " + sFilename + ".");
+		});
+	}
+	
 	/** closes BigTrace **/
 	public void macroCloseBT()
 	{
 		bt.closeWindows();
-		
-		IJ.log("BigTrace closed.");
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log("BigTrace closed.");
+		});
 	}
 	
 	@SuppressWarnings({ "rawtypes" })
@@ -746,17 +798,20 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		String [] loadS = new String [] {"/home/eugene/Desktop/projects/BigTrace/macro/test_fulltrace_bt.csv", "Clean"};
 		testI.btMacro.handleExtension( "btLoadROIs", loadS );
-
-		Object [] intS = new Object [] {new Double(0.), new Double(200.), 0.42, null};
-		testI.btMacro.handleExtension( "btSetAlphaRangeGamma", intS );
-
-		Object [] traceS = new Object [] {new Double(230.), new Double(10.), null, null};
-		testI.btMacro.handleExtension( "btRunFullAutoTrace", traceS );
-		String [] loadM = new String [] {"Volume Length SD of Intensity Straightness Ends coordinates End-end direction" };
-		testI.btMacro.handleExtension( "btSetMeasurements", loadM);
-
-		String [] pathM = new String [] {"/home/eugene/Desktop/testM.csv" };
-		testI.btMacro.handleExtension( "btMeasureAndSave", pathM);
+		
+		String [] loadNext = new String [] {"/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP.tif"};
+		testI.btMacro.handleExtension( "btOpenNext", loadNext );
+//
+//		Object [] intS = new Object [] {new Double(0.), new Double(200.), 0.42, null};
+//		testI.btMacro.handleExtension( "btSetAlphaRangeGamma", intS );
+//
+//		Object [] traceS = new Object [] {new Double(230.), new Double(10.), null, null};
+//		testI.btMacro.handleExtension( "btRunFullAutoTrace", traceS );
+//		String [] loadM = new String [] {"Volume Length SD of Intensity Straightness Ends coordinates End-end direction" };
+//		testI.btMacro.handleExtension( "btSetMeasurements", loadM);
+//
+//		String [] pathM = new String [] {"/home/eugene/Desktop/testM.csv" };
+//		testI.btMacro.handleExtension( "btMeasureAndSave", pathM);
 
 		//testI.btMacro.handleExtension( "btSetDisplayRangeGamma", intS );
 		//testI.btMacro.handleExtension( "btSetDisplayRangeGamma", intS );

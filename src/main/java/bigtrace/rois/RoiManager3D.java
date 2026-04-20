@@ -399,7 +399,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		panChannel.setBorder(new PanelTitle(""));
 
 		String[] nCh = new String[bt.btData.nTotalChannels];
-		for(int i=0;i<nCh.length;i++)
+		for(int i = 0; i < nCh.length; i++)
 		{
 			nCh[i] = "channel "+Integer.toString(i+1);
 		}

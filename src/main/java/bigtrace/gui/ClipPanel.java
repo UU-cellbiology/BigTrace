@@ -44,6 +44,7 @@ public class ClipPanel extends JPanel {
 	public JButton butExtractClipped;
 	public JCheckBox showClippedBox;
 	public JCheckBox clipROIBox;
+	private boolean blockUpdates = false;
 	
 	public static interface Listener {
 		public void boundingBoxChanged(long [][] box);
@@ -87,7 +88,7 @@ public class ClipPanel extends JPanel {
 		cd.gridy = 0;
 		//cd.gridwidth=3;
 		String[] axesS = {"X","Y","Z"};
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			bbAxes[d] = addRangeSlider(
 					axesS[d],
@@ -96,7 +97,7 @@ public class ClipPanel extends JPanel {
 					cd);
 		}
 
-		cd.gridwidth=1;
+		cd.gridwidth = 1;
 		cd.weightx = 0.1;
 		cd.fill = GridBagConstraints.NONE;
 		cd.anchor = GridBagConstraints.WEST;
@@ -116,18 +117,21 @@ public class ClipPanel extends JPanel {
 
 		RangeSliderPanel.Listener bbListener = new RangeSliderPanel.Listener() {
 			@Override
-			public void sliderChanged() {
-				long [][] new_box = new long [2][3];
-				for(int d=0;d<3;d++)
+			public void sliderChanged() 
+			{
+				if(!blockUpdates)
 				{
-					new_box [0][d]=bbAxes[d].getMin();
-					new_box [1][d]=bbAxes[d].getMax();
-					
+					long [][] new_box = new long [2][3];
+					for(int d = 0; d < 3; d++)
+					{
+						new_box [0][d] = bbAxes[d].getMin();
+						new_box [1][d] = bbAxes[d].getMax();						
+					}
+					fireBoundingBoxChanged(new_box);
 				}
-				fireBoundingBoxChanged(new_box);
 			}
 		};
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			bbAxes[d].addSliderChangeListener(bbListener);
 		}
@@ -146,7 +150,6 @@ public class ClipPanel extends JPanel {
 		{
 			bbAxes[d].setMinAndMax((int)box[0][d], (int)box[1][d]);
 		}
-
 	}
 	
 	public void setBoundingBox(final Interval interval) 
@@ -157,6 +160,18 @@ public class ClipPanel extends JPanel {
 		setBoundingBox(box);
 	}
 	
+	public void setBounds(long [] maxDim)
+	{
+		blockUpdates = true;
+
+		for(int d = 0; d < 3; d ++)
+		{
+			bbAxes[d].setBounds( new int[] {0, (int) maxDim[d]}) ;
+		}
+		blockUpdates = false;
+
+	}
+	
 	public long [][] getBoundingBox()
 	{
 		long [][] boxout = new long[2][3];
@@ -164,8 +179,7 @@ public class ClipPanel extends JPanel {
 		{
 			boxout[0][d] = bbAxes[d].getMin();
 			boxout[1][d] = bbAxes[d].getMax();			
-		}
-		
+		}	
 		return boxout;
 	}
 

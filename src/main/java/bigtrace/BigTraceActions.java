@@ -85,7 +85,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 					"3" );			
 
 		//actions.namedAction(action, defaultKeyStrokes);
-		actions.install( bt.bvv_main.getBvvHandle().getKeybindings(), "BigTrace actions" );
+		actions.install( bt.bvvHandle.getKeybindings(), "BigTrace actions" );
 
 
 	}
@@ -93,7 +93,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 	/** install smoother rotation **/
 	void installBehaviors()
 	{
-		final BvvHandle handle = bt.bvv_main.getBvvHandle();
+		final BvvHandle handle = bt.bvvHandle;
 		//change drag rotation for navigation "3D Viewer" style
 		final Rotate3DViewerStyle dragRotate = new Rotate3DViewerStyle( 0.75, handle);
 		final Rotate3DViewerStyle dragRotateFast = new Rotate3DViewerStyle( 2.0, handle);

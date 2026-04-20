@@ -89,7 +89,7 @@ import bigtrace.volume.VolumeMisc;
 public class BigTrace < T extends RealType< T > & NativeType< T > > implements PlugIn, MacroExtension, TimePointListener
 {
 	/** main instance of BVV **/
-	public BvvStackSource< ? > bvv_main = null;
+	public BvvHandleFrame bvvHandle = null;
 	
 	/** BVV sources used for the volume visualization **/
 	public ArrayList<BvvStackSource< ? >> bvv_sources = new ArrayList<>();
@@ -189,7 +189,30 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			btData.sFileNameFullImg = arg;
 		}
+
+		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
+	
+		loadSources();
 		
+		roiManager = new RoiManager3D<>(this);
+		
+		initSourcesCanvas(true);
+		
+		if(btMacro.bMacroMode)
+		{
+			btMacro.enqueue( () -> 
+			{
+				 createAndShowGUI();				
+			});
+		}
+		else
+		{
+			TaskBT.runOnEDTAndWait( () -> createAndShowGUI());		
+		}
+		
+	}
+	public void loadSources()
+	{
 		if(btMacro.bMacroMode)
 			IJ.log("Opening file " + btData.sFileNameFullImg + ".");
 		if(btData.sFileNameFullImg == null)
@@ -232,27 +255,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			}
 		}	
 
-		roiManager = new RoiManager3D<>(this);
-		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
-
-		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
-		
-		if(btMacro.bMacroMode)
-		{
-			btMacro.enqueue( () -> 
-			{
-				 createAndShowGUI();				
-			});
-		}
-		else
-		{
-			TaskBT.runOnEDTAndWait( () -> createAndShowGUI());		
-		}
-		
 	}
 			
 	public void initOriginAndBox(double axis_length)
 	{
+		originVis.clear();
 		int i;
 		//basis vectors 
 		RealPoint basis = new RealPoint(-0.1 * axis_length, -0.1 * axis_length,-0.1 * axis_length);				
@@ -276,8 +283,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			//why is this shift?! I don't know,
 			// but looks better like this
-			nDimBox[0][i] = btData.nDimIni[0][i]-0.5f;
-			nDimBox[1][i] = btData.nDimIni[1][i]+0.5f;
+			nDimBox[0][i] = btData.nDimIni[0][i] - 0.5f;
+			nDimBox[1][i] = btData.nDimIni[1][i] + 0.5f;
 		} 
 		
 		visualBoxes = new VisualBoxes(this);
@@ -289,9 +296,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	}
 	
-	public void initSourcesCanvas(double origin_axis_length)
+	public void initSourcesCanvas(boolean bInitCanvas)
 	{
 		
+		final double origin_axis_length = 0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2]));
 		initOriginAndBox(origin_axis_length);
 	
 		if(btData.bSpimSource)
@@ -302,24 +310,27 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			initBVVSourcesImageJ();
 		}
-		
-		bvvViewer = bvv_main.getBvvHandle().getViewerPanel();
-		bvvViewer.setRenderScene( this::renderOpaque );
-		bvvViewer.setRenderSceneTransparent( this::renderTransparent );
-		
-		btActions  = new BigTraceActions<>( this );
+		if(bInitCanvas)
+		{
+			bvvViewer = bvvHandle.getViewerPanel();
+			bvvViewer.setRenderScene( this::renderOpaque );
+			bvvViewer.setRenderSceneTransparent( this::renderTransparent );
+			
+			btActions = new BigTraceActions<>( this );
+			bvvViewer.timePointListeners().add( this );
+		}
 		setInitialTransform();
-		bvvViewer.timePointListeners().add( this );
+
 	}
 	
 	
 	private void createAndShowGUI() 
 	{
-		btPanel = new BigTraceControlPanel<>(this, btData,roiManager);
+		btPanel = new BigTraceControlPanel<>(this);
 		btPanel.finFrame = new JFrame("BigTrace");
 		btPanel.finFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		
-		bvvFrame = ((BvvHandleFrame)bvv_main.getBvvHandle()).getBigVolumeViewer().getViewerFrame();
+		bvvFrame = bvvHandle.getBigVolumeViewer().getViewerFrame();
 		
 		bvvFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
@@ -669,7 +680,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			
 		}
 
-		bvv_trace = BvvFunctions.show(btData.trace_weights, "weights", Bvv.options().addTo(bvv_main));
+		bvv_trace = BvvFunctions.show(btData.trace_weights, "weights", Bvv.options().addTo(bvvHandle));
 		bvv_trace.setCurrent();
 		bvv_trace.setRenderType(btData.nRenderMethod);
 		bvv_trace.setDisplayRangeBounds(0, 255);
@@ -831,29 +842,34 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 	
 	public void initBVVSourcesImageJ()
-	{
-		
+	{		
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
 		
-		Bvv Tempbvv = BvvFunctions.show( Bvv.options().
-				dCam(btData.dCam).
-				dClipNear(btData.dClipNear).
-				dClipFar(btData.dClipFar).				
-				renderWidth( btData.renderParams.renderWidth).
-				renderHeight( btData.renderParams.renderHeight).
-				numDitherSamples( btData.renderParams.numDitherSamples ).
-				cacheBlockSize( btData.renderParams.cacheBlockSize ).
-				maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
-				ditherWidth(btData.renderParams.ditherWidth).
-				frameTitle(filename)
-				);
-
-		for(int i = 0; i < btData.nTotalChannels; i++)
+		if(bvvHandle == null )
 		{
-	
-			bvv_sources.add(BvvFunctions.show( Views.hyperSlice(all_ch_RAI,4,i), "ch_"+Integer.toString(i+1), Bvv.options().addTo(Tempbvv)));
-			if(btData.nBitDepth<=8)
+			Bvv tempBVV = BvvFunctions.show( Bvv.options().
+					dCam(btData.dCam).
+					dClipNear(btData.dClipNear).
+					dClipFar(btData.dClipFar).				
+					renderWidth( btData.renderParams.renderWidth).
+					renderHeight( btData.renderParams.renderHeight).
+					numDitherSamples( btData.renderParams.numDitherSamples ).
+					cacheBlockSize( btData.renderParams.cacheBlockSize ).
+					maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
+					ditherWidth(btData.renderParams.ditherWidth).
+					frameTitle(filename)
+					);
+			bvvHandle = (BvvHandleFrame)tempBVV.getBvvHandle();
+		}
+		else
+		{
+			bvvFrame.setTitle( filename );
+		}
+		for(int i = 0; i < btData.nTotalChannels; i++)
+		{	
+			bvv_sources.add(BvvFunctions.show( Views.hyperSlice(all_ch_RAI,4,i), "ch_"+Integer.toString(i + 1), Bvv.options().addTo(bvvHandle)));
+			if(btData.nBitDepth <= 8)
 			{
 				bvv_sources.get(i).setDisplayRangeBounds(0, 255);
 				bvv_sources.get(i).setAlphaRangeBounds(0, 255);
@@ -870,10 +886,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 
 		}
-		
-		bvv_main = bvv_sources.get(0);
 
-		bvvViewer = bvv_main.getBvvHandle().getViewerPanel();
 	}
 	
 	public void initBVVSourcesSpimData()
@@ -881,7 +894,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
-		List<BvvStackSource<?>> sourcesSPIM = BvvFunctions.show(spimData,Bvv.options().
+		List<BvvStackSource<?>> sourcesSPIM;
+		if(bvvHandle == null)
+		{
+		sourcesSPIM = BvvFunctions.show(spimData, Bvv.options().
 				dCam( btData.dCam ).
 				dClipNear( btData.dClipNear ).
 				dClipFar( btData.dClipFar ).				
@@ -895,19 +911,23 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				dClipNear( btData.dClipNear ).
 				dClipFar( btData.dClipFar ).
 				frameTitle(filename)//.
-				//sourceTransform(afDataTransform)
 				);		
-		
+			bvvHandle = (BvvHandleFrame) sourcesSPIM.get(0).getBvvHandle();
+			bvvViewer = bvvHandle.getViewerPanel();
+		}
+		else
+		{
+			sourcesSPIM = BvvFunctions.show(spimData, Bvv.options().addTo( bvvHandle ));
+			bvvFrame.setTitle( filename );
+		}
+				
 		for(int i = 0; i < sourcesSPIM.size(); i++)
 		{
 			bvv_sources.add( sourcesSPIM.get(i) );
-			bvv_sources.get(i).setRenderType( btData.nRenderMethod) ;
+			bvv_sources.get(i).setRenderType( btData.nRenderMethod ) ;
 			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 		}
-
-		bvv_main = bvv_sources.get(0);
-		bvvViewer = bvv_main.getBvvHandle().getViewerPanel();
-		
+	
 		//translate all sources so they are at the zero
 		AffineTransform3D transformTranslation = new AffineTransform3D();
 		double [] shiftTR = new double [3];

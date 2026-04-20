@@ -179,6 +179,11 @@ public class RangeSliderPanel extends JPanel implements FocusListener, NumberFie
 	public void set(final int[] realMinMax, final int[] setMinMax) {		
 		slider.setLowerValue(realMinMax[0]);
 		slider.setUpperValue(realMinMax[1]);
+		setBounds(setMinMax);
+	}
+	
+	public void setBounds(final int[] setMinMax)
+	{
 		slider.setMinimum(setMinMax[0]);
 		slider.setMaximum(setMinMax[1]);
 	}
@@ -200,11 +205,11 @@ public class RangeSliderPanel extends JPanel implements FocusListener, NumberFie
 
 		if(bConstrained)
 		{
-			if(slider.getLowerValue()>nLowerMax)
+			if(slider.getLowerValue() > nLowerMax)
 			{
 				slider.setLowerValue( nLowerMax );
 			}
-			if(slider.getUpperValue()<nHigherMin)
+			if(slider.getUpperValue() < nHigherMin)
 			{
 				slider.setUpperValue( nHigherMin );
 			}
