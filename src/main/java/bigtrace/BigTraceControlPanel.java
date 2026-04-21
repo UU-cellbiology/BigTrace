@@ -477,6 +477,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		JCheckBox cbShowMultiBox = new JCheckBox();
 		cbShowMultiBox.setSelected(bt.btData.bShowMultiBox);
 		
+		JCheckBox cbShowAxisOverlay = new JCheckBox();
+		cbShowAxisOverlay.setSelected(bt.btData.bShowAxisOverlay);
+		
 		JCheckBox cbLazyLoadTIFF = new JCheckBox();
 		cbLazyLoadTIFF.setSelected(bt.btData.bUseLazyLoadForTiff);
 		
@@ -527,13 +530,19 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		cd.gridy++;
 		pViewSettings.add(new JLabel("Show scale bar: "),cd);
 		cd.gridx++;
-		pViewSettings.add(cbShowScaleBar,cd);
+		pViewSettings.add(cbShowScaleBar, cd);
 		
 		cd.gridx = 0;
 		cd.gridy++;
 		pViewSettings.add(new JLabel("Show MultiBox: "),cd);
 		cd.gridx++;
-		pViewSettings.add(cbShowMultiBox,cd);
+		pViewSettings.add(cbShowMultiBox, cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show axis gizmo: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowAxisOverlay, cd);
 
 		cd.gridx = 0;
 		cd.gridy++;
@@ -630,11 +639,14 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			bt.btData.bShowMultiBox = cbShowMultiBox.isSelected();
 			Prefs.set("BigTrace.bShowMultiBox", bt.btData.bShowMultiBox);
-			bdv.util.Prefs.showMultibox( bt.btData.bShowMultiBox ) ;
+			bdv.util.Prefs.showMultibox( bt.btData.bShowMultiBox );
+
+			bt.btData.bShowAxisOverlay = cbShowAxisOverlay.isSelected();
+			Prefs.set("BigTrace.bShowAxisOverlay", bt.btData.bShowAxisOverlay);
+			bt.axisOverlay.setEnabled( bt.btData.bShowAxisOverlay );
 			
 			bt.btData.bUseLazyLoadForTiff = cbLazyLoadTIFF.isSelected();
 			Prefs.set("BigTrace.bUseLazyLoadForTiff", bt.btData.bUseLazyLoadForTiff );
-
 			
 			bt.btData.nHalfClickSizeWindow = (int)(0.5*Integer.parseInt(nfClickArea.getText()));
 			Prefs.set("BigTrace.nHalfClickSizeWindow",bt.btData.nHalfClickSizeWindow);

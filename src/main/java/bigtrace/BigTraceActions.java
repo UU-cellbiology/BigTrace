@@ -9,33 +9,42 @@ import javax.swing.JTextField;
 
 import net.imglib2.FinalInterval;
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-
+import net.imglib2.util.LinAlgHelpers;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
 
+import bdv.util.Affine3DHelpers;
+import bdv.viewer.animate.RotationAnimator;
 import bigtrace.geometry.Line3D;
-import bigtrace.gui.Rotate3DViewerStyle;
+import bigtrace.gui.TransformHandlerBT;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.volume.VolumeMisc;
-import bvvpg.vistools.BvvHandle;
+
 
 
 public class BigTraceActions < T extends RealType< T > & NativeType< T > > 
 {
 	/** plugin instance **/
 	BigTrace<T> bt;
+	
 	final Actions actions;
+	
+	final Behaviours behaviours;
+	
+	private final static double cQuat = Math.cos( Math.PI / 4 );
 	
 	public BigTraceActions(final BigTrace<T> bt_)
 	{		
 		bt = bt_;
 		actions = new Actions( new InputTriggerConfig() );
+		behaviours = new Behaviours( new InputTriggerConfig() );
 		installActions();
 		installBehaviors();
 	}
@@ -93,17 +102,22 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 	/** install smoother rotation **/
 	void installBehaviors()
 	{
-		final BvvHandle handle = bt.bvvHandle;
-		//change drag rotation for navigation "3D Viewer" style
-		final Rotate3DViewerStyle dragRotate = new Rotate3DViewerStyle( 0.75, handle);
-		final Rotate3DViewerStyle dragRotateFast = new Rotate3DViewerStyle( 2.0, handle);
-		final Rotate3DViewerStyle dragRotateSlow = new Rotate3DViewerStyle( 0.1, handle);
+		final TransformHandlerBT transformHandlerBT = new TransformHandlerBT(bt);
+		transformHandlerBT.install( behaviours );
 		
-		final Behaviours behaviours = new Behaviours( new InputTriggerConfig() );
-		behaviours.behaviour( dragRotate, "drag rotate", "button1" );
-		behaviours.behaviour( dragRotateFast, "drag rotate fast", "shift button1" );
-		behaviours.behaviour( dragRotateSlow, "drag rotate slow", "ctrl button1" );
-		behaviours.install( handle.getTriggerbindings(), "BigTrace Behaviours" );
+		behaviours.install( bt.bvvHandle.getTriggerbindings(), "BigTrace Behaviours" );
+		
+//		final BvvHandle handle = bt.bvvHandle;
+//		//change drag rotation for navigation "3D Viewer" style
+//		final Rotate3DViewerStyle dragRotate = new Rotate3DViewerStyle( 0.75, handle);
+//		final Rotate3DViewerStyle dragRotateFast = new Rotate3DViewerStyle( 2.0, handle);
+//		final Rotate3DViewerStyle dragRotateSlow = new Rotate3DViewerStyle( 0.1, handle);
+//		
+//		final Behaviours behaviours = new Behaviours( new InputTriggerConfig() );
+//		behaviours.behaviour( dragRotate, "drag rotate", "button1" );
+//		behaviours.behaviour( dragRotateFast, "drag rotate fast", "shift button1" );
+//		behaviours.behaviour( dragRotateSlow, "drag rotate slow", "ctrl button1" );
+//		behaviours.install( handle.getTriggerbindings(), "BigTrace Behaviours" );
 	}
 	
 	
@@ -501,5 +515,76 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 	public InputMap getInputMap()
 	{
 		return actions.getInputMap();
+	}
+	
+	public void alignToAxis( final int nAxis )
+	{
+		switch (nAxis)
+		{
+		case 0:
+			alignToPlane(AlignPlaneBT.ZY);
+			break;
+		case 1:
+			alignToPlane(AlignPlaneBT.XZ);
+			break;
+		case 2:
+			alignToPlane(AlignPlaneBT.XY);
+			break;
+		case 3:
+			alignToPlane(AlignPlaneBT.YZ);
+			break;
+		case 4:
+			alignToPlane(AlignPlaneBT.ZX);
+			break;
+		case 5:
+			alignToPlane(AlignPlaneBT.YX);
+			break;
+		}
+	}
+	
+	void alignToPlane(final AlignPlaneBT plane)
+	{	
+		final double[] qTarget = new double[ 4 ];
+		LinAlgHelpers.quaternionInvert( plane.qAlign, qTarget );
+		final AffineTransform3D transform = bt.bvvViewer.state().getViewerTransform();
+		final double centerX = bt.bvvViewer.getWidth() * 0.5;
+		final double centerY = bt.bvvViewer.getHeight() * 0.5;
+		bt.bvvViewer.setTransformAnimator( new RotationAnimator( transform, centerX, centerY, qTarget, 300 ) );
+	}
+	
+	/**
+	 * The planes which can be aligned with the viewer coordinate system: XY,
+	 * ZY, and XZ plane.
+	 * Diffenrent from BDV, since 
+	 * in XY plain align Z looks towards viewer (and X, Y oriented as in ImageJ) 
+	 * and Z looks up for two other (like in Blender)
+	 */
+	public enum AlignPlaneBT
+	{
+		ZY( 0, new double[] { 0.5, -0.5, -0.5, 0.5 } ),
+		XZ( 1, new double[] { 0, 0, cQuat, -cQuat } ),
+		XY( 2, new double[] { 0, 0, 1, 0 } ),
+		YZ( 3, new double[] { 0.5, -0.5, 0.5, -0.5 } ),
+		ZX( 4, new double[] { cQuat, -cQuat, 0, 0 } ),
+		YX( 5, new double[] { 0, 0, 0, 1 } );
+
+		/**
+		 * rotation from the xy-plane aligned coordinate system to this plane.
+		 */
+		public final double[] qAlign; 
+
+		/**
+		 * Axis index. The plane spanned by the remaining two axes will be
+		 * transformed to the same plane by the computed rotation and the
+		 * "rotation part" of the affine source transform.
+		 * @see Affine3DHelpers#extractApproximateRotationAffine(AffineTransform3D, double[], int)
+		 */
+		public final int coerceAffineDimension;
+
+		private AlignPlaneBT( final int coerceAffineDimension, final double[] qAlign )
+		{
+			this.coerceAffineDimension = coerceAffineDimension;
+			this.qAlign = qAlign;
+		}
 	}
 }

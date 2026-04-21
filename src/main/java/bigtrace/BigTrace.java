@@ -72,6 +72,7 @@ import bigtrace.geometry.Cuboid3D;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
+import bigtrace.gui.AxesOverlayRenderer;
 import bigtrace.gui.GuiMisc;
 import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
@@ -120,6 +121,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	
 	/** separate framebuffer for the transparent rendering **/
 	OffScreenFrameBufferWithDepth sceneBufTransparent = null;
+
+	/** XYZ axis rotation gizmo **/
+	final public AxesOverlayRenderer axisOverlay = new AxesOverlayRenderer();
 	
 	/** flag to check if user interface is frozen.
 	 * It should be modified only in the main thread (or in done method of SwingWorker,
@@ -143,7 +147,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public BigTraceControlPanel<T> btPanel;
 	
 	/** BigTrace main actions **/
-	BigTraceActions<T> btActions;
+	public BigTraceActions<T> btActions;
 	
 	/** ROI manager + list tab **/
 	public RoiManager3D<T> roiManager;
@@ -318,6 +322,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			
 			btActions = new BigTraceActions<>( this );
 			bvvViewer.timePointListeners().add( this );
+			axisOverlay.bindViewer( bvvViewer );
+			bvvViewer.getDisplay().overlays().add( axisOverlay );
+			axisOverlay.setEnabled( btData.bShowAxisOverlay );
 		}
 		setInitialTransform();
 

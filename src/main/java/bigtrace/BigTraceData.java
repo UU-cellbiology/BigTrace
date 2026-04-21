@@ -61,6 +61,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	public boolean bShowScaleBar = Prefs.get( "BigTrace.bShowScaleBar", true );
 	
+	public boolean bShowAxisOverlay = Prefs.get( "BigTrace.bShowAxisOverlay", true );
+	
 	///////////////////////DATASET PROCESSING/MEASURE SETTING
 
 	/** voxel size determined from input file  **/
