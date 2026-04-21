@@ -301,12 +301,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		TaskBT.runOnEDTAndWait(()->
 		{
-			IJ.log( "Running full autotrace with parameters:" );
-			IJ.log( "Min intensity trace start:" + Double.toString( dMinIntensity ));
-			IJ.log( "Min # points in curve:" + Integer.toString( nMinNumPoints ));
-			IJ.log( "First time frame: " + Integer.toString( nFirstFrame ));
-			IJ.log( "Last time frame: " + Integer.toString( nLastFrame ));
-			IJ.log( " -- One-click tracing parameters --" );
+			IJ.log( "BigTrace macro: running full autotrace with parameters:" );
+			IJ.log( "   Min intensity trace start: " + Double.toString( dMinIntensity ));
+			IJ.log( "   Min # points in curve: " + Integer.toString( nMinNumPoints ));
+			IJ.log( "   First time frame: " + Integer.toString( nFirstFrame ));
+			IJ.log( "   Last time frame: " + Integer.toString( nLastFrame ));
+			printShapeInterpolation();
+			IJ.log( "One-click tracing parameters" );
 			printOneClickParams();
 		});
 		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
@@ -391,7 +392,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			String out = "Enabled, coefficient ";
 			bt.btData.dTraceROIThicknessCoeff = dCoeff;
-			Prefs.set("BigTrace.dTraceROIThicknessCoeff",bt.btData.dTraceROIThicknessCoeff);
+			Prefs.set("BigTrace.dTraceROIThicknessCoeff", bt.btData.dTraceROIThicknessCoeff);
 			out = out + Double.toString( bt.btData.dTraceROIThicknessCoeff );
 			out = out +" method ";
 			int nMethod = 0;
@@ -458,16 +459,6 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bMacroMode = false;
 	}
 	
-	void printOneClickParams()
-	{
-		IJ.log( "Directionality constrain: " + bt.btData.dDirectionalityOneClick );
-		IJ.log( "Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
-		IJ.log( "Use intensity threshold: " + bt.btData.bOCIntensityStop );	
-		if(bt.btData.bOCIntensityStop)
-		{
-			IJ.log( "Intensity threshold min value:" + Double.toString( bt.btData.dOCIntensityThreshold));
-		}		
-	}	
 	
 	/** macro function loads ROIs. 
 	 * @param sFileName
@@ -512,7 +503,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bMacroMode = true;
 		bt.bInputLock = true;
-
+		bt.setLockMode(true);
 		String out = "";
         if(sMode == null)
         {
@@ -546,6 +537,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			IJ.log( "BigTrace ROIs saved to " + sFileName);
 		});
+		bt.setLockMode(false);
 		bMacroMode = false;
 		bt.bInputLock = false;
 	}
@@ -565,7 +557,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.setLockMode(true);
 		//build list of ROIs
 		final ArrayList<AbstractCurve3D> curvesOut = new ArrayList<>();
-		IJ.log( "Total " + Integer.toString(bt.roiManager.rois.size()) +" ROIs" );
+
 		for (int nRoi = 0; nRoi < bt.roiManager.rois.size(); nRoi++)
 		{
 			Roi3D roi = bt.roiManager.rois.get(nRoi);
@@ -577,8 +569,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				}
 			}
 		}
-		IJ.log( "Found " + Integer.toString(curvesOut.size()) + " curve ROIs" );
-
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log("BigTrace macro: running straighten command on all ROIs");
+			IJ.log( "  Total " + Integer.toString(bt.roiManager.rois.size()) +" ROIs" );
+			IJ.log( "  Found " + Integer.toString(curvesOut.size()) + " curve ROIs" );
+			printShapeInterpolation();
+			printIntensityInterpolation();
+		});
 		int nAxis = nStraightenAxis;
 		if(nStraightenAxis < 0 || nStraightenAxis > 2)
 		{
@@ -605,6 +603,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				bt.btPanel.progressBar.setString("curve straightening aborted.");
 			});
 		}
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log("Straightened ROIs saved to " + sOutputDir + " folder" );
+		});
 		bt.setLockMode(false);
 		bt.bInputLock = false;
 		bMacroMode = false;
@@ -728,6 +730,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bMacroMode = true;
 		bt.bInputLock = true;
+		bt.setLockMode(true);
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "BigTrace macro: running measure.");
+			IJ.log( "   Active channel: " + Integer.toString( bt.btData.nChAnalysis + 1 ));
+			printShapeInterpolation();
+			printIntensityInterpolation();
+		});
 		ROIsMeasureBG roiMeasure = new ROIsMeasureBG();
 		roiMeasure.bt = bt;
 		roiMeasure.rois = bt.roiManager.rois;
@@ -738,6 +748,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			IJ.log("BigTrace macro: measured " + Integer.toString( bt.roiManager.rois.size() ) + " ROIs, saved to " + sFilename + ".");
 		});
+		bt.setLockMode(false);
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
@@ -866,10 +877,10 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			bt.bvvFrame.setTitle( sFilename );
 		});
 
-		TaskBT.runOnEDTAndWait(()->
-		{
-			IJ.log("BigTrace macro: opened new file " + sFilename + ".");
-		});
+//		TaskBT.runOnEDTAndWait(()->
+//		{
+//			IJ.log("BigTrace macro: opened new file " + sFilename + ".");
+//		});
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
@@ -882,6 +893,84 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			IJ.log("BigTrace closed.");
 		});
+	}
+	
+	//LOGGING HELPERS
+	
+	void printOneClickParams()
+	{
+		IJ.log( "   Active channel: " + Integer.toString(bt.btData.nChAnalysis + 1) );
+		IJ.log( "   Tracing curve thickness estimate (px, XYZ): [" + 
+		Double.toString(  bt.btData.sigmaTrace[0]) +" "+
+		Double.toString(  bt.btData.sigmaTrace[1]) +" "+
+		Double.toString(  bt.btData.sigmaTrace[2]) +"]");
+		IJ.log( "   Directionality constrain: " + bt.btData.dDirectionalityOneClick );
+		IJ.log( "   Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
+		IJ.log( "   Use intensity threshold: " + bt.btData.bOCIntensityStop );	
+		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
+		if(bt.btData.bOCIntensityStop)
+		{
+			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));
+		}		
+		if(!bt.btData.bEstimateROIThicknessFromParams)
+		{
+			IJ.log( "   New ROI diameter auto disabled" );
+		}
+		else
+		{
+			IJ.log( "   New ROI diameter auto enabled" );
+			String out = "      Method: ";
+			switch(bt.btData.nTraceROIThicknessMode)
+			{
+			case 0:
+				out = out + "MAX";
+				break;
+			case 1:
+				out = out + "AVG";
+				break;
+			case 2:
+				out = out + "MIN";
+				break;
+			}
+			IJ.log(out);
+			IJ.log("      Multiplication coefficient: " + Double.toString( bt.btData.dTraceROIThicknessCoeff ));
+		}
+	}	
+	
+	void printIntensityInterpolation()
+	{
+		String out = "   ROI intensity interpolation: ";
+		switch(bt.btData.intensityInterpolation)
+		{
+		case BigTraceData.INT_NearestNeighbor:
+			out = out + "Nearest Neighbor";
+			break;
+		case BigTraceData.INT_NLinear:
+			out = out + "Linear";
+			break;
+		case BigTraceData.INT_Lanczos:
+			out = out + "Lanczos";
+			break;
+		}
+		IJ.log(out);
+	}
+	
+	void printShapeInterpolation()
+	{
+		String out = "   ROI shape interpolation: ";
+		switch(bt.btData.shapeInterpolation)
+		{
+		case BigTraceData.SHAPE_Voxel:
+			out = out + "Voxel";
+			break;
+		case BigTraceData.SHAPE_Smooth:
+			out = out + "Smooth";
+			break;
+		case BigTraceData.SHAPE_Spline:
+			out = out + "Spline";
+			break;
+		}
+		IJ.log(out);
 	}
 	
 	@SuppressWarnings({ "rawtypes" })

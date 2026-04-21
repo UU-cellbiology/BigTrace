@@ -173,17 +173,18 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		if(mode == RoiManager3D.ADD_POINT_SEMIAUTOLINE)
 			{roiPolySemiAMode.setSelected(true);}
 		//add properties listener
-		roiPolySemiAMode.addMouseListener(new MouseAdapter() {
+		roiPolySemiAMode.addMouseListener(new MouseAdapter() 
+		{
 			@Override
-			public void mouseClicked(MouseEvent evt) {
-				if (evt.getClickCount() == 2) {
-
+			public void mouseClicked(MouseEvent evt) 
+			{
+				if (evt.getClickCount() == 2 || SwingUtilities.isRightMouseButton(evt) ) 
+				{
 					// Double-click detected
 					rmDiag.dialSemiAutoProperties();
 				} 
 			}
-		});
-		
+		});	
 
 		icon_path = this.getClass().getResource("/bt_icons/oneclicktrace.png");
 		tabIconOCTrace = new ImageIcon(icon_path);
@@ -198,8 +199,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		roiPolyOneClickMode.addMouseListener(new MouseAdapter() 
 		{
 			@Override
-			public void mouseClicked(MouseEvent evt) {
-				if (evt.getClickCount() == 2) 
+			public void mouseClicked(MouseEvent evt) 
+			{
+				if (evt.getClickCount() == 2 || SwingUtilities.isRightMouseButton(evt)) 
 				{
 					// Double-click detected
 					rmDiag.dialOneClickProperties();
@@ -251,36 +253,36 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		roiSettings.addActionListener(this);
 		
 		//add to the panel
-		GridBagConstraints ct = new GridBagConstraints();
-		ct.gridx = 0;
-		ct.gridy = 0;
-		panTracing.add(roiPointMode,ct);
-		ct.gridx++;
-		panTracing.add(roiPolyLineMode,ct);
-		ct.gridx++;
-		panTracing.add(roiPolySemiAMode,ct);
-		ct.gridx++;
-		panTracing.add(roiPolyOneClickMode,ct);
-		ct.gridx++;
-		panTracing.add(roiPlaneMode,ct);
-		ct.gridx++;
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		panTracing.add(roiPointMode,gbc);
+		gbc.gridx++;
+		panTracing.add(roiPolyLineMode,gbc);
+		gbc.gridx++;
+		panTracing.add(roiPolySemiAMode,gbc);
+		gbc.gridx++;
+		panTracing.add(roiPolyOneClickMode,gbc);
+		gbc.gridx++;
+		panTracing.add(roiPlaneMode,gbc);
+		gbc.gridx++;
 		JSeparator sp = new JSeparator(SwingConstants.VERTICAL);
 		sp.setPreferredSize(new Dimension((int) (nButtonSize*0.5),nButtonSize));
-		panTracing.add(sp,ct);
-		ct.gridx++;
+		panTracing.add(sp,gbc);
+		gbc.gridx++;
 		
-		panTracing.add(butAutoTrace,ct);
-		ct.gridx++;
+		panTracing.add(butAutoTrace,gbc);
+		gbc.gridx++;
 		
 		//filler
-		ct.weightx = 0.01;
-		panTracing.add(new JLabel(), ct);
-		ct.weightx = 0.0;
-		ct.gridx++;
+		gbc.weightx = 0.01;
+		panTracing.add(new JLabel(), gbc);
+		gbc.weightx = 0.0;
+		gbc.gridx++;
 
-		panTracing.add(roiImport,ct);
-		ct.gridx++;
-		panTracing.add(roiSettings,ct);
+		panTracing.add(roiImport,gbc);
+		gbc.gridx++;
+		panTracing.add(roiSettings,gbc);
 
 		///RoiLIST and buttons
 		listModel = new DefaultListModel<>();

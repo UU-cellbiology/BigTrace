@@ -27,6 +27,7 @@ import com.jogamp.opengl.GL3;
 
 import ij.IJ;
 import ij.ImageJ;
+import ij.Prefs;
 import ij.macro.ExtensionDescriptor;
 import ij.macro.Functions;
 import ij.macro.MacroExtension;
@@ -182,6 +183,17 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		    System.err.println( "Failed to initialize LaF" );
 		}
 		
+		//update site warning
+		if(!btMacro.bMacroMode)
+		{
+			if(Prefs.get( "BigTrace.bUpdateSiteNotice", true ))
+			{
+				IJ.showMessage( "IMPORTANT! UPDATE SITE CHANGES", "For the future releases BigTrace moves to its own update site!\n"
+						+ "This release (0.9.0) is the last release on Ekatrukha update site!\n"
+						+ "Please add https://sites.imagej.net/BigTrace/ to enable future updates!" );
+			}
+		}
+		
 		btData = new BigTraceData<>(this);
 		btLoad = new BigTraceLoad<>(this);
 			
@@ -218,7 +230,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public void loadSources()
 	{
 		if(btMacro.bMacroMode)
-			IJ.log("Opening file " + btData.sFileNameFullImg + ".");
+			IJ.log("BigTrace macro: opening file " + btData.sFileNameFullImg + ".");
 		if(btData.sFileNameFullImg == null)
 			return;
 		btData.lastDir = Paths.get(btData.sFileNameFullImg ).getParent().toString();
