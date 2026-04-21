@@ -160,7 +160,7 @@ public class ClipPanel extends JPanel {
 		setBoundingBox(box);
 	}
 	
-	public void setBounds(long [] maxDim)
+	public void resetBounds(long [] maxDim)
 	{
 		blockUpdates = true;
 
@@ -168,6 +168,7 @@ public class ClipPanel extends JPanel {
 		{
 			bbAxes[d].setBounds( new int[] {0, (int) maxDim[d]}) ;
 		}
+		setBoundingBox(0, 0, 0, (int)maxDim[0], (int)maxDim[1], (int)maxDim[2]);
 		blockUpdates = false;
 
 	}
