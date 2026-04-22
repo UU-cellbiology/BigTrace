@@ -235,7 +235,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				gbc.insets = new Insets(0,0,0,0);
 				gbc.gridy++;
 				pWarning.add( hyperlink, gbc );
-
+				Prefs.set( "BigTrace.bUpdateSiteNotice", false );
 				
 				JOptionPane.showOptionDialog(null, pWarning, "IMPORTANT! UPDATE SITE CHANGES", 
 						JOptionPane.PLAIN_MESSAGE, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
