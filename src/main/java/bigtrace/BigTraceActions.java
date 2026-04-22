@@ -19,14 +19,13 @@ import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
 
 import bdv.util.Affine3DHelpers;
-import bdv.viewer.animate.RotationAnimator;
 import bigtrace.geometry.Line3D;
+import bigtrace.gui.AnisotropicRotationAnimator;
 import bigtrace.gui.TransformHandlerBT;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.volume.VolumeMisc;
-
 
 
 public class BigTraceActions < T extends RealType< T > & NativeType< T > > 
@@ -39,6 +38,14 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 	final Behaviours behaviours;
 	
 	private final static double cQuat = Math.cos( Math.PI / 4 );
+	
+	public static final String ALIGN_XY_PLANE = "align XY plane";
+	public static final String ALIGN_ZY_PLANE = "align ZY plane";
+	public static final String ALIGN_XZ_PLANE = "align XZ plane";
+	
+	public static final String[] ALIGN_XY_PLANE_KEYS = new String[] { "shift Z" };
+	public static final String[] ALIGN_ZY_PLANE_KEYS = new String[] { "shift X" };
+	public static final String[] ALIGN_XZ_PLANE_KEYS = new String[] { "shift Y", "shift A" };
 	
 	public BigTraceActions(final BigTrace<T> bt_)
 	{		
@@ -66,6 +73,10 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 		actions.runnableAction(() -> actionResetClip(),				"reset clipping", "X" );
 		actions.runnableAction(() -> actionToggleRender(),			"toggle render mode", "O" );
 		actions.runnableAction(() -> actionSelectRoi(),	            "select ROI", "E" );
+		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.XY ), ALIGN_XY_PLANE, ALIGN_XY_PLANE_KEYS );
+		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.ZY ), ALIGN_ZY_PLANE, ALIGN_ZY_PLANE_KEYS );
+		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.XZ ), ALIGN_XZ_PLANE, ALIGN_XZ_PLANE_KEYS );
+
 		
 		actions.runnableAction(
 				() -> {
@@ -501,7 +512,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 			if(!bt.bTraceMode)
 			{
 				Line3D clickLine = bt.findClickLine();
-				if(clickLine!=null)
+				if(clickLine != null)
 					bt.roiManager.selectClosestToLineRoi(bt.findClickLine());
 				
 			}
@@ -549,7 +560,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 		final AffineTransform3D transform = bt.bvvViewer.state().getViewerTransform();
 		final double centerX = bt.bvvViewer.getWidth() * 0.5;
 		final double centerY = bt.bvvViewer.getHeight() * 0.5;
-		bt.bvvViewer.setTransformAnimator( new RotationAnimator( transform, centerX, centerY, qTarget, 300 ) );
+		bt.bvvViewer.setTransformAnimator( new AnisotropicRotationAnimator( transform, centerX, centerY, qTarget, 300 ) );
 	}
 	
 	/**
