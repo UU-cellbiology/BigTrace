@@ -199,7 +199,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		double [] startDirectionVector = getVectorAtLocation(startPoint);
 		
-		for (int d=0; d<3; d++)
+		for (int d = 0; d < 3; d++)
 		{
 			lastDirectionVector[d] = startDirectionVector[d];
 		}
@@ -247,7 +247,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			allPointsIntersection = new ArrayList<>();
 			//trace in one direction
 			nTotPoints = traceOneDirection(true, 0);
-			if(nTotPoints<0)
+			if(nTotPoints < 0)
 			{
 				setProgressState("Tracing interrupted by user.");
 				return;
@@ -255,12 +255,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			if(bUpdateProgressBar)
 			{
 				setProgress(50);
-				setProgressState(Integer.toString(nTotPoints)+"points found.");
+				setProgressState(Integer.toString(nTotPoints) + "points found.");
 			}
 			//look for another direction
-			for (int d=0; d<3; d++)
+			for (int d = 0; d < 3; d++)
 			{
-				lastDirectionVector[d]=(-1)*startDirectionVector[d];
+				lastDirectionVector[ d ] = (-1) * startDirectionVector[d];
 			}
 			
 			//reverse ROI
@@ -278,7 +278,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			if(bUseMask)
 				bStartLocationOccupied = true;
 		}
-		if(nTotPoints<0)
+		if(nTotPoints < 0)
 		{
 			setProgressState("Tracing interrupted by user.");
 			return;
@@ -327,8 +327,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				bt.roiManager.insertRoi(newTracing, nInsertROIInd);
 			}
-			//bt.roiManager.insertRoi(newTracing);
-
 		}
 		else
 		{
@@ -938,7 +936,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
     	bt.roiManager.setOneClickTracing( false );
     	
     	//deselect the trace if we just made it
-    	if(bNewTrace)
+    	if( bNewTrace )
     	{
     		bt.roiManager.unselect();
     	}

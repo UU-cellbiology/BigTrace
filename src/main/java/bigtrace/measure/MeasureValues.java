@@ -7,8 +7,8 @@ public class MeasureValues implements Measurements {
 	
 	public String roiName;
 	public String roiGroupName;
-	float pointSize;
-	float lineThickness;
+	public float pointSize;
+	public float lineThickness;
 	public int nTimePoint;
 	public int roiType;
 	
@@ -26,11 +26,12 @@ public class MeasureValues implements Measurements {
 	
 	public double straightness;
 	public double endsDistance;
+	
 	/** coordinates of the ends **/
 	public RealPoint [] ends;
+	
 	/** normalized vector pointing between ends **/
 	public RealPoint direction = null;
-
 
 
 	void setRoiName(String roiname_)
@@ -63,11 +64,13 @@ public class MeasureValues implements Measurements {
 		return new String(roiGroupName);
 	}
 	
-	public int getRoiType() {		
+	public int getRoiType() 
+	{		
 		return roiType;
 	}
 	
-	public int getTimePoint() {		
+	public int getTimePoint() 
+	{		
 		return nTimePoint;
 	}
 	
@@ -89,5 +92,31 @@ public class MeasureValues implements Measurements {
 	public float getLineThickness()
 	{
 		return lineThickness;
+	}
+	public double getFirstNineMeasurements (final int measure)
+	{
+		switch (measure)
+		{
+		case Measurements.VOLUME:
+			return volume;
+		case Measurements.LENGTH:
+			return length;
+		case Measurements.MEAN:
+			return mean;
+		case Measurements.STD_DEV:
+			return stdDev;
+		case Measurements.MEAN_LINEAR:
+			return mean_linear;
+		case Measurements.STD_LINEAR:
+			return std_linear;
+		case Measurements.INTEGRATED:
+			return integrated;
+		case Measurements.DIST_ENDS:
+			return endsDistance;
+		case Measurements.STRAIGHTNESS:
+			return straightness;
+		}
+		System.out.print( "Warning, requested Measurements values outside the range." );
+		return Double.NaN;
 	}
 }

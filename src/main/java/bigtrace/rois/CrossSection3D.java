@@ -141,10 +141,10 @@ public class CrossSection3D extends AbstractRoi3D
 	}
 
 	@Override
-	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size) 
+	public void draw(GL3 gl, Matrix4fc pvm, final Matrix4fc vm, int[] screen_size, final boolean bWeightedOIT) 
 	{
-		verticesVis.draw(gl, pvm, screen_size, btdata);
-		planeVis.draw(gl, pvm, btdata);		
+		verticesVis.draw(gl, pvm, screen_size, btdata, bWeightedOIT);
+		planeVis.draw(gl, pvm, btdata, bWeightedOIT);		
 	}
 	
 	public void setVertices(ArrayList<RealPoint> vertices_)
@@ -155,7 +155,6 @@ public class CrossSection3D extends AbstractRoi3D
 		updateRenderVertices();
 		
 	}
-
 
 	@Override
 	public void setPointColor(Color pointColor_) 
@@ -251,7 +250,8 @@ public class CrossSection3D extends AbstractRoi3D
 	}
 
 	@Override
-	public void setGroup(Roi3DGroup preset_in) {
+	public void setGroup(Roi3DGroup preset_in) 
+	{
 		
 		setPointColor(preset_in.pointColor);
 		setLineColor(preset_in.lineColor);
@@ -268,7 +268,7 @@ public class CrossSection3D extends AbstractRoi3D
 		verticesVis.setVertices(vertices);
 		polygonVert = null;
 		fittedPlane = null;
-		if(vertices.size()>2)
+		if(vertices.size() > 2)
 		{
 			double [] intersectionPoint = new double[3];
 			//for now;
@@ -278,14 +278,13 @@ public class CrossSection3D extends AbstractRoi3D
 			ArrayList<ArrayList< RealPoint >> boxEdges = Box3D.getEdgesPairPoints(nDimBox);
 			
 			for(int i = 0; i < boxEdges.size(); i++)
-			{
-		
+			{		
 				if(Intersections3D.planeEdgeIntersect(fittedPlane,boxEdges.get(i).get(0),boxEdges.get(i).get(1),intersectionPoint))
 				{
 					polygonVert.add(new RealPoint(intersectionPoint));
 				}
 			}
-			if(polygonVert.size()>1)
+			if(polygonVert.size() > 1)
 			{
 				sortPolygonVertices(polygonVert,fittedPlane.n);
 				//outline.add(new RealPoint(outline.get(0)));
@@ -329,6 +328,7 @@ public class CrossSection3D extends AbstractRoi3D
 		Collections.sort(vertices,compareRP);
 		
 	}
+	
 	private static Plane3D fitPlane(final ArrayList<RealPoint> vertices)
 	{
 		RealPoint centroidRP = centroid(vertices);
@@ -356,9 +356,7 @@ public class CrossSection3D extends AbstractRoi3D
 		
 		out.setVectors(centroidRP.positionAsDoubleArray(), normalRP.positionAsDoubleArray());
 		
-		return out;
-		
-		
+		return out;	
 	}
 	
 	public static RealPoint centroid(final ArrayList<RealPoint> vertices)
@@ -415,30 +413,13 @@ public class CrossSection3D extends AbstractRoi3D
 		return Double.MAX_VALUE;
 	
 	}
-	/*
-	public static void main(String[] args) 
-	{
-		ArrayList<RealPoint> vertices = new ArrayList<RealPoint>();
-		for(int i=0;i<4;i++)
-		{
-			RealPoint rp = new RealPoint(3);
-			for(int d=0;d<3;d++)
-			{
-				rp.setPosition(5*i*(i-d)+d, d);				
-			}
-			vertices.add(rp);
-		}
-		Plane3D fitplane = fitPlane(vertices);
-		int i=10;
-		i++;
-	}
-	*/
+
 	@Override
 	public Interval getBoundingBox() 
 	{
 		ArrayList<RealPoint> allvertices;
 		//in VOXEL coordinates
-		if(this.polygonVert==null)
+		if(this.polygonVert == null)
 		{
 			allvertices = this.vertices;
 		}
@@ -450,13 +431,13 @@ public class CrossSection3D extends AbstractRoi3D
 		for (int d = 0; d < 3; d++)
 		{
 			bBox[0][d] = Long.MAX_VALUE; 
-			bBox[1][d]= (-1)* Long.MAX_VALUE; 
+			bBox[1][d]= (-1) * Long.MAX_VALUE; 
 		}
 		double [] currPoint = new double [3];
-		for (int i = 0; i<allvertices.size();i++)
+		for (int i = 0; i < allvertices.size();i++)
 		{
 			allvertices.get(i).localize(currPoint);
-			for (int d=0;d<3;d++)
+			for (int d = 0; d < 3; d++)
 			{
 				if(currPoint[d]<bBox[0][d])
 				{
@@ -466,7 +447,6 @@ public class CrossSection3D extends AbstractRoi3D
 				{
 					bBox[1][d] = Math.round(currPoint[d]);
 				}
-
 			}
 		}
 		return new FinalInterval(bBox[0],bBox[1]);
@@ -478,11 +458,22 @@ public class CrossSection3D extends AbstractRoi3D
 		return getBoundingBox();
 
 	}
+	
 	@Override
 	public < T extends RealType< T > & NativeType< T >  > Cursor< T > getSingle3DVolumeCursor( RandomAccessibleInterval< T > input )
 	{
 		return null;
 	}
-
+	
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
+	}
 
 }

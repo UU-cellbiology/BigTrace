@@ -2,9 +2,9 @@ package bigtrace.measure;
 
 public interface Measurements 
 {
-	public static final int VOLUME = 1, LENGTH=2, MEAN=4, STD_DEV=8, 
+	public static final int VOLUME = 1, LENGTH = 2, MEAN = 4, STD_DEV = 8, 
 							MEAN_LINEAR = 16, STD_LINEAR = 32, INTEGRATED = 64, 
-							DIST_ENDS = 128, STRAIGHTNESS=256, ENDS_COORDS=512, ENDS_DIR=1024;
+							DIST_ENDS = 128, STRAIGHTNESS = 256, ENDS_COORDS = 512, ENDS_DIR = 1024;
 	
 	/*
 	 * From ImageJ

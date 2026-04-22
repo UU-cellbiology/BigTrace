@@ -32,7 +32,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 {
 
 	/** current plugin version **/
-	public static String sVersion = "0.8.6";
+	public static String sVersion = "0.9.0";
 	
 	/** plugin instance **/
 	BigTrace<T> bt;
@@ -56,6 +56,12 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** use lazy loading for TIFF files **/
 	public boolean bUseLazyLoadForTiff = Prefs.get( "BigTrace.bUseLazyLoadForTiff", true );
+	
+	public boolean bShowMultiBox = Prefs.get( "BigTrace.bShowMultiBox", true );
+	
+	public boolean bShowScaleBar = Prefs.get( "BigTrace.bShowScaleBar", true );
+	
+	public boolean bShowAxisOverlay = Prefs.get( "BigTrace.bShowAxisOverlay", true );
 	
 	///////////////////////DATASET PROCESSING/MEASURE SETTING
 
@@ -323,9 +329,9 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		
 		bt = bt_;
 		//default scale
-		globCal[0]= 1.0;
-		globCal[1]= 1.0;
-		globCal[2]= 1.0;
+		globCal[0] = 1.0;
+		globCal[1] = 1.0;
+		globCal[2] = 1.0;
 		
 		//view 
 		nZoomBoxSize = (int) Prefs.get("BigTrace.nZoomBoxSize", 150);
@@ -373,7 +379,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public IntervalView< T > getDataCurrentSourceClipped()
 	{		
 		return Views.interval(getDataSourceFull(nChAnalysis,nCurrTimepoint),nDimCurr[0], nDimCurr[1]);
-
 	}
 	
 	/** returns data sources for the current channel and time point,
@@ -381,7 +386,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public RandomAccessibleInterval<T> getDataCurrentSourceFull()
 	{		
 		return getDataSourceFull(nChAnalysis, nCurrTimepoint);
-
 	}
 	
 	/** returns data sources for specific channel and time point,
@@ -415,7 +419,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 
 			List<RandomAccessibleInterval<T>> raiXYZT;// = new ArrayList<RandomAccessibleInterval<T>> ();
 			
-			for (int nCh=0; nCh < nTotalChannels; nCh++)
+			for (int nCh = 0; nCh < nTotalChannels; nCh++)
 			{
 				raiXYZT = new ArrayList<> ();
 				for(int nTimePoint = 0; nTimePoint < nNumTimepoints; nTimePoint++)
@@ -461,8 +465,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		float out = 0.0f;
 		switch(nTraceROIThicknessMode)
 		{
-		case 0:
-			out = (-1)*Float.MAX_VALUE;
+		case 0: 
+			out = (-1) * Float.MAX_VALUE;
 			for(int d = 0; d < 3; d++)
 			{
 				out = ( float ) Math.max(this.sigmaTrace[d] * globCal[d] / dMinVoxelSize, out);

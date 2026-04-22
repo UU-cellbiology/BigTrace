@@ -34,12 +34,11 @@ import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class Point3D extends AbstractRoi3D {
-
+public class Point3D extends AbstractRoi3D 
+{
 	public RealPoint vertex;
 	
 	public VisPointsScaled vertexVis;
-
 
 	public Point3D( final BigTraceData<?> btdata_, final Roi3DGroup preset_in, final int nTimePoint_)
 	{
@@ -48,15 +47,13 @@ public class Point3D extends AbstractRoi3D {
 		pointSize = preset_in.pointSize;		
 		pointColor = new Color(preset_in.pointColor.getRed(),preset_in.pointColor.getGreen(),preset_in.pointColor.getBlue(),preset_in.pointColor.getAlpha());		
 		lineColor = new Color(preset_in.lineColor.getRed(),preset_in.lineColor.getGreen(),preset_in.lineColor.getBlue(),preset_in.lineColor.getAlpha());
-
 		renderType = preset_in.renderType;
-		//vertex = new RealPoint(vertex_);
-		//vertexVis = new VisPointsScaled(vertex_,pointSize,pointColor);
 		name = "point"+Integer.toString(this.hashCode());
 		vertex = null;
 		vertexVis = null;
 		nTimePoint = nTimePoint_;
 	}
+	
 	public Point3D(final BigTraceData<?> btdata_, final float pointSize_, final Color pointColor_, final int nRenderType_, final int nTimePoint_)
 	{
 		super(btdata_);
@@ -65,7 +62,6 @@ public class Point3D extends AbstractRoi3D {
 		renderType = nRenderType_;
 		pointColor = new Color(pointColor_.getRed(),pointColor_.getGreen(),pointColor_.getBlue(),pointColor_.getAlpha());
 		lineColor = new Color(pointColor_.getRed(),pointColor_.getGreen(),pointColor_.getBlue(),pointColor_.getAlpha());
-
 		name = "point"+Integer.toString(this.hashCode());
 		nTimePoint = nTimePoint_;
 	}
@@ -76,23 +72,24 @@ public class Point3D extends AbstractRoi3D {
 		vertexVis = new VisPointsScaled(vertex_,pointSize,pointColor, renderType);
 	}
 	
-
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
-		if(vertexVis!=null)
-			vertexVis.draw( gl, pvm, screen_size, btdata);
+		if(vertexVis != null)
+			vertexVis.draw( gl, pvm, screen_size, btdata, bWeightedOIT);
 	}
 
-
 	@Override
-	public void setPointSize(float point_size) {
-		this.pointSize=point_size;
+	public void setPointSize(float point_size) 
+	{
+		this.pointSize = point_size;
 		vertexVis.setSize(pointSize);
 	}
+	
 	@Override
-	public void setRenderType(int nRenderType){
-		renderType=nRenderType;
+	public void setRenderType(int nRenderType)
+	{
+		renderType = nRenderType;
 		vertexVis.setRenderType(renderType);
 		return;
 	}	
@@ -116,9 +113,9 @@ public class Point3D extends AbstractRoi3D {
 			writer.write("Vertices,1\n");
 			float [] vert = new float[3];
 			vertex.localize(vert);
-			for(int i=0;i<3;i++)
+			for(int i = 0; i < 3; i++)
 			{
-				writer.write(df3.format(vert[i])+",");
+				writer.write(df3.format(vert[ i ])+",");
 			}
 			writer.write("\n");
 		}
@@ -129,12 +126,15 @@ public class Point3D extends AbstractRoi3D {
 	}
 
 	@Override
-	public void reversePoints() {
+	public void reversePoints() 
+	{
 		return;
 		
 	}
+	
 	@Override
-	public void setGroup(final Roi3DGroup preset_in) {
+	public void setGroup(final Roi3DGroup preset_in) 
+	{
 
 		pointSize = preset_in.pointSize;		
 		pointColor = new Color(preset_in.pointColor.getRed(),preset_in.pointColor.getGreen(),preset_in.pointColor.getBlue(),preset_in.pointColor.getAlpha());		
@@ -146,7 +146,7 @@ public class Point3D extends AbstractRoi3D {
 	public void getEnds(final MeasureValues val, final double [] globCal)
 	{
 		val.ends = new RealPoint [2];
-		val.ends[0]= new RealPoint(Roi3D.scaleGlob(vertex,globCal));
+		val.ends[0] = new RealPoint(Roi3D.scaleGlob(vertex, globCal));
 	
 		val.ends[1] = Roi3D.getNaNPoint();
 		return;
@@ -225,9 +225,9 @@ public class Point3D extends AbstractRoi3D {
 		if (intVals.size()==0)
 			return null;
 		final double [] out = new double[intVals.size()];
-		for (int i =0;i<intVals.size();i++)
+		for (int i = 0; i < intVals.size(); i++)
 		{
-			out[i]=intVals.get(i).doubleValue();
+			out[i] = intVals.get(i).doubleValue();
 		}
 		return out;
 	}
@@ -256,12 +256,16 @@ public class Point3D extends AbstractRoi3D {
 		
 		
 	}
+	
 	@Override
-	public void setLineColor(Color lineColor_) {
+	public void setLineColor(Color lineColor_) 
+	{
 		lineColor = new Color(lineColor_.getRed(),lineColor_.getGreen(),lineColor_.getBlue(),lineColor_.getAlpha());
 	}
+	
 	@Override
-	public void setPointColor(Color pointColor_) {
+	public void setPointColor(Color pointColor_) 
+	{
 
 		pointColor = new Color(pointColor_.getRed(),pointColor_.getGreen(),pointColor_.getBlue(),pointColor_.getAlpha());
 		if(vertexVis != null)
@@ -271,23 +275,25 @@ public class Point3D extends AbstractRoi3D {
 	}
 	
 	@Override
-	public void setLineThickness(float line_thickness) {
+	public void setLineThickness(float line_thickness) 
+	{
 		
-		lineThickness=line_thickness;
+		lineThickness = line_thickness;
 		return;
 	}
+	
 	@Override
-	public double getMinDist(Line3D line) {
+	public double getMinDist(Line3D line) 
+	{
 		return Line3D.distancePointLine(vertex, line);
 	}
 	
 	@Override
 	public Interval getBoundingBox() 
-	{
-		
+	{		
 		double [] pos = vertex.positionAsDoubleArray();
 		long [][] lPos = new long[2][3];
-		long nRadius;//=  ( int ) Math.ceil( pointSize*0.5 );
+		long nRadius;
 		for (int d = 0; d < 3; d++)
 		{
 			nRadius = ( long ) Math.ceil( pointSize * 0.5 *btdata.dMinVoxelSize / btdata.globCal[d]);
@@ -297,6 +303,7 @@ public class Point3D extends AbstractRoi3D {
 		return new FinalInterval(lPos[0], lPos[1]);
 
 	}
+	
 	@Override
 	public Interval getBoundingBoxVisual() 
 	{	
@@ -323,5 +330,16 @@ public class Point3D extends AbstractRoi3D {
 	
 		final EllipsoidNeighborhood<T> ellipse = new EllipsoidNeighborhood<>(input, center,  radiuses); 
 		return ellipse.localizingCursor();
+	}
+	
+	/** define if the shape is transparent **/
+	@Override
+	public void defineTransparency()
+	{
+		bTransparent = false;
+		if(pointColor.getAlpha() < Roi3D.TRANSPARENCY_THRESHOLD)
+		{
+			bTransparent = true;
+		}
 	}
 }

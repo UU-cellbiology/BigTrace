@@ -130,10 +130,10 @@ public class PolyLine3D extends AbstractCurve3D
 	}
 
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
-		verticesVis.draw(gl, pvm, screen_size, btdata);
-		edgesVis.draw(gl, pvm, vm, btdata);
+		verticesVis.draw(gl, pvm, screen_size, btdata, bWeightedOIT);
+		edgesVis.draw(gl, pvm, vm, btdata, bWeightedOIT);
 		
 	}
 

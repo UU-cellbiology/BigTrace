@@ -31,13 +31,13 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.GetFolderDialog;
 import bigtrace.gui.NumberField;
@@ -71,7 +71,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	 */
 	private static final long serialVersionUID = -4635723145578489755L;
 	final BigTrace<T> bt;
-	final BigTraceData<T> btData;
 	
 	final JButton butLineProfile;
 	final JButton butLineAlignment;
@@ -88,41 +87,41 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	boolean bIgnoreClipped = Prefs.get("BigTrace.bIgnoreClipped",false);
 	
 	public JComboBox<String> cbActiveChannel;
-	// Order must agree with order of checkboxes in Set Measurements dialog box
-	private static final int[] listMeasurements = { VOLUME, LENGTH,  MEAN, STD_DEV, MEAN_LINEAR, STD_LINEAR, INTEGRATED, DIST_ENDS, STRAIGHTNESS, ENDS_COORDS, ENDS_DIR};
-	private static final String[] colTemplates = { "Volume", "Length", "Mean_intensity", "SD_intensity",  
+	
+	/** Order must agree with order of checkboxes in Set Measurements dialog box **/
+	public static final int[] listMeasurements = { VOLUME, LENGTH, MEAN, STD_DEV, MEAN_LINEAR, STD_LINEAR, INTEGRATED, DIST_ENDS, STRAIGHTNESS, ENDS_COORDS, ENDS_DIR};
+	public static final String[] colTemplates = { "Volume", "Length", "Mean_intensity", "SD_intensity",  
 													"Mean_linear_intensity", "SD_linear_intensity","Integrated_intensity", 
 													"Distance_between_ends", "Straightness", "End_","Direction_"};
-	
+	public static String[] labels = { "Volume", "Length", "Mean intensity", "SD of intensity", 
+			"Mean linear intensity", "SD linear intensity","Integrated intensity", 
+			"Distance between ends", "Straightness", "Ends coordinates", "End-end direction"};
 
-	private static int systemMeasurements = (int)Prefs.get("BigTrace.Measurements",VOLUME+LENGTH+MEAN);
-
+	public static int systemMeasurements = (int)Prefs.get("BigTrace.Measurements", VOLUME + LENGTH + MEAN);
 
 	private double [] coalignVector;
 	private boolean bAlignCosine = Prefs.get("BigTrace.bAlignCosine", true);
 	
 	private static ResultsTable systemRT = new ResultsTable();
 	private ResultsTable rt;
-	
-
 
 	public RoiMeasure3D(BigTrace<T> bt)
 	{
 		this.bt = bt;
-		this.btData = bt.btData;
-		int nButtonSize = 40;
-			
-		coalignVector = new double [3];
 		
-		for(int d=0;d<2;d++)
+		//coalignment vector
+		coalignVector = new double [3];	
+		for(int d = 0; d < 2; d++)
 		{
-			coalignVector[d]  = Prefs.get("BigTrace.coalignVec"+Integer.toString(d),0.0);
+			coalignVector[ d ] = Prefs.get("BigTrace.coalignVec" + Integer.toString(d), 0.0);
 		}
-		coalignVector[2]  = Prefs.get("BigTrace.coalignVec2",1.0);
+		coalignVector[ 2 ] = Prefs.get("BigTrace.coalignVec2", 1.0);
+
+		final int nButtonSize = 40;
 		
 		rt = systemRT;
 		
-		btData.setInterpolationFactory();
+		bt.btData.setInterpolationFactory();
 		final JPanel panLineTools = new JPanel(new GridBagLayout());  
 		panLineTools.setBorder(new PanelTitle(" Tools "));
 
@@ -217,6 +216,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		//synchronized ROI list
 		jlist = new JList<>(bt.roiManager.listModel);
 		listScroller = new JScrollPane(jlist);
+		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		jlist.addListSelectionListener(this);
 		listScroller.setPreferredSize(new Dimension(300, 400));
 		listScroller.setMinimumSize(new Dimension(170, 250));
@@ -241,14 +241,13 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			    }
 			});
 
-		//this.add(listScroller);	
-		gbc.gridx=0;
-		gbc.gridy=0;
+		gbc.gridx = 0;
+		gbc.gridy = 0;
 		gbc.gridheight=GridBagConstraints.REMAINDER;
 		
 		gbc.fill  = GridBagConstraints.BOTH;
-		gbc.weightx=0.99;
-		gbc.weighty=0.99;
+		gbc.weightx = 0.99;
+		gbc.weighty = 0.99;
 		panMeasure.add(listScroller,gbc);
 		gbc.weightx=0.0;
 		gbc.weighty=0.0;
@@ -259,7 +258,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		butMeasure.addActionListener(this);
 		gbc.gridx++;
 		gbc.gridy++;
-		gbc.gridheight=1;
+		gbc.gridheight = 1;
 
 		panMeasure.add(butMeasure,gbc);
 
@@ -284,7 +283,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		panChannel.setBorder(new PanelTitle(""));
 
 		String[] nCh = new String[bt.btData.nTotalChannels];
-		for(int i = 0;i < nCh.length; i++)
+		for(int i = 0; i < nCh.length; i++)
 		{
 			nCh[i] = "channel "+Integer.toString(i+1);
 		}
@@ -293,19 +292,18 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		cbActiveChannel.addActionListener(this);
 		
 		gbc = new GridBagConstraints();
-	    gbc.gridx=0;
-		gbc.gridy=0;
+	    gbc.gridx = 0;
+		gbc.gridy = 0;
 		panChannel.add(new JLabel("Measure"),gbc);
 		gbc.gridx++;
 		panChannel.add(cbActiveChannel,gbc);
-		
 		
 		//put all panels together
 		gbc = new GridBagConstraints();
 		setLayout(new GridBagLayout());
 		gbc.insets=new Insets(4,4,2,2);
-		gbc.gridx=0;
-		gbc.gridy=0;
+		gbc.gridx = 0;
+		gbc.gridy = 0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 	
 		//Line Tools
@@ -329,25 +327,18 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	/** show Measure settings dialog**/
 	public void dialSettings()
 	{
-		
 		JPanel pMeasureSettings = new JPanel(new GridLayout(0,2,6,0));
 	
 		ArrayList<JCheckBox> measureStates = new ArrayList<>();
-		
 
-		//String[] labels = new String[listMeasurements.length];
 		boolean[] states = new boolean[listMeasurements.length];
-		for (int i=0;i<listMeasurements.length;i++)
-		{
-			states[i]=(systemMeasurements&(int)(Math.pow( 2, i )))!=0;
-		}
-		
-		String[] labels = { "Volume", "Length", "Mean intensity", "SD of intensity", 
-			"Mean linear intensity", "SD linear intensity","Integrated intensity", 
-			"Distance between_ends", "Straightness", "Ends coordinates","End-end direction"};
 
-		
-		for(int i = 0;i<listMeasurements.length;i++)
+		for (int i = 0; i < listMeasurements.length; i++)
+		{
+			states[i] = (systemMeasurements&(int)(Math.pow( 2, i ))) != 0;
+		}
+				
+		for(int i = 0; i < listMeasurements.length; i++)
 		{
 
 			measureStates.add(new JCheckBox(labels[i]));
@@ -393,8 +384,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 
-			//boolean b = false;
-			for (int i=0; i<listMeasurements.length; i++) {
+			for (int i = 0; i < listMeasurements.length; i++) 
+			{
 				states[i] = measureStates.get(i).isSelected();
 				if (states[i])
 					systemMeasurements |= listMeasurements[i];
@@ -402,8 +393,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 					systemMeasurements &= ~listMeasurements[i];
 			}
 			Prefs.set("BigTrace.Measurements", systemMeasurements);
-			
-			
+						
 			// whether to clip measurements
 			bIgnoreClipped = cbIgnoreClipped.isSelected();
 			Prefs.set("BigTrace.bIgnoreClipped",bIgnoreClipped);
@@ -411,11 +401,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//intensity interpolation
 			bt.btData.intensityInterpolation = intensityInterpolationList.getSelectedIndex();
 			Prefs.set("BigTrace.IntInterpolation",bt.btData.intensityInterpolation);
-			btData.setInterpolationFactory();
+			bt.btData.setInterpolationFactory();
 			
 			
-			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText())||
-					bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex()||
+			if(bt.btData.nSmoothWindow != Integer.parseInt(nfSmoothWindow.getText()) ||
+					bt.btData.shapeInterpolation != shapeInterpolationList.getSelectedIndex() ||
 							bt.btData.rotationMinFrame != rotationFrameList.getSelectedIndex())
 			{
 				bt.btData.nSmoothWindow = Integer.parseInt(nfSmoothWindow.getText());
@@ -445,8 +435,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 								rt.deleteColumn(sColName);
 								bUpdate = true;
 							}
-						}
-						
+						}					
 					}
 				}
 				if(bUpdate)
@@ -455,7 +444,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				}
 			}
 		}
-	
 	}
 	
 	public boolean dialCoalignmentVector()
@@ -520,54 +508,52 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		val.setPointSize( roi.getPointSize() );
 		val.setLineThickness( roi.getLineThickness() );
 
-		if(systemMeasurements>0)
+		if(systemMeasurements > 0)
 		{
-
-			if((systemMeasurements&LENGTH)!=0) 
+			if((systemMeasurements & LENGTH) != 0) 
 			{
 				measureLength(roi,val);
 			}
-			if((systemMeasurements&MEAN)!=0) 
+			if((systemMeasurements & MEAN) != 0) 
 			{
 				measureMeanIntensity(roi,val);
 			}
-			if((systemMeasurements&STD_DEV)!=0) 
+			if((systemMeasurements & STD_DEV) != 0) 
 			{
 				measureSDIntensity(roi,val);
 			}
-			if((systemMeasurements&INTEGRATED)!=0) 
+			if((systemMeasurements & INTEGRATED) != 0) 
 			{
 				measureIntegratedIntensity(roi,val);
 			}
-			if((systemMeasurements&VOLUME)!=0) 
+			if((systemMeasurements & VOLUME) != 0) 
 			{
 				measureVolume(roi,val);
 			}
-			if((systemMeasurements&MEAN_LINEAR)!=0) 
+			if((systemMeasurements & MEAN_LINEAR) != 0) 
 			{
 				measureMeanLinearIntensity(roi,val);
 			}
-			if((systemMeasurements&STD_LINEAR)!=0) 
+			if((systemMeasurements & STD_LINEAR) != 0) 
 			{
 				measureSDLinearIntensity(roi,val);
 			}
-			if((systemMeasurements&DIST_ENDS)!=0) 
+			if((systemMeasurements & DIST_ENDS) != 0) 
 			{
 				measureEndsDistance(roi,val);
 			}
-			if((systemMeasurements&STRAIGHTNESS)!=0) 
+			if((systemMeasurements & STRAIGHTNESS) != 0) 
 			{
 				measureStraightness(roi,val);
 			}
-			if((systemMeasurements&ENDS_COORDS)!=0) 
+			if((systemMeasurements & ENDS_COORDS) != 0) 
 			{
 				measureEndsCoords(roi,val);
 			}
-			if((systemMeasurements&ENDS_DIR)!=0) 
+			if((systemMeasurements & ENDS_DIR) != 0) 
 			{
 				measureEndsDirection(roi,val);
 			}
-			
 			//update Results Table
 			//updateTable(val);
 		}
@@ -683,7 +669,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	void updateTable(final MeasureValues val, final boolean bShow)
 	{
 		rt.incrementCounter();
-		int row = rt.getCounter()-1;
+		int row = rt.getCounter() - 1;
 		rt.setValue("ROI_Name", row, val.getRoiName());
 		rt.setValue("ROI_Type", row, Roi3D.intTypeToString(val.getRoiType()));
 		rt.setValue("ROI_Group", row, val.getRoiGroupName());
@@ -732,24 +718,23 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		}
 		if ((systemMeasurements & ENDS_COORDS) != 0)
 		{
-			for(int nEnd = 0;nEnd<2;nEnd++)
+			for(int nEnd = 0; nEnd < 2; nEnd++)
 			{
-				rt.setValue("End_"+Integer.toString(nEnd+1)+"_X", row, val.ends[nEnd].getDoublePosition(0));
-				rt.setValue("End_"+Integer.toString(nEnd+1)+"_Y", row, val.ends[nEnd].getDoublePosition(1));
-				rt.setValue("End_"+Integer.toString(nEnd+1)+"_Z", row, val.ends[nEnd].getDoublePosition(2));
+				rt.setValue("End_" + Integer.toString(nEnd + 1) + "_X", row, val.ends[nEnd].getDoublePosition(0));
+				rt.setValue("End_" + Integer.toString(nEnd + 1) + "_Y", row, val.ends[nEnd].getDoublePosition(1));
+				rt.setValue("End_" + Integer.toString(nEnd + 1) + "_Z", row, val.ends[nEnd].getDoublePosition(2));
 			}
 		}
 
-		if ((systemMeasurements&ENDS_DIR)!=0)
+		if ((systemMeasurements & ENDS_DIR) != 0)
 		{
-
 			rt.setValue("Direction_X", row, val.direction.getDoublePosition(0));
 			rt.setValue("Direction_Y", row, val.direction.getDoublePosition(1));
 			rt.setValue("Direction_Z", row, val.direction.getDoublePosition(2));
-
 		}
 		
-		if(bShow)		{
+		if(bShow)		
+		{
 			rt.show("Results");
 			rt.updateResults();
 		}
@@ -758,7 +743,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	void resetTable(final ArrayList<MeasureValues> vals)
 	{
 		rt.reset();
-		for (int i = 0;i<vals.size();i++)
+		for (int i = 0; i < vals.size(); i++)
 		{
 			updateTable(vals.get(i), false);
 		}
@@ -771,7 +756,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		switch (roi.getType())
 		{
 			case Roi3D.POINT:
-				val.length=0.0;
+				val.length = 0.0;
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:
@@ -779,9 +764,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;		
 			default:
 				val.length = Double.NaN;
-		}
-			
-		
+		}	
 	}
 	
 	void measureVolume(final Roi3D roi, final MeasureValues val)
@@ -808,7 +791,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 					break;		
 			}
 		}
-		if(nVoxelSize>=0)
+		if(nVoxelSize >= 0)
 		{
 			val.volume = nVoxelSize * bt.btData.globCal[0] * bt.btData.globCal[1] * bt.btData.globCal[2];
 		}
@@ -900,10 +883,10 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				val.stdDev= getSDDoubleArray(getMeanDoubleArray(val.intensity_values),val.intensity_values);
 			}
 		}
-	}	
+	}
+	
 	void measureIntegratedIntensity(final Roi3D roi, final MeasureValues val)
 	{
-		
 		final IntervalView< T > source = getMeasureSource(roi);
 		
 		val.integrated = Double.NaN;
@@ -938,8 +921,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{			
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
-					if (li_profile!=null)
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
+					if (li_profile != null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
 					}				
@@ -964,7 +947,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			{
 				case Roi3D.POLYLINE:
 				case Roi3D.LINE_TRACE:
-					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
+					li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()), bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);
 					if (li_profile!=null)
 					{
 						val.lin_intensity_values = li_profile[1].clone();
@@ -1034,9 +1017,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;	
 			default:
 				val.direction = Roi3D.getNaNPoint();
-		}
-			
-		
+		}	
 	}
 	
 	double [][] measureLineProfile(final Roi3D roi, final boolean bMakePlot)
@@ -1053,7 +1034,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 				break;
 			case Roi3D.POLYLINE:
 			case Roi3D.LINE_TRACE:				
-				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()),btData.nInterpolatorFactory, bt.btData.shapeInterpolation);				
+				li_profile = ((AbstractCurve3D)roi).getIntensityProfilePipe(source, bt.btData.globCal, (int) Math.floor(0.5*roi.getLineThickness()), bt.btData.nInterpolatorFactory, bt.btData.shapeInterpolation);				
 				break;			
 		}
 		if (li_profile!=null && bMakePlot)
@@ -1102,7 +1083,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	{
 		final RealSum realSum = new RealSum();
 		
-		for(int i=0;i<values.length;i++)
+		for(int i = 0; i < values.length; i++)
 		{
 			realSum.add( values[i]);
 		}
@@ -1113,12 +1094,12 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	public static double getSDDoubleArray(final double mean, final double [] values)
 	{
 		final RealSum realSum = new RealSum();
-		for(int i=0;i<values.length;i++)
+		for(int i = 0; i < values.length; i++)
 		{
 			realSum.add((values[i]-mean)*(values[i]-mean));
 		}
 		
-		if(values.length==1)
+		if(values.length == 1)
 			return realSum.getSum();
 	
 		return Math.sqrt(realSum.getSum()/(values.length-1));
@@ -1233,7 +1214,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			
 			nExtractRoiType = extractBoxTypeList.getSelectedIndex();
 			Prefs.set("BigTrace.nExtractRoiType", nExtractRoiType);
-			if(nExtractRoiType==0)
+			if(nExtractRoiType == 0)
 			{
 				nExpandROIBox = 0;
 			}
@@ -1267,8 +1248,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			final ArrayList<Roi3D> roiOut = new ArrayList<>();
 			//single ROI
 			if(nExtractBoxROIList == 0)
-			{
-		
+			{		
 				roiOut.add(roiIn);
 			}
 			//all curve ROIs
@@ -1286,7 +1266,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			}
 			if(roiOut.size() > 0)
 			{		
-
 		        bt.bInputLock = true;
 		        bt.setLockMode(true);
 		        
@@ -1317,7 +1296,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		int nStraightenOutput = 0;
 		
 		NumberField nfRadius = new NumberField(4);
-		
 		
 		JPanel straightenSettings = new JPanel();
 		
@@ -1351,7 +1329,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		DecimalFormat df = new DecimalFormat("0.00", decimalFormatSymbols);
 		nfRadius.setText(df.format(Prefs.get("BigTrace.fRadiusStraighted", 5)));
 		cd.gridy++;
-		cd.gridx=0;
+		cd.gridx = 0;
 		straightenSettings.add(new JLabel("Override radius (px):"),cd);
 		cd.gridx++;
 		straightenSettings.add(nfRadius,cd);
@@ -1387,7 +1365,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			
 		}
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
 		String[] sStraightenOutput = { "show in ImageJ", "save as TIF" };
@@ -1396,14 +1374,14 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		straightenSettings.add(straightenOutputList,cd);
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("ROI Shape:"),cd);
 		cd.gridx++;
 		String[] sShapeInterpolationType = { "Voxel", "Smooth", "Spline"};
 		straightenSettings.add(new JLabel(sShapeInterpolationType[bt.btData.shapeInterpolation]),cd);
 		
 		cd.gridy++;
-		cd.gridx=0;	
+		cd.gridx = 0;	
 		straightenSettings.add(new JLabel("Intensity interpolation:"),cd);
 		cd.gridx++;
 		String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
@@ -1459,8 +1437,8 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//single ROI
 			if(nROIList == 0)
 			{
-				if(curveLine.vertices.size()<2)					
-				{
+				if(curveLine.vertices.size() < 2)					
+				{ 
 					IJ.log("Curve ROI must have more then two vertices.");
 					bt.btPanel.progressBar.setString("curve straightening aborted.");
 					return;
@@ -1470,18 +1448,21 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			//all curve ROIs
 			else
 			{
-				for (int nRoi = 0; nRoi<bt.roiManager.rois.size(); nRoi++)
+				for (int nRoi = 0; nRoi < bt.roiManager.rois.size(); nRoi++)
 				{
 					Roi3D roi = bt.roiManager.rois.get(nRoi);
 					if(bt.roiManager.groups.get(roi.getGroupInd()).bVisible)
 					{
 						if((roi.getType() == Roi3D.LINE_TRACE) || (roi.getType() == Roi3D.POLYLINE))
 						{
-							curvesOut.add((AbstractCurve3D) roi);
+							final AbstractCurve3D roiCurve = (AbstractCurve3D) roi;
+							if(roiCurve.vertices.size() >1 )
+							{
+								curvesOut.add( roiCurve );
+							}
 						}
 					}
-				}
-				
+				}		
 			}
 			if(curvesOut.size() > 0)
 			{			
@@ -1532,7 +1513,6 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	        splitBG.addPropertyChangeListener(bt.btPanel);
 	        splitBG.execute();
 		}
-
 	}
 	
 	
@@ -1589,7 +1569,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		}
 		
 		//Coalignment
-		if(e.getSource() == butLineAlignment && jlist.getModel().getSize()>0)
+		if(e.getSource() == butLineAlignment && jlist.getModel().getSize() > 0)
 		{
 			if(butMeasureFile.isSelected())
 			{
@@ -1614,7 +1594,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		//Extract box around ROI
 		if(e.getSource() == butExtractBox)
 		{
-			if (jlist.getSelectedIndex()>-1)
+			if (jlist.getSelectedIndex() > -1)
 			{				
 				dialExtractROIBox(bt.roiManager.rois.get(jlist.getSelectedIndex()));
 			}

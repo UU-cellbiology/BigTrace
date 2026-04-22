@@ -124,10 +124,10 @@ public class LineTrace3D extends AbstractCurve3D
 
 
 	@Override
-	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size) 
+	public void draw(final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT) 
 	{
-		verticesVis.draw(gl, pvm, screen_size, btdata);
-		segmentsVis.draw(gl, pvm, vm, btdata);	
+		verticesVis.draw(gl, pvm, screen_size, btdata, bWeightedOIT);
+		segmentsVis.draw(gl, pvm, vm, btdata, bWeightedOIT);	
 	}
 	
 	@Override
@@ -221,7 +221,7 @@ public class LineTrace3D extends AbstractCurve3D
 			for (iPoint = 0;iPoint<vertices.size();iPoint++)
 			{ 
 				vertices.get(iPoint).localize(vert);
-				for(i=0;i<3;i++)
+				for(i = 0; i < 3; i++)
 				{
 					writer.write(df3.format(vert[i])+",");
 				}
@@ -396,6 +396,7 @@ public class LineTrace3D extends AbstractCurve3D
 		}
 		return dMinDist;
 	}
+	
 
 }
 

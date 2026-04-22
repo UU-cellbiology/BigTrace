@@ -53,7 +53,6 @@ import bigtrace.rois.ColorUserSettings;
 import bigtrace.rois.RoiManager3D;
 import bigtrace.tracks.TrackingPanel;
 import bigtrace.volume.ExtractClip;
-
 import ij.Prefs;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
@@ -76,7 +75,6 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	private static final long serialVersionUID = -8992158095263652259L;
 	
 	BigTrace<T> bt;
-	BigTraceData<T> btdata;	
 	
 	public ClipPanel clipPanel;	
 	public VoxelSizePanel voxelSizePanel;
@@ -84,7 +82,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	
 	
 	final RoiManager3D<T> roiManager;
-	final RoiMeasure3D<T> roiMeasure;
+	final public RoiMeasure3D<T> roiMeasure;
 	TrackingPanel<T> btTracksPanel;
 	public AnimationPanel btAniPanel;
 
@@ -101,14 +99,13 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	public ColorUserSettings selectColors = new ColorUserSettings();
 
 	
-	public BigTraceControlPanel(final BigTrace<T> bt_,final BigTraceData<T> btd_, final RoiManager3D<T> roiManager_)//, int locx, int locy) 
+	public BigTraceControlPanel(final BigTrace<T> bt_) 
 	{
 	
 		super(new GridBagLayout());
 
-		btdata = btd_;
 		bt = bt_;		
-		roiManager = roiManager_;
+		roiManager = bt.roiManager;
 		roiMeasure = new RoiMeasure3D<>(bt);
 		btTracksPanel = new TrackingPanel<>(bt);
 		roiManager.setRoiMeasure3D(roiMeasure);
@@ -149,17 +146,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	    icon_path = this.getClass().getResource("/bt_icons/shortcut.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    tabPane.addTab("",tabIcon ,panelInformation(),"Help/Shortcuts");
-
-	    roiManager.addRoiManager3DListener(new RoiManager3D.Listener() {
-
-			@Override
-			public void activeRoiChanged(int nRoi) {
-				//render_pl();
-			}
-	    	
-	    });
-	    
-	    
+	    	    
 	    tabPane.setSize(350, 300);
 	    tabPane.setSelectedIndex(1);
 
@@ -212,7 +199,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		
 		//VOXEL SIZE PANEL		
-		voxelSizePanel = new VoxelSizePanel(bt.btData.globCal, btdata.sVoxelUnit);
+		voxelSizePanel = new VoxelSizePanel(bt.btData.globCal, bt.btData.sVoxelUnit);
 		voxelSizePanel.addVoxelSizePanelListener(new VoxelSizePanel.Listener() {
 			
 			@Override
@@ -227,7 +214,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		}
 		
 		//CLIPPING PANEL
-		clipPanel = new ClipPanel(btdata.nDimIni[1]);
+		clipPanel = new ClipPanel(bt.btData.nDimIni[1]);
 		
 		clipPanel.addClipPanelListener(new ClipPanel.Listener() {
 			@Override
@@ -239,11 +226,11 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			@Override
 			public void itemStateChanged(ItemEvent e) {
-				if(e.getStateChange()==ItemEvent.SELECTED){
-					btdata.bClipBox = true;
+				if(e.getStateChange() == ItemEvent.SELECTED){
+					bt.btData.bClipBox = true;
 					bt.repaintBVV();
-				} else if(e.getStateChange()==ItemEvent.DESELECTED){
-					btdata.bClipBox = false;
+				} else if(e.getStateChange() == ItemEvent.DESELECTED){
+					bt.btData.bClipBox = false;
 					bt.repaintBVV();
 				}
 			}
@@ -253,10 +240,10 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			@Override
 			public void itemStateChanged(ItemEvent e) {
-				if(e.getStateChange()==ItemEvent.SELECTED){
+				if(e.getStateChange() == ItemEvent.SELECTED){
 					bt.btData.nClipROI = 1;
 					bt.repaintBVV();
-				} else if(e.getStateChange()==ItemEvent.DESELECTED){
+				} else if(e.getStateChange() == ItemEvent.DESELECTED){
 					bt.btData.nClipROI = 0;
 					bt.repaintBVV();
 				}
@@ -273,17 +260,17 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		URL icon_path = this.getClass().getResource("/bt_icons/orig.png");
 	    ImageIcon tabIcon = new ImageIcon(icon_path);
 	    JToggleButton butOrigin = new JToggleButton(tabIcon);
-	    butOrigin.setSelected(btdata.bShowOrigin);
+	    butOrigin.setSelected(bt.btData.bShowOrigin);
 	    butOrigin.setToolTipText("Show XYZ axes");
 	    butOrigin.addItemListener(new ItemListener() {
 	
 	    @Override
 		public void itemStateChanged(ItemEvent e) {
 	    	      if(e.getStateChange() == ItemEvent.SELECTED){
-	    	    	  btdata.bShowOrigin = true;
+	    	    	  bt.btData.bShowOrigin = true;
 	    	    	  bt.repaintBVV();
 	    	        } else if(e.getStateChange() == ItemEvent.DESELECTED){
-	    	        	btdata.bShowOrigin = false;
+	    	        	bt.btData.bShowOrigin = false;
 	    	        	bt.repaintBVV();
 	    	        }
 			}
@@ -296,17 +283,17 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		icon_path = this.getClass().getResource("/bt_icons/boxvolume.png");
 	    tabIcon = new ImageIcon(icon_path);
 	    JToggleButton butVBox = new JToggleButton(tabIcon);
-	    butVBox.setSelected(btdata.bVolumeBox);
+	    butVBox.setSelected(bt.btData.bVolumeBox);
 	    butVBox.setToolTipText("Volume Box");
 	    butVBox.addItemListener(new ItemListener() {
 	
 	    @Override
 		public void itemStateChanged(ItemEvent e) {
 	    	      if(e.getStateChange() == ItemEvent.SELECTED){
-	    	    	  btdata.bVolumeBox = true;
+	    	    	  bt.btData.bVolumeBox = true;
 	    	    	  bt.repaintBVV();
 	    	        } else if(e.getStateChange()==ItemEvent.DESELECTED){
-	    	        	btdata.bVolumeBox = false;
+	    	        	bt.btData.bVolumeBox = false;
 	    	        	bt.repaintBVV();
 	    	        }
 			}
@@ -357,14 +344,14 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	    JPanel panRender=new JPanel(new GridBagLayout()); 
 	    panRender.setBorder(new PanelTitle(" Render "));
 		
-	    c.gridx=0;
-	    c.gridy=0;
-	    c.weightx=1.0;
-	    c.fill=GridBagConstraints.HORIZONTAL;
+	    c.gridx = 0;
+	    c.gridy = 0;
+	    c.weightx = 1.0;
+	    c.fill = GridBagConstraints.HORIZONTAL;
 	    panRender.add(renderMethodPanel,c);
 		
 		//Voxel size panel
-	    JPanel panVoxel=new JPanel(new GridBagLayout()); 
+	    JPanel panVoxel = new JPanel(new GridBagLayout()); 
 	    if(bt.bApplyLLSTransform)
 	    {
 	    	panVoxel.setBorder(new PanelTitle(" Voxel size (LLS transformed) "));
@@ -382,7 +369,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		
 		//Clipping Panel
-		JPanel panClip=new JPanel(new GridBagLayout()); 
+		JPanel panClip = new JPanel(new GridBagLayout()); 
 		panClip.setBorder(new PanelTitle(" Clipping "));
 
 	    c.gridx = 0;
@@ -414,9 +401,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	    //Clipping
 	    c.gridy++;	
 	    panNavigation.add(panClip,c);
-	    
-
-	    
+ 
         // Blank/filler component
 	    c.gridx++;
 	    c.gridy++;
@@ -424,8 +409,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
         c.weighty = 0.01;
         panNavigation.add(new JLabel(), c);
 
-		return panNavigation;
-		
+		return panNavigation;		
 	}
 	
 	public void dialSaveView()
@@ -448,7 +432,6 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	{
 		String filename;
 		
-
 		OpenDialog openDial = new OpenDialog("Load View/settings",bt.btData.lastDir, "*.csv");
 		
         String path = openDial.getDirectory();
@@ -487,6 +470,15 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		JCheckBox cbStartFullScreen = new JCheckBox();
 		cbStartFullScreen.setSelected(bt.btData.bStartFullScreen);
+
+		JCheckBox cbShowScaleBar = new JCheckBox();
+		cbShowScaleBar.setSelected(bt.btData.bShowScaleBar);
+		
+		JCheckBox cbShowMultiBox = new JCheckBox();
+		cbShowMultiBox.setSelected(bt.btData.bShowMultiBox);
+		
+		JCheckBox cbShowAxisOverlay = new JCheckBox();
+		cbShowAxisOverlay.setSelected(bt.btData.bShowAxisOverlay);
 		
 		JCheckBox cbLazyLoadTIFF = new JCheckBox();
 		cbLazyLoadTIFF.setSelected(bt.btData.bUseLazyLoadForTiff);
@@ -500,8 +492,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		nfAnimationDuration.setText(Long.toString(bt.btData.nAnimationDuration));
 		
 		JCheckBox cbZoomClip = new JCheckBox();
-		cbZoomClip.setSelected(bt.btData.bZoomClip);
-		
+		cbZoomClip.setSelected(bt.btData.bZoomClip);		
 		
 		NumberField nfZoomBoxSize = new NumberField(4);
 		nfZoomBoxSize.setIntegersOnly(true);
@@ -521,8 +512,8 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		NumberField nfClipFar = new NumberField(4);
 		nfClipFar.setText(df3.format(bt.btData.dClipFar));
 	
-		cd.gridx=0;
-		cd.gridy=0;	
+		cd.gridx = 0;
+		cd.gridy = 0;	
 		GBCHelper.alighLoose(cd);
 		
 		pViewSettings.add(new JLabel("Background color: "),cd);
@@ -534,6 +525,24 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		pViewSettings.add(new JLabel("Start in full screen mode: "),cd);
 		cd.gridx++;
 		pViewSettings.add(cbStartFullScreen,cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show scale bar: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowScaleBar, cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show MultiBox: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowMultiBox, cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pViewSettings.add(new JLabel("Show axis gizmo: "),cd);
+		cd.gridx++;
+		pViewSettings.add(cbShowAxisOverlay, cd);
 
 		cd.gridx = 0;
 		cd.gridy++;
@@ -583,13 +592,12 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		cd.gridx=0;
 		cd.gridy++;
-		cd.gridwidth=2;
+		cd.gridwidth = 2;
 		cd.anchor = GridBagConstraints.CENTER;
 		pViewSettings.add(new JLabel("<html>----  <B>Perspective</B>  ----</html>"),cd);
-		cd.gridwidth=1;
+		cd.gridwidth = 1;
 		cd.anchor = GridBagConstraints.WEST;
-		
-		
+			
 		cd.gridx=0;
 		cd.gridy++;
 		pViewSettings.add(new JLabel("Camera position: "),cd);
@@ -625,9 +633,20 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			bt.btData.bStartFullScreen = cbStartFullScreen.isSelected();
 			Prefs.set("BigTrace.bStartFullScreen", bt.btData.bStartFullScreen );
 			
+			bt.btData.bShowScaleBar = cbShowScaleBar.isSelected();
+			Prefs.set("BigTrace.bShowScaleBar", bt.btData.bShowScaleBar);
+			bdv.util.Prefs.showScaleBar(bt.btData.bShowScaleBar);
+			
+			bt.btData.bShowMultiBox = cbShowMultiBox.isSelected();
+			Prefs.set("BigTrace.bShowMultiBox", bt.btData.bShowMultiBox);
+			bdv.util.Prefs.showMultibox( bt.btData.bShowMultiBox );
+
+			bt.btData.bShowAxisOverlay = cbShowAxisOverlay.isSelected();
+			Prefs.set("BigTrace.bShowAxisOverlay", bt.btData.bShowAxisOverlay);
+			bt.axisOverlay.setEnabled( bt.btData.bShowAxisOverlay );
+			
 			bt.btData.bUseLazyLoadForTiff = cbLazyLoadTIFF.isSelected();
 			Prefs.set("BigTrace.bUseLazyLoadForTiff", bt.btData.bUseLazyLoadForTiff );
-
 			
 			bt.btData.nHalfClickSizeWindow = (int)(0.5*Integer.parseInt(nfClickArea.getText()));
 			Prefs.set("BigTrace.nHalfClickSizeWindow",bt.btData.nHalfClickSizeWindow);
@@ -662,7 +681,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		Prefs.set("BigTrace.dCam", bt.btData.dCam);
 		Prefs.set("BigTrace.dClipNear", bt.btData.dClipNear);
 		Prefs.set("BigTrace.dClipFar", bt.btData.dClipFar);
-		bt.viewer.setCamParams(bt.btData.dCam, bt.btData.dClipNear, bt.btData.dClipFar);
+		bt.bvvViewer.setCamParams(bt.btData.dCam, bt.btData.dClipNear, bt.btData.dClipFar);
 	}
 	
 	public void setCanvasBGColor(final Color bgColor)
@@ -670,8 +689,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		bt.btData.canvasBGColor = new Color(bgColor.getRed(),bgColor.getGreen(),bgColor.getBlue(),bgColor.getAlpha());
 		selectColors.setColor(null, 0);
 		Prefs.set("BigTrace.canvasBGColor", bgColor.getRGB());
-
-		bt.visualBoxes.setColor( BigTraceData.getInvertedColor(bgColor) );
+		final Color invColor = BigTraceData.getInvertedColor(bgColor);
+		bt.visualBoxes.setColor( invColor );
+		bt.bvvViewer.setOverlayTextColor( invColor );
 
 	}
 	
@@ -837,14 +857,14 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		
 		// not sure we really need to check it, but just in case...
 		boolean bWithinRange = true;
-		for(i=0;i<3;i++)
+		for(i = 0; i < 3; i++)
 		{
-			if(box[0][i]<btdata.nDimIni[0][i])
+			if(box[0][i] < bt.btData.nDimIni[0][i])
 			{
 				bWithinRange = false;
 				break;
 			}
-			if(box[1][i]>btdata.nDimIni[1][i])
+			if(box[1][i] > bt.btData.nDimIni[1][i])
 			{
 				bWithinRange = false;
 				break;
@@ -857,7 +877,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		{
 			for(int j = 0; j < 2; j++)
 			{
-				if(bt.btData.nDimCurr[j][i]!=box[j][i])
+				if(bt.btData.nDimCurr[j][i] != box[j][i])
 				{
 					bNewOne = true;
 					break;
@@ -871,10 +891,9 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		{
 				for(i = 0; i < 3; i++)
 				{
-					bt.btData.nDimCurr[0][i]=box[0][i];
-					bt.btData.nDimCurr[1][i]=box[1][i];
-				}
-				
+					bt.btData.nDimCurr[0][i] = box[0][i];
+					bt.btData.nDimCurr[1][i] = box[1][i];
+				}				
 				updateViewDataSources();
 			}
 	}
@@ -883,14 +902,13 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	/** updates data sources/bvvsources to the current state**/
 	public void updateViewDataSources()
 	{
-
 		//update bvv sources clipped view
 		double [][] doubleClip = new double [2][3];
 		for (int d = 0; d < 3; d++)
 			for(int j = 0; j < 2; j++)
 				doubleClip[j][d] = bt.btData.nDimCurr[j][d];
 
-		final FinalRealInterval clipInt = new FinalRealInterval(doubleClip[0],doubleClip[1]);
+		final FinalRealInterval clipInt = new FinalRealInterval(doubleClip[0], doubleClip[1]);
 		
 		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{
@@ -908,7 +926,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 				
 		final AffineTransform3D newtransform = new AffineTransform3D();
 		
-		bt.viewer.state().getViewerTransform(transform);
+		bt.bvvViewer.state().getViewerTransform(transform);
 		
 		double[] scaleChange = new double [3];
 		
@@ -935,17 +953,17 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		}
 		newtransform.set(m);
 		
-		AffineTransform3D final_transform = bt.getCenteredViewTransform(newtransform, btdata.getDataCurrentSourceClipped(), 1.0);
-		bt.viewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform, final_transform, btdata.nAnimationDuration));
+		AffineTransform3D final_transform = bt.getCenteredViewTransform(newtransform, bt.btData.getDataCurrentSourceClipped(), 1.0);
+		bt.bvvViewer.setTransformAnimator(new AnisotropicTransformAnimator3D(transform, final_transform, bt.btData.nAnimationDuration));
 		//recalculate ROI shapes
 		bt.roiManager.updateROIsDisplay();
 	}
 	
 	public void setRenderMethod(int nRenderType)
 	{
-		btdata.nRenderMethod = nRenderType;
+		bt.btData.nRenderMethod = nRenderType;
 	
-		Prefs.set("BigTrace.nRenderMethod",btdata.nRenderMethod);
+		Prefs.set("BigTrace.nRenderMethod", bt.btData.nRenderMethod);
 		
 		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{
@@ -955,19 +973,19 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			bt.bvv_trace.setRenderType(nRenderType);
 		if(nRenderType == BigTraceData.DATA_RENDER_VOLUMETRIC)
 		{
-			bt.viewer.showMessage("volumetric");
+			bt.bvvViewer.showMessage("volumetric");
 		}
 		if(nRenderType == BigTraceData.DATA_RENDER_MAX_INT)
 		{
-			bt.viewer.showMessage("maximum intensity");
+			bt.bvvViewer.showMessage("maximum intensity");
 		}				
 	}
 
 	public void setVolumeLight(int nVolumeLight)
 	{
-		btdata.nVolumeLight = nVolumeLight;
+		bt.btData.nVolumeLight = nVolumeLight;
 	
-		Prefs.set("BigTrace.nVolumeLight", btdata.nVolumeLight);
+		Prefs.set("BigTrace.nVolumeLight", bt.btData.nVolumeLight);
 		
 		for(int i = 0; i < bt.bvv_sources.size(); i++)
 		{

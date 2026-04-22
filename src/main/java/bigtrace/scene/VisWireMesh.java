@@ -606,7 +606,7 @@ public class VisWireMesh {
 		return true; 
 	}
 
-	public void draw( final GL3 gl, final Matrix4fc pvm, Matrix4fc vm, final BigTraceData<?> btdatain )
+	public void draw( final GL3 gl, final Matrix4fc pvm, final Matrix4fc vm, final BigTraceData<?> btdatain, final boolean bWeightedOIT )
 	{
 		
 		while (bLocked)
@@ -631,12 +631,9 @@ public class VisWireMesh {
 		}
 		bLocked = false;
 
-		if(nPointsN>1)
-		{
-			
-			JoglGpuContext context = JoglGpuContext.get( gl );
-			
-			gl.glDepthFunc( GL.GL_LESS);
+		if(nPointsN > 1)
+		{			
+			final JoglGpuContext context = JoglGpuContext.get( gl );
 			
 			if(renderType == Roi3D.SURFACE)
 			{
@@ -652,15 +649,9 @@ public class VisWireMesh {
 				progMesh.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
 				progMesh.getUniform1i("silType").set(btdatain.silhouetteRender);
 				progMesh.getUniform1f("silDecay").set((float)btdatain.silhouetteDecay);
+				progMesh.getUniform1i("wOIT").set(bWeightedOIT?1:0);
 				progMesh.setUniforms( context );
 				progMesh.use( context );
-				if(btdata.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && btdatain.silhouetteRender == BigTraceData.silhouette_TRANSPARENT)
-				{
-					gl.glDepthFunc( GL.GL_ALWAYS);
-				}
-
-				//gl.glEnable(GL.GL_BLEND);
-				//gl.glBlendFunc(GL3.GL_SRC_ALPHA, GL3.GL_ONE_MINUS_SRC_ALPHA); 
 				
 				gl.glBindVertexArray( vaosMesh[0] );			
 				gl.glDrawElements( GL_TRIANGLES, ( int ) nMeshTrianglesSize * 3, GL_UNSIGNED_INT, 0 );
@@ -669,9 +660,7 @@ public class VisWireMesh {
 			else
 			{
 				if(btdatain.wireAntiAliasing)
-				{
-				    gl.glDepthFunc( GL.GL_ALWAYS);
-				    
+				{				    
 					if(renderType == Roi3D.OUTLINE)
 					{
 						centerLine.draw( gl, pvm, btdatain );
@@ -691,16 +680,15 @@ public class VisWireMesh {
 					progLine.getUniformMatrix4f( "pvm" ).set( pvm );
 					progLine.getUniform4f("colorin").set(l_color);
 					progLine.getUniform1i("clipactive").set(btdatain.nClipROI);
-					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
-					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
+					progLine.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0], btdatain.nDimCurr[0][1], btdatain.nDimCurr[0][2]));
+					progLine.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0], btdatain.nDimCurr[1][1], btdatain.nDimCurr[1][2]));
+					progLine.getUniform1i("wOIT").set(bWeightedOIT?1:0);
 					progLine.setUniforms( context );
 					progLine.use( context );		
 					gl.glBindVertexArray( vaosWire[ 0 ] );	
-					
-					//			gl.glDepthFunc(GL3.GL_ALWAYS);
 					if(renderType == Roi3D.OUTLINE)
 					{
-						gl.glLineWidth(fLineThickness);
+						gl.glLineWidth( fLineThickness );
 						gl.glDrawArrays( GL.GL_LINE_STRIP, 0, nPointsN);
 					}
 					
@@ -715,7 +703,6 @@ public class VisWireMesh {
 						for(nPointIt = 0; nPointIt < nPointsN; nPointIt += btdatain.wireCountourStep)
 						{
 							gl.glDrawArrays( GL.GL_LINE_LOOP, nPointIt * nSectorN, nSectorN);
-							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 						//the last contour
 						if((nPointIt - btdatain.wireCountourStep) != (nPointsN-1))
@@ -728,14 +715,12 @@ public class VisWireMesh {
 						for(nPointIt = 0; nPointIt < nSectorN; nPointIt += 1)
 						{
 							gl.glDrawArrays( GL.GL_LINE_STRIP, nShift + nPointIt * nPointsN, nPointsN);
-							//gl.glDrawArrays( GL.GL_LINE_LOOP, nSectorN, nSectorN);
 						}
 					}
 					gl.glBindVertexArray( 0 );	
 				}
 				
 			}
-			gl.glDepthFunc( GL.GL_LESS);
 		}
 	}
 	

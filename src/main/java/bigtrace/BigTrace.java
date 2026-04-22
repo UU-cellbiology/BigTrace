@@ -1,22 +1,36 @@
 package bigtrace;
 
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Desktop;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
+import static com.jogamp.opengl.GL.GL_RGBA8;
 
 import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
@@ -25,6 +39,7 @@ import com.jogamp.opengl.GL3;
 
 import ij.IJ;
 import ij.ImageJ;
+import ij.Prefs;
 import ij.macro.ExtensionDescriptor;
 import ij.macro.Functions;
 import ij.macro.MacroExtension;
@@ -63,13 +78,16 @@ import bvvpg.vistools.BvvGamma;
 import bvvpg.source.converters.GammaConverterSetup;
 import bvvpg.core.VolumeViewerFrame;
 import bvvpg.core.VolumeViewerPanel;
+import bvvpg.core.offscreen.OffScreenFrameBufferWithDepth;
 import bvvpg.core.util.MatrixMath;
 import bigtrace.animation.Scene;
 import bigtrace.geometry.Cuboid3D;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
+import bigtrace.gui.AxesOverlayRenderer;
 import bigtrace.gui.GuiMisc;
+import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
 import bigtrace.io.ViewsIO;
 import bigtrace.math.OneClickTrace;
@@ -85,7 +103,7 @@ import bigtrace.volume.VolumeMisc;
 public class BigTrace < T extends RealType< T > & NativeType< T > > implements PlugIn, MacroExtension, TimePointListener
 {
 	/** main instance of BVV **/
-	public BvvStackSource< ? > bvv_main = null;
+	public BvvHandleFrame bvvHandle = null;
 	
 	/** BVV sources used for the volume visualization **/
 	public ArrayList<BvvStackSource< ? >> bvv_sources = new ArrayList<>();
@@ -109,10 +127,16 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public AffineTransform3D afDataTransform = new AffineTransform3D();
 
 	/** Panel of BigVolumeViewer **/
-	public VolumeViewerPanel viewer;
+	public VolumeViewerPanel bvvViewer;
 
 	/** Frame of BigVolumeViewer **/
 	public VolumeViewerFrame bvvFrame;
+	
+	/** separate framebuffer for the transparent rendering **/
+	OffScreenFrameBufferWithDepth sceneBufTransparent = null;
+
+	/** XYZ axis rotation gizmo **/
+	final public AxesOverlayRenderer axisOverlay = new AxesOverlayRenderer();
 	
 	/** flag to check if user interface is frozen.
 	 * It should be modified only in the main thread (or in done method of SwingWorker,
@@ -136,7 +160,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public BigTraceControlPanel<T> btPanel;
 	
 	/** BigTrace main actions **/
-	BigTraceActions<T> btActions;
+	public BigTraceActions<T> btActions;
 	
 	/** ROI manager + list tab **/
 	public RoiManager3D<T> roiManager;
@@ -161,7 +185,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			Functions.registerExtensions(this);
 			IJ.log("Started BigTrace v." + BigTraceData.sVersion + " in macro mode.");			
 		}	
-		
+
 		//switch to FlatLaf theme		
 		try {
 		    UIManager.setLookAndFeel( new FlatIntelliJLaf() );
@@ -169,6 +193,54 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		    FlatIntelliJLaf.setup();
 		} catch( Exception ex ) {
 		    System.err.println( "Failed to initialize LaF" );
+		}
+		
+		//update site warning
+		if(!btMacro.bMacroMode)
+		{
+			if(Prefs.get( "BigTrace.bUpdateSiteNotice", true ))
+			{
+				JPanel pWarning = new JPanel(new GridBagLayout());
+				
+				String message  = "<html>BigTrace moved to a new, its own update site (listed in FIJI update window)!<br/>";
+				message = message + "This release (0.9.0) is the last release on Ekatrukha update site.</html>";
+				JLabel hyperlink = new JLabel("Please follow new installation intructions");
+				hyperlink.setForeground(Color.BLUE.darker());
+				hyperlink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+				hyperlink.addMouseListener(new MouseAdapter() {
+					@Override
+					public void mouseClicked(MouseEvent e) 
+					{
+						try
+						{
+							Desktop.getDesktop().browse(new URI("https://github.com/UU-cellbiology/BigTrace/wiki/How-to-install-plugin"));
+						}
+						catch ( IOException | URISyntaxException exc )
+						{
+							exc.printStackTrace();
+						}
+
+					}
+				});
+				String[] options = {"OK"};
+//				IJ.showMessage( "IMPORTANT! UPDATE SITE CHANGES", "For the future releases BigTrace moves to its own update site!\n"
+//						+ "This release (0.9.0) is the last release on Ekatrukha update site!\n"
+//						+ "Please add https://sites.imagej.net/BigTrace/ to enable future updates!" );
+				
+				GridBagConstraints gbc = new GridBagConstraints();
+				gbc.insets = new Insets(8,0,8,0);
+				gbc.gridx = 0;
+				gbc.gridy = 0;
+				pWarning.add( new JLabel(message), gbc );
+				gbc.insets = new Insets(0,0,0,0);
+				gbc.gridy++;
+				pWarning.add( hyperlink, gbc );
+				Prefs.set( "BigTrace.bUpdateSiteNotice", false );
+				
+				JOptionPane.showOptionDialog(null, pWarning, "IMPORTANT! UPDATE SITE CHANGES", 
+						JOptionPane.PLAIN_MESSAGE, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+			}
 		}
 		
 		btData = new BigTraceData<>(this);
@@ -182,9 +254,32 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			btData.sFileNameFullImg = arg;
 		}
+
+		sceneBufTransparent = new OffScreenFrameBufferWithDepth( btData.renderParams.renderWidth, btData.renderParams.renderHeight, GL_RGBA8, false); 
+	
+		loadSources();
+		
+		roiManager = new RoiManager3D<>(this);
+		
+		initSourcesCanvas(true);
 		
 		if(btMacro.bMacroMode)
-			IJ.log("Opening file " + btData.sFileNameFullImg + ".");
+		{
+			btMacro.enqueue( () -> 
+			{
+				 createAndShowGUI();				
+			});
+		}
+		else
+		{
+			TaskBT.runOnEDTAndWait( () -> createAndShowGUI());		
+		}
+		
+	}
+	public void loadSources()
+	{
+		if(btMacro.bMacroMode)
+			IJ.log("BigTrace macro: opening file " + btData.sFileNameFullImg + ".");
 		if(btData.sFileNameFullImg == null)
 			return;
 		btData.lastDir = Paths.get(btData.sFileNameFullImg ).getParent().toString();
@@ -225,23 +320,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			}
 		}	
 
-		roiManager = new RoiManager3D<>(this);
-		
-		initSourcesCanvas(0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2])));
-		if(!btMacro.bMacroMode)
-		{
-	        javax.swing.SwingUtilities.invokeLater( () -> createAndShowGUI());
-		}
-		else
-		{
-			createAndShowGUI();
-		}
-		
-
 	}
-		
+			
 	public void initOriginAndBox(double axis_length)
 	{
+		originVis.clear();
 		int i;
 		//basis vectors 
 		RealPoint basis = new RealPoint(-0.1 * axis_length, -0.1 * axis_length,-0.1 * axis_length);				
@@ -253,7 +336,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			basis.move(axis_length, i);
 			//origin_data.addPointToActive(basis);
 			point_coords.add(new RealPoint(basis));
-			basis.move((-1.0)*axis_length, i);
+			basis.move((-1.0) * axis_length, i);
 			float [] color_orig = new float[3];
 			color_orig[i] = 1.0f;
 			originVis.add(new VisPolyLineAA( point_coords, 5.0f,new Color(color_orig[0],color_orig[1],color_orig[2])));						
@@ -265,8 +348,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			//why is this shift?! I don't know,
 			// but looks better like this
-			nDimBox[0][i] = btData.nDimIni[0][i]-0.5f;
-			nDimBox[1][i] = btData.nDimIni[1][i]+0.5f;
+			nDimBox[0][i] = btData.nDimIni[0][i] - 0.5f;
+			nDimBox[1][i] = btData.nDimIni[1][i] + 0.5f;
 		} 
 		
 		visualBoxes = new VisualBoxes(this);
@@ -278,9 +361,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	}
 	
-	public void initSourcesCanvas(double origin_axis_length)
+	public void initSourcesCanvas(boolean bInitCanvas)
 	{
 		
+		final double origin_axis_length = 0.25 * Math.min(btData.nDimIni[1][0], Math.min(btData.nDimIni[1][1],btData.nDimIni[1][2]));
 		initOriginAndBox(origin_axis_length);
 	
 		if(btData.bSpimSource)
@@ -291,27 +375,35 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			initBVVSourcesImageJ();
 		}
-		
-		viewer = bvv_main.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene(this::renderScene);
-		
-		btActions  = new BigTraceActions<>(this);
+		if(bInitCanvas)
+		{
+			bvvViewer = bvvHandle.getViewerPanel();
+			bvvViewer.setRenderScene( this::renderOpaque );
+			bvvViewer.setRenderSceneTransparent( this::renderTransparent );
+			
+			btActions = new BigTraceActions<>( this );
+			bvvViewer.timePointListeners().add( this );
+			axisOverlay.bindViewer( bvvViewer );
+			bvvViewer.getDisplay().overlays().add( axisOverlay );
+			axisOverlay.setEnabled( btData.bShowAxisOverlay );
+		}
 		setInitialTransform();
-		viewer.addTimePointListener(this);
+
 	}
 	
 	
 	private void createAndShowGUI() 
 	{
-		btPanel = new BigTraceControlPanel<>(this, btData,roiManager);
+		btPanel = new BigTraceControlPanel<>(this);
 		btPanel.finFrame = new JFrame("BigTrace");
 		btPanel.finFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		
-		bvvFrame = ((BvvHandleFrame)bvv_main.getBvvHandle()).getBigVolumeViewer().getViewerFrame();
+		bvvFrame = bvvHandle.getBigVolumeViewer().getViewerFrame();
 		
 		bvvFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
 		btPanel.finFrame.add(btPanel);
+		
 		
         //Display the window.
 		btPanel.finFrame.setSize(430,600);
@@ -350,11 +442,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{	
 			btPanel.makeFullScreen();
 		}
+		btMacro.bMacroMode = false;
 	}
 		
 	public void closeWindows()
 	{
-		viewer.stop();
+		bvvViewer.stop();
 		bvvFrame.dispose();		
 		btPanel.finFrame.dispose();
 	}
@@ -363,7 +456,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		if(!bInputLock && !bTraceMode)
 		{
-			viewer.setTransformAnimator(getCenteredViewAnim(interval_in,btData.dZoomBoxScreenFraction));
+			bvvViewer.setTransformAnimator(getCenteredViewAnim(interval_in,btData.dZoomBoxScreenFraction));
 		}
 	}
 	
@@ -391,7 +484,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		IntervalView<?> traceInterval = Views.interval(traceIV, rangeTraceBox);
 		
 		//getCenteredView(traceInterval);
-		viewer.setTransformAnimator(getCenteredViewAnim(traceInterval,btData.fTraceBoxScreenFraction));
+		bvvViewer.setTransformAnimator(getCenteredViewAnim(traceInterval,btData.fTraceBoxScreenFraction));
 		//long start1, end1;
 		
 
@@ -470,7 +563,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 		
 	public synchronized void setLockMode(boolean bLockMode)
-	{	 		 
+	{	 		 		
+		TaskBT.runOnEDT( () -> 
+		{
 		 	 boolean bState = !bLockMode;
 
 		 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
@@ -482,6 +577,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
 		 	 //keep it on
 		 	 roiManager.butShowAll.setEnabled(true);
+		});
 	}
 	
 	/** turn on Trace Box mode **/
@@ -561,8 +657,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		}
 		
 		//current window dimensions
-		final int sW = viewer.getWidth();
-		final int sH = viewer.getHeight();
+		final int sW = bvvViewer.getWidth();
+		final int sH = bvvViewer.getHeight();
 		
 		//current view transform
 		final AffineTransform3D transform = ini_transform.copy();//new AffineTransform3D(ini_transform);
@@ -613,7 +709,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		final AffineTransform3D transform = new AffineTransform3D();
 		
-		viewer.state().getViewerTransform(transform);
+		bvvViewer.state().getViewerTransform(transform);
 		
 		return getCenteredViewTransform(transform, inInterval, zoomFraction);
 	}
@@ -621,7 +717,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public AnisotropicTransformAnimator3D getCenteredViewAnim(final Interval inInterval, double zoomFraction)
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
-		viewer.state().getViewerTransform(transform);
+		bvvViewer.state().getViewerTransform(transform);
 		
 		final AffineTransform3D transform_scale = getCenteredViewTransform(inInterval,zoomFraction);
 		
@@ -652,7 +748,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			
 		}
 
-		bvv_trace = BvvFunctions.show(btData.trace_weights, "weights", Bvv.options().addTo(bvv_main));
+		bvv_trace = BvvFunctions.show(btData.trace_weights, "weights", Bvv.options().addTo(bvvHandle));
 		bvv_trace.setCurrent();
 		bvv_trace.setRenderType(btData.nRenderMethod);
 		bvv_trace.setDisplayRangeBounds(0, 255);
@@ -682,9 +778,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_trace.removeFromBdv();
 			System.gc();
 		}
-		bvv_trace=null;
+		bvv_trace = null;
 		//handl.setDisplayMode(DisplayMode.SINGLE);
-		if(btData.nTraceBoxView==1)
+		if(btData.nTraceBoxView == 1)
 		{
 			btData.bcTraceChannel.setBC(bvv_sources.get(btData.nChAnalysis));
 		}
@@ -699,8 +795,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//let's save current view
 		if(bStatus)
 		{
-			viewer.state().getViewerTransform(btData.transformBeforeTracing);
-			viewer.showMessage("TraceBox mode on");
+			bvvViewer.state().getViewerTransform(btData.transformBeforeTracing);
+			bvvViewer.showMessage("TraceBox mode on");
 			//disable time slider
 			//panel.setNumTimepoints(1);
 			//transformBeforeTracing.set(panel.);
@@ -710,100 +806,138 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		else
 		{
 			final AffineTransform3D transform = new AffineTransform3D();
-			viewer.state().getViewerTransform(transform);
+			bvvViewer.state().getViewerTransform(transform);
 			final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(transform,btData.transformBeforeTracing,1500);
-			viewer.setTransformAnimator(anim);
-			viewer.showMessage("TraceBox mode off");
+			bvvViewer.setTransformAnimator(anim);
+			bvvViewer.showMessage("TraceBox mode off");
 
 		}
 	}
 
 
-	public void renderScene(final GL3 gl, final RenderData data)
+	public void renderOpaque(final GL3 gl, final RenderData data)
 	{
-		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 0.0f);
+		gl.glClearColor(btData.canvasBGColor.getRed()/255.0f, btData.canvasBGColor.getGreen()/255.0f, btData.canvasBGColor.getBlue()/255.0f, 1.0f);
+		//clear buffer with color
 		gl.glClear(GL.GL_COLOR_BUFFER_BIT);
-		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};
-		//handl.setRenderScene( ( gl, data ) -> {
+		gl.glDepthFunc( GL.GL_LESS );
+		gl.glEnable( GL.GL_BLEND );
+		gl.glBlendFunc( GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA );
 		
+		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
 		final Matrix4f pvm = new Matrix4f( data.getPv() );
 		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
 		final Matrix4f camview = MatrixMath.screen( btData.dCam, screen_size[0], screen_size[1], new Matrix4f() ).mul( view );
-
 		
 		//to be able to change point size in shader
 		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
 		
 		synchronized (roiManager)
 		{
-			roiManager.draw(gl, pvm, camview, screen_size);
+			//opaque run
+			roiManager.draw(gl, pvm, camview, screen_size, false);
 		}	
 		
-			//render the origin of coordinates
-			if (btData.bShowOrigin)
-			{
-				for (int i = 0; i < 3; i++)
-				{
-					originVis.get(i).draw(gl, pvm, btData);
-				}
-
-
-			}
 			
-			//render a box around  the volume 
-			if (btData.bVolumeBox)
+	}
+	
+	public void renderTransparent(final GL3 gl, final RenderData data, final OffScreenFrameBufferWithDepth sceneVolBuffer)
+	{
+		
+		//gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
+		final Matrix4f pvm = new Matrix4f( data.getPv() );
+		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
+		final Matrix4f camview = MatrixMath.screen( btData.dCam, screen_size[0], screen_size[1], new Matrix4f() ).mul( view );
+		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
+		sceneBufTransparent.bind( gl );
+		gl.glDepthMask(true);
+		sceneVolBuffer.drawQuadDepth( gl, true );
+		gl.glBlendFunc(GL.GL_ONE, GL.GL_ONE); // Additive RGB + alpha
+		gl.glBlendEquation(GL.GL_FUNC_ADD);
+		//disable depth writing
+		gl.glDepthMask(false);
+		
+		//draw transparent things
+		
+		//render the origin of coordinates
+		if (btData.bShowOrigin)
+		{
+			for (int i = 0; i < 3; i++)
 			{
-				visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size);
+				originVis.get(i).draw(gl, pvm, btData);
 			}
-			//render a box around  the volume 
-			if (btData.bClipBox)
-			{
-				visualBoxes.clipBox.draw(gl, pvm, camview, screen_size);
-			}
+		}
+		//render a box around  the volume 
+		if (btData.bVolumeBox)
+		{
+			visualBoxes.volumeBox.draw(gl, pvm, camview, screen_size, true);
+		}
+		//render a box around  the volume 
+		if (btData.bClipBox)
+		{
+			visualBoxes.clipBox.draw(gl, pvm, camview, screen_size, true);
+		}
+		
+		//one click tracing box
+		if(visualBoxes.bShowTraceBox)
+		{
+			visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
 			
-			//one click tracing box
-			if(visualBoxes.bShowTraceBox)
-			{
-				visualBoxes.traceBox.draw(gl, pvm, camview, screen_size);
-				
-			}
-		//panel.requestRepaint(RepaintType.SCENE);
+		}
+		roiManager.draw(gl, pvm, camview, screen_size, true);
+		
+		
+		gl.glDepthMask(true);
+	
+		sceneBufTransparent.unbind( gl, false );
+		
+		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
+		gl.glDisable( GL_DEPTH_TEST );	
+		sceneBufTransparent.drawQuadAlpha( gl );
 
 	}
+	
+	
 	
 	public void repaintBVV()
 	{
-		viewer.requestRepaint();
+		bvvViewer.requestRepaint();
 	}
 	public void repaintScene()
 	{
-		viewer.requestRepaint(RepaintType.SCENE);
+		bvvViewer.requestRepaint(RepaintType.SCENE);
 	}
 	
 	public void initBVVSourcesImageJ()
-	{
-		
+	{		
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
 		
-		Bvv Tempbvv = BvvFunctions.show( Bvv.options().
-				dCam(btData.dCam).
-				dClipNear(btData.dClipNear).
-				dClipFar(btData.dClipFar).				
-				renderWidth( btData.renderParams.renderWidth).
-				renderHeight( btData.renderParams.renderHeight).
-				numDitherSamples( btData.renderParams.numDitherSamples ).
-				cacheBlockSize( btData.renderParams.cacheBlockSize ).
-				maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
-				ditherWidth(btData.renderParams.ditherWidth).
-				frameTitle(filename)
-				);
-
-		for(int i=0;i<btData.nTotalChannels;i++)
+		if(bvvHandle == null )
 		{
-	
-			bvv_sources.add(BvvFunctions.show( Views.hyperSlice(all_ch_RAI,4,i), "ch_"+Integer.toString(i+1), Bvv.options().addTo(Tempbvv)));
-			if(btData.nBitDepth<=8)
+			Bvv tempBVV = BvvFunctions.show( Bvv.options().
+					dCam(btData.dCam).
+					dClipNear(btData.dClipNear).
+					dClipFar(btData.dClipFar).				
+					renderWidth( btData.renderParams.renderWidth).
+					renderHeight( btData.renderParams.renderHeight).
+					numDitherSamples( btData.renderParams.numDitherSamples ).
+					cacheBlockSize( btData.renderParams.cacheBlockSize ).
+					maxCacheSizeInMB( btData.renderParams.maxCacheSizeInMB ).
+					ditherWidth(btData.renderParams.ditherWidth).
+					frameTitle(filename)
+					);
+			bvvHandle = (BvvHandleFrame)tempBVV.getBvvHandle();
+		}
+		else
+		{
+			bvvFrame.setTitle( filename );
+		}
+		for(int i = 0; i < btData.nTotalChannels; i++)
+		{	
+			bvv_sources.add(BvvFunctions.show( Views.hyperSlice(all_ch_RAI,4,i), "ch_"+Integer.toString(i + 1), Bvv.options().addTo(bvvHandle)));
+			if(btData.nBitDepth <= 8)
 			{
 				bvv_sources.get(i).setDisplayRangeBounds(0, 255);
 				bvv_sources.get(i).setAlphaRangeBounds(0, 255);
@@ -817,12 +951,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_sources.get(i).setDisplayRange(btLoad.channelRanges[0][i], btLoad.channelRanges[1][i]);
 			bvv_sources.get(i).setAlphaRange(btLoad.channelRanges[0][i], btLoad.channelRanges[1][i]);
 			bvv_sources.get(i).setRenderType(btData.nRenderMethod);
+			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 
 		}
-		
-		bvv_main = bvv_sources.get(0);
 
-		viewer = bvv_main.getBvvHandle().getViewerPanel();
 	}
 	
 	public void initBVVSourcesSpimData()
@@ -830,10 +962,13 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
-		List<BvvStackSource<?>> sourcesSPIM = BvvFunctions.show(spimData,Bvv.options().
-				dCam(btData.dCam).
-				dClipNear(btData.dClipNear).
-				dClipFar(btData.dClipFar).				
+		List<BvvStackSource<?>> sourcesSPIM;
+		if(bvvHandle == null)
+		{
+		sourcesSPIM = BvvFunctions.show(spimData, Bvv.options().
+				dCam( btData.dCam ).
+				dClipNear( btData.dClipNear ).
+				dClipFar( btData.dClipFar ).				
 				renderWidth( btData.renderParams.renderWidth).
 				renderHeight( btData.renderParams.renderHeight).
 				numDitherSamples( btData.renderParams.numDitherSamples ).
@@ -844,56 +979,59 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				dClipNear( btData.dClipNear ).
 				dClipFar( btData.dClipFar ).
 				frameTitle(filename)//.
-				//sourceTransform(afDataTransform)
 				);		
-		
-		for(int i=0;i<sourcesSPIM.size();i++)
-		{
-			bvv_sources.add(sourcesSPIM.get(i));
-			bvv_sources.get(i).setRenderType(btData.nRenderMethod);
+			bvvHandle = (BvvHandleFrame) sourcesSPIM.get(0).getBvvHandle();
+			bvvViewer = bvvHandle.getViewerPanel();
 		}
-
-		bvv_main = bvv_sources.get(0);
-		viewer = bvv_main.getBvvHandle().getViewerPanel();
-		
+		else
+		{
+			sourcesSPIM = BvvFunctions.show(spimData, Bvv.options().addTo( bvvHandle ));
+			bvvFrame.setTitle( filename );
+		}
+				
+		for(int i = 0; i < sourcesSPIM.size(); i++)
+		{
+			bvv_sources.add( sourcesSPIM.get(i) );
+			bvv_sources.get(i).setRenderType( btData.nRenderMethod ) ;
+			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
+		}
+	
 		//translate all sources so they are at the zero
 		AffineTransform3D transformTranslation = new AffineTransform3D();
 		double [] shiftTR = new double [3];
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			shiftTR[d]=Double.MAX_VALUE;
+			shiftTR[d] = Double.MAX_VALUE;
 		}
 		
-		for ( SourceAndConverter< ? > source : viewer.state().getSources() )
+		for ( SourceAndConverter< ? > source : bvvViewer.state().getSources() )
 		{
-			AffineTransform3D transformSource = new AffineTransform3D();
-		
+			AffineTransform3D transformSource = new AffineTransform3D();		
 			for(int nTP = 0; nTP < btData.nNumTimepoints; nTP++)
 			{
 				if(source.getSpimSource().isPresent( nTP ))
 				{
 					(( TransformedSource< ? > ) source.getSpimSource() ).getSourceTransform(nTP, 0, transformSource);
-		
-					for(int d=0;d<3;d++)
+					for(int d = 0; d < 3; d++)
 					{
-						if(transformSource.get(d, 3)<shiftTR[d])
+						if(transformSource.get(d, 3) < shiftTR[d])
 						{
-							shiftTR[d]=transformSource.get(d, 3);
+							shiftTR[d] = transformSource.get(d, 3);
 						}
 					}
 				}
 			}
 		}		
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			shiftTR[d]*=(-1);
+			shiftTR[d] *= (-1);
 		}
 		transformTranslation.identity();
 		transformTranslation.translate(shiftTR);
 
 		// Remove voxel scale for all sources.
 		// We needed it, because later voxel size transform is applied to the general ViewerPanel.
-		for ( SourceAndConverter< ? > source : viewer.state().getSources() )
+		for ( SourceAndConverter< ? > source : bvvViewer.state().getSources() )
 		{
 			AffineTransform3D transformSource = new AffineTransform3D();
 
@@ -908,13 +1046,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 			AffineTransform3D transformFinal = transformScale.concatenate(transformTranslation);
 			(( TransformedSource< ? > ) source.getSpimSource() ).setFixedTransform(transformFinal);
-
 		}
 
 		if(bApplyLLSTransform)
 		{
 			//remove translation
-			for ( SourceAndConverter< ? > source : viewer.state().getSources() )
+			for ( SourceAndConverter< ? > source : bvvViewer.state().getSources() )
 			{
 				AffineTransform3D transformExtra = afDataTransform.copy();
 				//not sure why, but overlap with raster data looks better under those settings 
@@ -922,22 +1059,19 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				(( TransformedSource< ? > ) source.getSpimSource() ).setIncrementalTransform(transformExtra);
 				//(( TransformedSource< ? > ) source.getSpimSource() ).setIncrementalTransform(afDataTransform);
 				//adjust pixel size to homogeneous scaling
-				for(int d=0;d<3;d++)
+				for(int d = 0; d < 3; d++)
 				{
 					//store original values
 					btData.inputCal[d] = btData.globCal[d];
 					//since we are resampling
 					btData.globCal[d] = btData.dMinVoxelSize;
 				}
-
 			}
 			//check the alignment
 			//BvvFunctions.show(btdata.getDataSourceFull(0, 0),"test",Bvv.options().addTo(bvv_main));
 			//ImageJFunctions.show(btdata.getDataSourceFull(0, 0));
 		}
-
-		BvvGamma.initBrightness( 0.001, 0.999, viewer.state(), viewer.getConverterSetups());
-
+		BvvGamma.initBrightness( 0.001, 0.999, bvvViewer.state(), bvvViewer.getConverterSetups());
 	}
 	
 	public void setInitialTransform()
@@ -948,14 +1082,13 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.rotate(0, Math.PI * 0.5);
 		t.rotate(1, (-1) * Math.PI / 6.0);
 		t.rotate(0, Math.PI / 9.0);
-		viewer.state().setViewerTransform(t);
+		bvvViewer.state().setViewerTransform(t);
 		t = getCenteredViewTransform(new FinalInterval(btData.nDimCurr[0], btData.nDimCurr[1]), 0.9);
-		viewer.state().setViewerTransform(t);
+		bvvViewer.state().setViewerTransform(t);
 	}
 	
 	public void resetViewXY()
-	{
-		
+	{		
 		double scale;
 		final long [][] nBox;
 		if(!bTraceMode)
@@ -975,8 +1108,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final double nHoff = 2.0 * nBox[0][1] * btData.globCal[1];
 		final double nDoff = 2.0 * nBox[0][2] * btData.globCal[2];
 		
-		final double sW = viewer.getWidth();
-		final double sH = viewer.getHeight();
+		final double sW = bvvViewer.getWidth();
+		final double sH = bvvViewer.getHeight();
 		
 		if(sW/nW<sH/nH)
 		{
@@ -993,8 +1126,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.scale(btData.globCal[0]*scale, btData.globCal[1]*scale, btData.globCal[2]*scale);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*(nDoff));
 		
-		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(),t, (long)(btData.nAnimationDuration*0.5));
-		viewer.setTransformAnimator(anim);
+		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(bvvViewer.state().getViewerTransform(),t, (long)(btData.nAnimationDuration*0.5));
+		bvvViewer.setTransformAnimator(anim);
 			
 	}
 	
@@ -1018,8 +1151,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final double nWoff = 2.0*nBox[0][0] * btData.globCal[0];
 		final double nHoff = 2.0*nBox[0][1] * btData.globCal[1];
 		final double nDoff = 2.0*nBox[0][2] * btData.globCal[2];
-		final double sW = viewer.getWidth();
-		final double sH = viewer.getHeight();
+		final double sW = bvvViewer.getWidth();
+		final double sH = bvvViewer.getHeight();
 		
 		if(sW/nD<sH/nH)
 		{
@@ -1037,9 +1170,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.rotate(1, (-1)*Math.PI/2.0);
 		t.translate(0.5*(sW+scale*(nD+nDoff)),0.5*(sH-scale*(nH+nHoff)),(-0.5)*scale*nWoff);
 		
-		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
+		AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(bvvViewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
 		
-		viewer.setTransformAnimator(anim);
+		bvvViewer.setTransformAnimator(anim);
 
 	}
 	
@@ -1063,8 +1196,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final double nWoff = 2.0 * nBox[0][0] * btData.globCal[0];
 		final double nHoff = 2.0 * nBox[0][1] * btData.globCal[1];
 		final double nDoff = 2.0 * nBox[0][2] * btData.globCal[2];
-		final double sW = viewer.getWidth();
-		final double sH = viewer.getHeight();
+		final double sW = bvvViewer.getWidth();
+		final double sH = bvvViewer.getHeight();
 		
 		if(sW/nW<sH/nD)
 		{
@@ -1084,9 +1217,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		t.rotate(0, Math.PI * 0.5);
 		t.translate(0.5*(sW-scale*(nW+nWoff)),0.5*(sH+scale*(nD+nDoff)),(-0.5)*scale*nHoff);
 			
-		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(viewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
+		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(bvvViewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
 		
-		viewer.setTransformAnimator(anim);
+		bvvViewer.setTransformAnimator(anim);
 
 	}
 	
@@ -1095,9 +1228,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		//get perspective matrix:
 		AffineTransform3D transform = new AffineTransform3D();
-		viewer.state().getViewerTransform(transform);
-		int sW = viewer.getWidth();
-		int sH = viewer.getHeight();
+		bvvViewer.state().getViewerTransform(transform);
+		int sW = bvvViewer.getWidth();
+		int sH = bvvViewer.getHeight();
 		Matrix4f matPerspWorld = new Matrix4f();
 		MatrixMath.screenPerspective(0, btData.dCam, btData.dClipNear, btData.dClipFar, sW, sH, 0, matPerspWorld ).mul( MatrixMath.affine( transform, new Matrix4f() ) );
 		
@@ -1123,7 +1256,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public Line3D findClickLine()
 	{
 
-		java.awt.Point point_mouse  = viewer.getMousePosition();
+		java.awt.Point point_mouse  = bvvViewer.getMousePosition();
 
 		if(point_mouse == null)
 		{
@@ -1138,7 +1271,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public <X extends RealType< X >>boolean findPointLocationFromClick(final IntervalView< X > viewclick, final RealPoint target)
 	{
 		
-		java.awt.Point point_mouse  = viewer.getMousePosition();
+		java.awt.Point point_mouse  = bvvViewer.getMousePosition();
 		if(point_mouse ==null)
 		{
 			return false;
@@ -1191,11 +1324,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		// not sure it is the best way, but it works
 		GammaConverterSetup setup = null;
 		int nChCount = 0;
-		for ( SourceAndConverter< ? > source : viewer.state().getSources() )
+		for ( SourceAndConverter< ? > source : bvvViewer.state().getSources() )
 		{
 			if(nChCount == btData.nChAnalysis )
 			{
-				setup = (GammaConverterSetup) viewer.getConverterSetups().getConverterSetup(source);
+				setup = (GammaConverterSetup) bvvViewer.getConverterSetups().getConverterSetup(source);
 			}
 			nChCount++;
 		}
@@ -1219,7 +1352,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		ArrayList<Double> foundValues = new ArrayList<>();
 		
 		//init stuff
-		viewer.state().getViewerTransform(transform);
+		bvvViewer.state().getViewerTransform(transform);
 		dataCube.iniFaces();
 		java.awt.Point point_mouse = new java.awt.Point();
 		
@@ -1419,9 +1552,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	public Scene getCurrentScene()
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
-		viewer.state().getViewerTransform(transform);
-		int canvasW = viewer.getWidth();
-		int canvasH = viewer.getHeight();
+		bvvViewer.state().getViewerTransform(transform);
+		int canvasW = bvvViewer.getWidth();
+		int canvasH = bvvViewer.getHeight();
 		transform.set( transform.get( 0, 3 ) - canvasW / 2, 0, 3 );
 		transform.set( transform.get( 1, 3 ) - canvasH / 2, 1, 3 );
 		transform.scale( 1.0/ canvasW );
@@ -1433,16 +1566,16 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 		final AffineTransform3D affine = new AffineTransform3D();
 		affine.set( scene.getViewerTransform());
-		int width = viewer.getWidth();
-		int height = viewer.getHeight();
+		int width = bvvViewer.getWidth();
+		int height = bvvViewer.getHeight();
 		affine.scale( width );
 		affine.set( affine.get( 0, 3 ) + width / 2, 0, 3 );
 		affine.set( affine.get( 1, 3 ) + height / 2, 1, 3 );
-		viewer.state().setViewerTransform( affine );
+		bvvViewer.state().setViewerTransform( affine );
 		int nTimePoint = scene.getTimeFrame();
 		if(nTimePoint < btData.nNumTimepoints)
 		{
-			viewer.state().setCurrentTimepoint(nTimePoint);
+			bvvViewer.state().setCurrentTimepoint(nTimePoint);
 		}
 		btPanel.clipPanel.setBoundingBox( scene.getClipBox());
 	} 
@@ -1466,7 +1599,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		new ImageJ();
 		BigTrace testI = new BigTrace(); 
 		
-		//testI.run("");
+		testI.run("");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP-3d.tif");
@@ -1475,71 +1608,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/FR21_SC_nuc10-1.tif");
 		
-		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
+		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile.tif");
 
 //		testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/20250905_dataset/2 Easy (WT live)/SC_nuc10-2xZ_crop.tif");
-		
-		///macros test
-//		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT_8bit.tif");
-//		testI.btMacro.macroLoadROIs( "/home/eugene/Desktop/projects/BigTrace/macro/ExM_MT_8bit.tif_btrois.csv","Clean" );
-//		IJ.log( "shapeInt1" );
-//		testI.btMacro.macroShapeInterpolation("Voxel", 10);
-//		testI.btMacro.macroIntensityInterpolation("Neighbor");
-//		IJ.log( "straight1" );
-//		testI.btMacro.macroStraighten(1, "/home/eugene/Desktop/test1/");
-//		IJ.log( "shapeInt2" );
-//		testI.btMacro.macroShapeInterpolation("Spline", 10);
-//		testI.btMacro.macroIntensityInterpolation("Linear");
-//		IJ.log( "straight2" );
-//		testI.btMacro.macroStraighten(1, "/home/eugene/Desktop/test2/");
-
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_tracks/Snejana_small_example.tif");
-		
-		/*
-		testI.roiManager.setLockMode(true);
-		float [] point = new float[3];
-//		point[0]=23;
-//		point[1]=23;
-//		point[2]=10;
-
-		point[0]=37;
-		point[1]=61;
-		point[2]=10;
-
-		RealPoint target = new RealPoint(point);
-
-		testI.runOneClickTrace(target);
-		*/
-	/*	testI.roiManager.setLockMode(true);
-
-		point[0]=24;
-		point[1]=24;
-		point[2]=10;
-		target = new RealPoint(point);
-		
-
-		testI.runOneClickTrace(target);*/
-
-		
-		/**/
-		//directionality test
-		//testI.run("");
-		/*
-		//performance test
-		testI.run("/home/eugene/Desktop/ExM_MT_8bit-small_crop.tif"); 
-		
-		
-		testI.roiManager.setLockMode(true);
-		float [] point = new float[3];
-		point[0]=17;
-		point[1]=61;
-		point[2]=110;
-		RealPoint target = new RealPoint(point);
-
-		testI.runOneClickTrace(target);
-		
-		*/
 		
 	}
 

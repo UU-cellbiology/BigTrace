@@ -7,11 +7,12 @@ in vec3 posW;
 uniform vec3 clipmin;
 uniform vec3 clipmax;
 uniform int clipactive;
+uniform int wOIT;
 
 void main()
 {
     //ROI clipping
-	if(clipactive>0)
+	if(clipactive > 0)
 	{
 		vec3 s = step(clipmin, posW) - step(clipmax, posW);
 		if(s.x * s.y * s.z == 0.0)
@@ -21,24 +22,29 @@ void main()
 	}
 	
     //transform coordinates to NDC
-	vec2 coord = 2.0 * gl_PointCoord - 1.0;
+	vec2 uv = 2.0 * gl_PointCoord - 1.0;
 	
 	
 	//ellipse taking into account stretched render window	
-	float norm = (coord.x*coord.x*ellipseAxes.x)+(coord.y*coord.y*ellipseAxes.y);		
+	float norm = (uv.x * uv.x * ellipseAxes.x) + (uv.y * uv.y * ellipseAxes.y);		
 	
 	//cut off everything outside the ellipse
 	if ( norm > 1) discard;
 	
 	//draw only outline,
 	//i.e. discard inside
-	if(renderType<2)
+	if(renderType < 2)
 	{
 		if ( norm < 0.6) 
 			discard;
 	}
 
-	
+	vec4 colorout = vec4(colorin);
+	if(wOIT > 0)
+	{
+		colorout.a = colorout.a * exp(-gl_FragCoord.z * 0.8);
+		colorout.xyz = colorout.xyz*colorout.a;
+	}
 
-    fragColor = colorin; 
+    fragColor = colorout; 
 }

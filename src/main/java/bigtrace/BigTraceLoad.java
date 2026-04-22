@@ -62,8 +62,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 	public double [][] channelRanges;	
 	
 	public BigTraceLoad(final BigTrace<T> bt_)
-	{
-		
+	{		
 		bt = bt_;
 		btdata = bt.btData;
 	}
@@ -78,7 +77,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		final SequenceDescription seq = bt.spimData.getSequenceDescription();
 		
 		//get voxel size
-		for (int d =0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			bt.btData.globCal[d] = seq.getViewDescription(0,0).getViewSetup().getVoxelSize().dimension(d);
 		}
@@ -95,7 +94,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		{
 			//Dimensions nDim = allViewSetups.get( nV ).getSize();
 			final long [] nDim = allViewSetups.get( nV ).getSize().dimensionsAsLongArray();
-			for (int d=0;d<3;d++)
+			for (int d = 0; d < 3; d++)
 			{
 				nDim[d]--;
 			}

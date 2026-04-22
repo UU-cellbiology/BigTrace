@@ -169,7 +169,7 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		
 		RealPoint rpMax = new RealPoint(3);
 		
-		bt.viewer.setTimepoint(nTP);		
+		bt.bvvViewer.setTimepoint(nTP);		
 
 		
 		//use bounding box

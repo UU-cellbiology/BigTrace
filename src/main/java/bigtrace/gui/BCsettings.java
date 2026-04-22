@@ -3,7 +3,7 @@ package bigtrace.gui;
 import bvvpg.source.converters.RealARGBColorGammaConverterSetup;
 import bvvpg.vistools.BvvStackSource;
 
-/** class to store and apply broghtness and contrast settings **/
+/** class to store and apply brightness and contrast settings **/
 public class BCsettings {
 	
 	double [] dBrightnessRange;

@@ -27,9 +27,8 @@ import bvvpg.core.shadergen.Shader;
 import bvvpg.core.shadergen.generate.Segment;
 import bvvpg.core.shadergen.generate.SegmentTemplate;
 
-public class VisPolygonFlat {
-
-	
+public class VisPolygonFlat 
+{	
 	private final Shader prog;
 
 	private int vao;
@@ -53,8 +52,9 @@ public class VisPolygonFlat {
 	public VisPolygonFlat(final BigTraceData<?> btdata_)
 	{
 		btdata = btdata_;
+		
 		final Segment pointVp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_clip.vp" ).instantiate();
-		final Segment pointFp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_depth.fp" ).instantiate();
+		final Segment pointFp = new SegmentTemplate( VisPolygonFlat.class, "/bt_scene/simple_color_clip.fp" ).instantiate();
 	
 		prog = new DefaultShader( pointVp.getCode(), pointFp.getCode() );
 	}
@@ -67,8 +67,7 @@ public class VisPolygonFlat {
 		fLineThickness = fLineThickness_;	
 		l_color = new Vector4f(color_in.getComponents(null));		
 		renderType = nRenderType;
-		setVertices(points);
-		
+		setVertices(points);		
 	}
 	
 	public void setThickness(float fLineThickness_)
@@ -80,8 +79,6 @@ public class VisPolygonFlat {
 	{
 		l_color = new Vector4f(color_in.getComponents(null));
 	}
-
-
 
 	public void setParams(final ArrayList< RealPoint > points, final float fLineThickness_, final Color color_in)
 	{		
@@ -95,11 +92,13 @@ public class VisPolygonFlat {
 		renderType = nRenderType_;
 		
 	}
+	
 	public int getRenderType()
 	{
 		return renderType;
 		
 	}
+	
 	public void setVertices( ArrayList< RealPoint > points)
 	{
 		if(renderType == Roi3D.OUTLINE)
@@ -119,12 +118,11 @@ public class VisPolygonFlat {
 	}
 	
 	public void setVerticesCenterLine( final ArrayList< RealPoint > points)
-	{
-		
+	{		
 		int i,j;
 		
 		nPointsN = points.size();
-		vertices = new float [nPointsN*3];//assume 3D	
+		vertices = new float [nPointsN * 3];//assume 3D	
 
 		for (i = 0; i < nPointsN; i++)
 		{
@@ -136,12 +134,9 @@ public class VisPolygonFlat {
 		initialized = false;
 	}
 	
-
-	
 	/** generates a wireframe mesh of a pipe around provided points **/
 	public void setVerticesWire( final ArrayList< RealPoint > points)
-	{
-		
+	{		
 		int i,j;
 
 		double nGridStep = btdata.crossSectionGridStep;
@@ -216,7 +211,7 @@ public class VisPolygonFlat {
 		
 		//GRID LINES DIRECTION TWO
 		//plane perpendicular to the first edge and perpendicular to the polygon plane 
-		gridPlane.setVectors(lineP1,gridDirection.linev[1]);
+		gridPlane.setVectors(lineP1, gridDirection.linev[1]);
 		
 		double minDist = Double.MAX_VALUE;
 		maxDist = (-1) * Double.MAX_VALUE;
@@ -235,8 +230,8 @@ public class VisPolygonFlat {
 			
 		}
 
-		nGridStepEquidist = (maxDist-minDist)/Math.round((maxDist-minDist)/nGridStep);
-		for(double dShift=minDist;dShift<=maxDist;dShift+=nGridStepEquidist )
+		nGridStepEquidist = (maxDist - minDist) / Math.round((maxDist - minDist) / nGridStep);
+		for(double dShift = minDist; dShift <= maxDist; dShift += nGridStepEquidist )
 		{
 			LinAlgHelpers.scale(gridPlane.n, dShift, lineP2);
 			LinAlgHelpers.add(lineP2, lineP1, lineP2);
@@ -250,8 +245,7 @@ public class VisPolygonFlat {
 				}
 				if(gridEdge.size() == 2)
 				{
-					gridLines.add(gridEdge);
-					
+					gridLines.add(gridEdge);					
 				}
 			}
 		}	
@@ -279,8 +273,7 @@ public class VisPolygonFlat {
 				vertices[nPointsN*3 + i*6 + j + 3] = gridLines.get(i).get(1).getFloatPosition(j);
 
 			}	
-		}
-		
+		}		
 		initialized = false;
 	}
 	
@@ -291,9 +284,7 @@ public class VisPolygonFlat {
 		
 		if(nPointsN>1)
 		{
-
-			// ..:: VERTEX BUFFER ::..
-	
+			// ..:: VERTEX BUFFER ::..	
 			final int[] tmp = new int[ 2 ];
 			gl.glGenBuffers( 1, tmp, 0 );
 			final int vbo = tmp[ 0 ];
@@ -301,9 +292,7 @@ public class VisPolygonFlat {
 			gl.glBufferData( GL.GL_ARRAY_BUFFER, vertices.length * Float.BYTES, FloatBuffer.wrap( vertices ), GL.GL_STATIC_DRAW );
 			gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
 	
-	
-			// ..:: VERTEX ARRAY OBJECT ::..
-	
+			// ..:: VERTEX ARRAY OBJECT ::..	
 			gl.glGenVertexArrays( 1, tmp, 0 );
 			vao = tmp[ 0 ];
 			gl.glBindVertexArray( vao );
@@ -314,7 +303,7 @@ public class VisPolygonFlat {
 		}
 	}
 
-	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdatain)
+	public void draw( GL3 gl, Matrix4fc pvm, final BigTraceData<?> btdatain, final boolean bWeightedOIT)
 	{
 		int nGridIt;
 		if ( !initialized )
@@ -322,44 +311,19 @@ public class VisPolygonFlat {
 
 		if(nPointsN > 1)
 		{
-
 			JoglGpuContext context = JoglGpuContext.get( gl );
 	
 			prog.getUniformMatrix4f( "pvm" ).set( pvm );
-			prog.getUniform1i("clipactive").set(btdatain.nClipROI);
+			prog.getUniform1i("clipactive").set( btdatain.nClipROI );
 			prog.getUniform3f("clipmin").set(new Vector3f(btdatain.nDimCurr[0][0],btdatain.nDimCurr[0][1],btdatain.nDimCurr[0][2]));
 			prog.getUniform3f("clipmax").set(new Vector3f(btdatain.nDimCurr[1][0],btdatain.nDimCurr[1][1],btdatain.nDimCurr[1][2]));
+			prog.getUniform1i("wOIT").set(bWeightedOIT?1:0);			
+			prog.getUniform4f("colorin").set(l_color);
 
-			
-			if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE && renderType == Roi3D.SURFACE)
-			{
-				Vector4f l_color_t = new Vector4f(l_color);
-				l_color_t.w = 0.6f;
-				prog.getUniform4f("colorin").set(l_color_t);
-				prog.getUniform1i("surfaceRender").set(3);
-			}
-			else
-			{
-				
-				prog.getUniform4f("colorin").set(l_color);
-				prog.getUniform1i("surfaceRender").set(0);
-			}
-//			if(renderType != Roi3D.SURFACE)
-//			{
-//				prog.getUniform1i("surfaceRender").set(0);
-//			}
-//			else
-//			{
-//				prog.getUniform1i("surfaceRender").set(BigTraceData.surfaceRender);
-//			}
 			prog.setUniforms( context );
 			prog.use( context );
 
-	
-			
 			gl.glBindVertexArray( vao );
-
-			gl.glDepthFunc( GL.GL_LESS);
 			
 			if(renderType == Roi3D.OUTLINE)
 			{
@@ -372,24 +336,19 @@ public class VisPolygonFlat {
 				gl.glLineWidth(fLineThickness);
 				gl.glDrawArrays( GL.GL_LINE_LOOP, 0, nPointsN);
 				
-				for(nGridIt = 0;nGridIt<nGridEdges;nGridIt++)
+				for(nGridIt = 0; nGridIt < nGridEdges; nGridIt++)
 				{
-					gl.glDrawArrays( GL.GL_LINE_STRIP, nPointsN + nGridIt*2, 2);
+					gl.glDrawArrays( GL.GL_LINE_STRIP, nPointsN + nGridIt * 2, 2);
 				}
 			}
 
 			if(renderType == Roi3D.SURFACE)
 			{
-				if(btdatain.surfaceRender == BigTraceData.SURFACE_SILHOUETTE)
-				{
-					gl.glDepthFunc( GL.GL_ALWAYS);
-				}
-				gl.glLineWidth(1.0f);
-				gl.glDrawArrays( GL.GL_TRIANGLE_FAN, 0, nPointsN);
-				
+				gl.glLineWidth( 1.0f );
+				gl.glDrawArrays( GL.GL_TRIANGLE_FAN, 0, nPointsN);				
 			}
+			
 			gl.glBindVertexArray( 0 );
-			gl.glDepthFunc( GL.GL_LESS);
 		}
 	}
 	
@@ -397,15 +356,15 @@ public class VisPolygonFlat {
 	{
 		ArrayList<ArrayList< RealPoint >> out = new ArrayList<>();
 		ArrayList< RealPoint > point_coords = new ArrayList< >();
-		for(int i =1;i<points.size();i++)
+		for(int i = 1; i < points.size(); i++)
 		{
 			point_coords = new ArrayList< >();
-			point_coords.add(new RealPoint(points.get(i-1)));
-			point_coords.add(new RealPoint(points.get(i)));
+			point_coords.add(new RealPoint(points.get( i - 1 )));
+			point_coords.add(new RealPoint(points.get( i )));
 			out.add(point_coords);
 		}
 		point_coords = new ArrayList< >();
-		point_coords.add(points.get(points.size()-1));
+		point_coords.add(points.get(points.size() - 1));
 		point_coords.add(points.get(0));
 		out.add(point_coords);
 		return out;

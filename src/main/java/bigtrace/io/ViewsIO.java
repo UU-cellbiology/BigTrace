@@ -100,7 +100,7 @@ public class ViewsIO
 				bt.getCurrentScene().save( writer );
 				int nSourcesN = bt.bvv_sources.size();
 				writer.write("Sources number," + Integer.toString(nSourcesN)+"\n");
-				ConverterSetupsPG convSet = (ConverterSetupsPG) bt.bvv_main.getBvvHandle().getConverterSetups();
+				ConverterSetupsPG convSet = (ConverterSetupsPG) bt.bvvHandle.getConverterSetups();
 				final ConverterSetupBounds boundsMap = convSet.getBounds();
 				final ConverterSetupBoundsGamma boundsGamma = convSet.getBoundsGamma();
 				final ConverterSetupBoundsAlpha boundsAlpha = convSet.getBoundsAlpha();

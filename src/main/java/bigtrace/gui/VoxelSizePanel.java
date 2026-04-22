@@ -16,7 +16,8 @@ import javax.swing.SwingConstants;
 
 
 
-public class VoxelSizePanel extends JPanel implements NumberField.Listener, FocusListener{
+public class VoxelSizePanel extends JPanel implements NumberField.Listener, FocusListener
+{
 
 	/**
 	 * 
@@ -36,7 +37,6 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 	public VoxelSizePanel(double [] dVoxelSize, String sUnits)
 	{
 		super();
-		int i;
 		
 		vxAllSize = new double [3];
 		GridBagLayout gridbag = new GridBagLayout();
@@ -46,22 +46,20 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
 		
 		nfAllSize = new NumberField[3];
-		for (i=0;i<3;i++)
+		for (int d = 0; d < 3; d++)
 		{
-			vxAllSize[i]=dVoxelSize[i];
-			nfAllSize[i]=new NumberField(4);
-			nfAllSize[i].setText(df.format( dVoxelSize[i]));
-			nfAllSize[i].setMinimumSize(nfAllSize[i].getPreferredSize());
-			nfAllSize[i].addListener(this);
-			nfAllSize[i].addNumberFieldFocusListener(this);
-			
+			vxAllSize[ d ] = dVoxelSize[ d ];
+			nfAllSize[ d ] = new NumberField( 4 );
+			nfAllSize[ d ].setText( df.format( dVoxelSize[ d ] ) );
+			nfAllSize[ d ].setMinimumSize( nfAllSize[ d ].getPreferredSize() );
+			nfAllSize[ d ].addListener(this);
+			nfAllSize[ d ].addNumberFieldFocusListener(this);			
 		}
 
 		tfUnits = new JTextField(8);
 		tfUnits.setText(sUnits);	
 
 		setLayout(gridbag);
-
 		
 		c.fill = GridBagConstraints.HORIZONTAL;
 
@@ -80,6 +78,7 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 		this.add(new JLabel("Z"),c);
 		c.gridx++;
 		this.add(nfAllSize[2],c);
+		
 		c.gridwidth = 3;
 		c.gridx = 0;
 		c.gridy++;
@@ -109,7 +108,6 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 
 	@Override
 	public void focusGained(FocusEvent arg0) {
-
 	
 	}
 
@@ -118,16 +116,17 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 		if(updateVoxelSize())
 			fireVoxelSizeChanged(vxAllSize);
 	}
+	
 	public void setVoxelSize(double [] dVoxelSize, String sUnits)
 	{
 		tfUnits.setText(sUnits);
 		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
 		decimalFormatSymbols.setDecimalSeparator('.');
 		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
-		for (int i=0;i<3;i++)
+		for (int i = 0; i < 3; i++)
 		{
 			nfAllSize[i].setText(df.format( dVoxelSize[i]));
-			vxAllSize[i]= dVoxelSize[i];
+			vxAllSize[i] = dVoxelSize[i];
 		}
 		fireVoxelSizeChanged(vxAllSize);
 	}
@@ -139,17 +138,17 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 		decimalFormatSymbols.setDecimalSeparator('.');
 		DecimalFormat df = new DecimalFormat("0.00", decimalFormatSymbols);
 		
-		for(int i=0;i<3;i++)
+		for(int d = 0; d < 3; d++)
 		{
 			//just in case
-			if(Double.parseDouble(nfAllSize[i].getText())<=0)
+			if(Double.parseDouble(nfAllSize[d].getText()) <= 0)
 			{
-				nfAllSize[i].setText(df.format(vxAllSize[i]));
+				nfAllSize[d].setText(df.format(vxAllSize[d]));
 			}
-			diff += Math.abs(vxAllSize[i]-Double.parseDouble(nfAllSize[i].getText()));
-			vxAllSize[i]=Double.parseDouble(nfAllSize[i].getText());
+			diff += Math.abs(vxAllSize[d]-Double.parseDouble(nfAllSize[d].getText()));
+			vxAllSize[d]=Double.parseDouble(nfAllSize[d].getText());
 		}
-		if(diff>0.001)
+		if(diff > 0.001)
 		{
 			return true;
 		}
@@ -158,9 +157,9 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 	
 	public void allowVoxelSizeChange(boolean allow)
 	{
-		for(int i=0;i<3;i++)
+		for(int d = 0; d < 3; d++)
 		{
-			nfAllSize[i].setTFEnabled(allow);
+			nfAllSize[ d ].setTFEnabled(allow);
 		}
 		tfUnits.setEnabled(allow);
 	}

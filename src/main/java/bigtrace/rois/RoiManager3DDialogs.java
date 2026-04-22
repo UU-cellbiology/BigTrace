@@ -55,7 +55,6 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		////////////TRACING OPTIONS
 		final PanelTracingOptions panelGeneralTrace = new PanelTracingOptions(bt);
 
-		
 		////////////SEMI-AUTO TRACING OPTIONS
 		final JPanel pSemiAuto = new JPanel(new GridBagLayout());
 		
@@ -152,7 +151,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 	{
 		final RoiManager3D<T> rm = bt.roiManager;
 		JTabbedPane tabPane = new JTabbedPane();
-		GridBagConstraints cd = new GridBagConstraints();
+		GridBagConstraints gbc = new GridBagConstraints();
 
 		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
 		decimalFormatSymbols.setDecimalSeparator('.');
@@ -163,12 +162,11 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		JButton butPointActiveColor = new JButton( new ColorIcon( rm.activePointColor ) );	
 		butPointActiveColor.addActionListener( e -> {
 			Color newColor = JColorChooser.showDialog(bt.btPanel.finFrame, "Choose active point color", rm.activePointColor );
-			if (newColor!=null)
+			if (newColor != null)
 			{
 				rm.selectColors.setColor(newColor, 0);
 				butPointActiveColor.setIcon(new ColorIcon(newColor));
-			}
-			
+			}			
 		});
 		
 		JButton butLineActiveColor = new JButton( new ColorIcon( rm.activeLineColor ) );	
@@ -177,10 +175,8 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 			if (newColor!=null)
 			{
 				rm.selectColors.setColor(newColor, 1);
-
 				butLineActiveColor.setIcon(new ColorIcon(newColor));
-			}
-			
+			}			
 		});
 		
 		JCheckBox cbRoiDoubleClickClip = new JCheckBox();
@@ -197,8 +193,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		NumberField nfSmoothWindow = new NumberField(2);
 		nfSmoothWindow.setIntegersOnly(true);
 		nfSmoothWindow.setText(Integer.toString(bt.btData.nSmoothWindow));
-		
-		
+				
 		String[] sTimeRenderROIs = { "current timepoint", "backward in time", "forward in time"};
 		JComboBox<String> sTimeRenderROIsList = new JComboBox<>(sTimeRenderROIs);
 		sTimeRenderROIsList.setSelectedIndex(bt.btData.timeRender);
@@ -206,67 +201,65 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		NumberField nfTimeFadeROIs = new NumberField(4);
 		nfTimeFadeROIs.setIntegersOnly(true);
 		nfTimeFadeROIs.setText(Integer.toString(Math.abs(bt.btData.timeFade)));
+						
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		GBCHelper.alighLoose(gbc);
+		pROIrender.add(new JLabel("Selected ROI point color: "),gbc);
+		gbc.gridx++;
+		pROIrender.add(butPointActiveColor,gbc);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIrender.add(new JLabel("Selected ROI line color: "),gbc);
+		gbc.gridx++;
+		pROIrender.add(butLineActiveColor,gbc);
 		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIrender.add(new JLabel("Clip volume on ROI double-click: "),gbc);
+		gbc.gridx++;
+		pROIrender.add(cbRoiDoubleClickClip,gbc);
 		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIrender.add(new JLabel("Expand clipping by (voxels): "),gbc);
+		gbc.gridx++;
+		pROIrender.add(nfRoiDoubleClickExpand,gbc);
 		
-		cd.gridx = 0;
-		cd.gridy = 0;
-		GBCHelper.alighLoose(cd);
-		pROIrender.add(new JLabel("Selected ROI point color: "),cd);
-		cd.gridx++;
-		pROIrender.add(butPointActiveColor,cd);
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIrender.add(new JLabel("Selected ROI line color: "),cd);
-		cd.gridx++;
-		pROIrender.add(butLineActiveColor,cd);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIrender.add(new JLabel("ROI Shape interpolation: "), gbc);
+		gbc.gridx++;
+		pROIrender.add(shapeInterpolationList, gbc);	
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIrender.add(new JLabel("Clip volume on ROI double-click: "),cd);
-		cd.gridx++;
-		pROIrender.add(cbRoiDoubleClickClip,cd);
-		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIrender.add(new JLabel("Expand clipping by (voxels): "),cd);
-		cd.gridx++;
-		pROIrender.add(nfRoiDoubleClickExpand,cd);
-		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIrender.add(new JLabel("ROI Shape interpolation: "),cd);
-		cd.gridx++;
-		pROIrender.add(shapeInterpolationList,cd);	
-		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIrender.add(new JLabel("Trace smoothing window (points): "),cd);
-		cd.gridx++;
-		pROIrender.add(nfSmoothWindow,cd);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIrender.add(new JLabel("Trace smoothing window (points): "),gbc);
+		gbc.gridx++;
+		pROIrender.add(nfSmoothWindow,gbc);
 		
 
 		if(bt.btData.nNumTimepoints > 1)
 		{
-			cd.gridx = 0;
-			cd.gridy++;
-			cd.gridwidth = 2;
-			cd.anchor = GridBagConstraints.CENTER;
-			pROIrender.add(new JLabel("<html>----  <B>Time</B>  ----</html>"),cd);
-			cd.gridwidth=1;
-			cd.anchor = GridBagConstraints.WEST;
+			gbc.gridx = 0;
+			gbc.gridy++;
+			gbc.gridwidth = 2;
+			gbc.anchor = GridBagConstraints.CENTER;
+			pROIrender.add(new JLabel("<html>----  <B>Time</B>  ----</html>"),gbc);
+			gbc.gridwidth=1;
+			gbc.anchor = GridBagConstraints.WEST;
 			
 			
-			cd.gridx = 0;
-			cd.gridy++;
-			pROIrender.add(new JLabel("Show ROIs over time: "),cd);
-			cd.gridx++;
-			pROIrender.add(sTimeRenderROIsList,cd);
-			cd.gridx = 0;
-			cd.gridy++;
-			pROIrender.add(new JLabel("Time fade range (frames): "),cd);
-			cd.gridx++;
-			pROIrender.add(nfTimeFadeROIs,cd);
+			gbc.gridx = 0;
+			gbc.gridy++;
+			pROIrender.add(new JLabel("Show ROIs over time: "),gbc);
+			gbc.gridx++;
+			pROIrender.add(sTimeRenderROIsList,gbc);
+			gbc.gridx = 0;
+			gbc.gridy++;
+			pROIrender.add(new JLabel("Time fade range (frames): "),gbc);
+			gbc.gridx++;
+			pROIrender.add(nfTimeFadeROIs,gbc);
 		}
 
 		////////////ROI SURFACE RENDER 
@@ -294,58 +287,58 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		NumberField nfSilhouetteDecay = new NumberField(4);
 		nfSilhouetteDecay.setText(df.format(bt.btData.silhouetteDecay));
 		
-		cd.gridx = 0;
-		cd.gridy = 0;
-		pROIsurface.add(new JLabel("# edges at curve cross-section:"),cd);
-		cd.gridx++;
-		pROIsurface.add(nfSectorNLines,cd);
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		pROIsurface.add(new JLabel("# edges at curve cross-section:"),gbc);
+		gbc.gridx++;
+		pROIsurface.add(nfSectorNLines,gbc);
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		cd.gridwidth = 2;
-		cd.anchor = GridBagConstraints.CENTER;
-		pROIsurface.add(new JLabel("<html>----  <B>Wire</B> mode  ----</html>"),cd);
-		cd.gridwidth = 1;
-		cd.anchor = GridBagConstraints.WEST;
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 2;
+		gbc.anchor = GridBagConstraints.CENTER;
+		pROIsurface.add(new JLabel("<html>----  <B>Wire</B> mode  ----</html>"),gbc);
+		gbc.gridwidth = 1;
+		gbc.anchor = GridBagConstraints.WEST;
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIsurface.add(new JLabel("Use anti-aliased lines :"),cd);
-		cd.gridx++;
-		pROIsurface.add(cbWireAA,cd);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIsurface.add(new JLabel("Use anti-aliased lines :"),gbc);
+		gbc.gridx++;
+		pROIsurface.add(cbWireAA,gbc);
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIsurface.add(new JLabel("Distance between curve contours (px):"),cd);
-		cd.gridx++;
-		pROIsurface.add(nfWireContourStep,cd);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIsurface.add(new JLabel("Distance between curve contours (px):"),gbc);
+		gbc.gridx++;
+		pROIsurface.add(nfWireContourStep,gbc);
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIsurface.add(new JLabel("Plane/cross-section ROI grid step (px): "),cd);
-		cd.gridx++;
-		pROIsurface.add(nfCrossSectionGridStep,cd);
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIsurface.add(new JLabel("Plane/cross-section ROI grid step (px): "),gbc);
+		gbc.gridx++;
+		pROIsurface.add(nfCrossSectionGridStep,gbc);
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		cd.gridwidth = 2;
-		cd.anchor = GridBagConstraints.CENTER;
-		pROIsurface.add(new JLabel("<html>----  <B>Silhouette</B> surface ----</html>"),cd);
-		cd.gridwidth=1;
-		cd.anchor = GridBagConstraints.WEST;
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 2;
+		gbc.anchor = GridBagConstraints.CENTER;
+		pROIsurface.add(new JLabel("<html>----  <B>Silhouette</B> surface ----</html>"),gbc);
+		gbc.gridwidth=1;
+		gbc.anchor = GridBagConstraints.WEST;
 	
 		
-		cd.gridx = 0;
-		cd.gridy++;
-		pROIsurface.add(new JLabel("Silhouette render:"),cd);
-		cd.gridx++;
-		pROIsurface.add(sSilhouetteRenderList,cd);	
+		gbc.gridx = 0;
+		gbc.gridy++;
+		pROIsurface.add(new JLabel("Silhouette render:"),gbc);
+		gbc.gridx++;
+		pROIsurface.add(sSilhouetteRenderList,gbc);	
 		
-		cd.gridx = 0;		
-		cd.gridy++;
-		pROIsurface.add(new JLabel("Silhouette decay: "),cd);
-		cd.gridx++;
-		pROIsurface.add(nfSilhouetteDecay,cd);
+		gbc.gridx = 0;		
+		gbc.gridy++;
+		pROIsurface.add(new JLabel("Silhouette decay: "),gbc);
+		gbc.gridx++;
+		pROIsurface.add(nfSilhouetteDecay,gbc);
 				
 		//assemble pane
 		tabPane.addTab("ROI render", pROIrender);

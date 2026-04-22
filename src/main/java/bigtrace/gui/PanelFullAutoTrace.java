@@ -165,8 +165,8 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 				Prefs.set("BigTrace.bFullAutoSingleTimeFrame", cbSingleTimeFrame.isSelected() );
 				if(cbSingleTimeFrame.isSelected())
 				{
-					nFirstTP = bt.viewer.state().getCurrentTimepoint();
-					nLastTP = bt.viewer.state().getCurrentTimepoint();					
+					nFirstTP = bt.bvvViewer.state().getCurrentTimepoint();
+					nLastTP = bt.bvvViewer.state().getCurrentTimepoint();					
 				}
 				else
 				{
@@ -191,11 +191,14 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		fullAutoTrace.nAutoMinPointsCurve = nAutoMinPointsCurve;
 		
 		bt.bInputLock = true;
-		bt.setLockMode(true);
+		bt.setLockMode( true );
 		fullAutoTrace.addPropertyChangeListener( bt.btPanel );
-		butAuto.setEnabled( true );
-		butAuto.setIcon( tabIconCancel );
-		butAuto.setToolTipText( "Stop auto trace" );
+		TaskBT.runOnEDT( ()->
+		{
+			butAuto.setEnabled( true );
+			butAuto.setIcon( tabIconCancel );
+			butAuto.setToolTipText( "Stop auto trace" );
+		});
 		fullAutoTrace.butAuto = butAuto;
 		fullAutoTrace.tabIconRestore = tabIconAuto;
 		if( !bt.btMacro.bMacroMode )
@@ -204,10 +207,8 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		}
 		else
 		{
-			fullAutoTrace.runFullAutoTrace();			
-			bt.setLockMode(false);
-			bt.bInputLock = false;
-			
+			fullAutoTrace.runFullAutoTrace();	
+			fullAutoTrace.wrapUp();
 		}
 	}
 
