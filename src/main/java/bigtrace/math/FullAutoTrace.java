@@ -65,7 +65,6 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		runFullAutoTrace();
 		return null;
 	}
-
 	
 	public void runFullAutoTrace()
 	{
@@ -81,6 +80,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		oneClickTrace.init();
 		
 		setProgress(0);
+		int nCurrRoiN = nCount;
 		for(int nTP = nFirstTP; nTP <= nLastTP; nTP++)
 		{
 			
@@ -115,6 +115,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					if(!oneClickTrace.bStartLocationOccupied)
 					{
 						mask.markROI( bt.roiManager.getActiveRoi() );
+						nCount++;
 					}
 					if( bt.roiManager.getActiveRoi() instanceof LineTrace3D )
 					{
@@ -122,16 +123,17 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 						if(newtrace.getNumberOfPointsInJointSegment() < nAutoMinPointsCurve)
 						{
 							bt.roiManager.deleteActiveROI();
+							nCount--;
 						}
-						else
+					}
+					if( bt.btMacro.bMacroMode )
+					{
+						if(nCurrRoiN != nCount)
 						{
-							nCount++;
-							if( bt.btMacro.bMacroMode )
+							nCurrRoiN = nCount;						
+							if(nCount % 20 == 0)
 							{
-								if(nCount % 20 == 0)
-								{
-									IJ.log( "Auto trace progress: found " +Integer.toString( nCount ) + " ROIs, current start intensity is " +Double.toString( newMax.getA() )+".");									
-								}
+								IJ.log( "Auto trace progress: found " +Integer.toString( nCount ) + " ROIs, current start intensity is " +Double.toString( newMax.getA() )+".");									
 							}
 						}
 					}
@@ -185,7 +187,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
     
     public void wrapUp()
     {
-    	TaskBT.runOnEDTAndWait( () ->
+    	TaskBT.runOnEDT( () ->
     	{
     		if(butAuto != null && tabIconRestore != null)
     		{
