@@ -196,53 +196,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		    System.err.println( "Failed to initialize LaF" );
 		}
 		
-		//update site warning
-		if(!btMacro.bMacroMode)
-		{
-			if(Prefs.get( "BigTrace.bUpdateSiteNotice", true ))
-			{
-				JPanel pWarning = new JPanel(new GridBagLayout());
-				
-				String message  = "<html>BigTrace moved to a new, its own update site (listed in FIJI update window)!<br/>";
-				message = message + "This release (0.9.0) is the last release on Ekatrukha update site.</html>";
-				JLabel hyperlink = new JLabel("Please follow new installation intructions");
-				hyperlink.setForeground(Color.BLUE.darker());
-				hyperlink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-				hyperlink.addMouseListener(new MouseAdapter() {
-					@Override
-					public void mouseClicked(MouseEvent e) 
-					{
-						try
-						{
-							Desktop.getDesktop().browse(new URI("https://github.com/UU-cellbiology/BigTrace/wiki/How-to-install-plugin"));
-						}
-						catch ( IOException | URISyntaxException exc )
-						{
-							exc.printStackTrace();
-						}
-
-					}
-				});
-				String[] options = {"OK"};
-//				IJ.showMessage( "IMPORTANT! UPDATE SITE CHANGES", "For the future releases BigTrace moves to its own update site!\n"
-//						+ "This release (0.9.0) is the last release on Ekatrukha update site!\n"
-//						+ "Please add https://sites.imagej.net/BigTrace/ to enable future updates!" );
-				
-				GridBagConstraints gbc = new GridBagConstraints();
-				gbc.insets = new Insets(8,0,8,0);
-				gbc.gridx = 0;
-				gbc.gridy = 0;
-				pWarning.add( new JLabel(message), gbc );
-				gbc.insets = new Insets(0,0,0,0);
-				gbc.gridy++;
-				pWarning.add( hyperlink, gbc );
-				Prefs.set( "BigTrace.bUpdateSiteNotice", false );
-				
-				JOptionPane.showOptionDialog(null, pWarning, "IMPORTANT! UPDATE SITE CHANGES", 
-						JOptionPane.PLAIN_MESSAGE, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-
-			}
-		}
 		
 		btData = new BigTraceData<>(this);
 		btLoad = new BigTraceLoad<>(this);
