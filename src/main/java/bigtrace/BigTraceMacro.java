@@ -171,7 +171,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			enqueue (()-> 
 			{
-				macroSetTracingROI((String)args[0],Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);
+				macroSetTracingROI((String)args[0], Math.abs(((Double)args[1]).doubleValue()), (String)args[2]);
 			});
 		}
 		
@@ -280,7 +280,17 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		return null;
 	}
-	/** macro function runs full auto trace. 
+	/** macro function runs full auto on all time points 
+	 * @param dMinIntensity 
+	 * 	the minimum intensity to start tracing curve 
+	 * @param nMinNumPoints
+	 * 	specifies the minimum number of points in a curve
+	 **/
+	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints)
+	{
+		macroRunFullAutoTrace(dMinIntensity, nMinNumPoints, 0, bt.btData.nNumTimepoints - 1);		
+	}
+	/** macro function runs full auto on specified time points range. 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
 	 * @param nMinNumPoints
@@ -422,7 +432,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	}
 	/** macro function sets one click parameters
 	 * @param nVertexPlacementPointN 
-	 * 	 "distance" between intermediate vertex placement (pixels, >=3). Specifies how often intermediate points (vertices) will be placed on the curve during auto-tracing.
+	 * 	 "distance" between intermediate vertex placement (pixels, more or equal to 3). 
+	 *    Specifies how often intermediate points (vertices) will be placed on the curve during auto-tracing.
 	 * @param dDirectionality
 	 * 	the value for the directionality constraint (between 0 and 1). 
 	 * @param sOCIntensityStop
@@ -498,6 +509,11 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 
 	}
+	
+	public void macroSaveROIs(final String sFileName)
+	{
+		macroSaveROIs(sFileName, "BigTrace");
+	}
 	/** macro function save ROIs to disk 
 	 * @param sFileName 
 	 * the full path + filename for saving.
@@ -545,6 +561,12 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bMacroMode = false;
 		bt.bInputLock = false;
 	}
+
+	public void macroStraighten(final Integer nStraightenAxis, final String sOutputDir)
+	{		
+		macroStraighten(nStraightenAxis, sOutputDir, "Square");
+	}
+	
 	/** macro function performs straightening of all ROIs and saves them as tif files
 	 * @param nStraightenAxis
 	 * 	specifies the axis of the output, which becomes the centerline of an ROI curve. The value of 0 corresponds to the X axis, 1 to Y, and 2 to Z.
@@ -800,6 +822,16 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
+
+	public void macroSetDisplayRangeGamma(final Double minIntensity, final Double maxIntensity, final Double dGamma)
+	{
+		macroSetDisplayRangeGamma(minIntensity, maxIntensity, dGamma, -1);
+	}
+	public void macroSetDisplayRangeGamma(final Double minIntensity, final Double maxIntensity)
+	{
+		macroSetDisplayRangeGamma(minIntensity, maxIntensity, 1.0);
+
+	}
 	
 	/** macro function to adjust alpha (opacity) mapping and its gamma value 
 	 * @param minAlpha
@@ -843,7 +875,18 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
-	
+
+	public void macroSetAlphaRangeGamma(final Double minAlpha, final Double maxAlpha)
+	{
+		macroSetAlphaRangeGamma(minAlpha, maxAlpha, 1.0, -1);
+	}
+
+	public void macroSetAlphaRangeGamma(final Double minAlpha, final Double maxAlpha, final Double dGamma)
+	{
+		macroSetAlphaRangeGamma(minAlpha, maxAlpha, dGamma, -1);
+
+	}
+
 	/** macro function removes current loaded image and loads a new one to BigTrace.
 	 * also deletes all existing ROIs 
 	 * @param sFilename
