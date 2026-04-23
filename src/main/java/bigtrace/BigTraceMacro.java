@@ -80,8 +80,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 	}
 	
-	public synchronized CompletableFuture<Void> enqueue(Runnable task) 
+	public synchronized void enqueue(Runnable task) 
 	{
+
 	    tail = tail
 	            .exceptionally(ex -> {
 	                ex.printStackTrace();
@@ -95,8 +96,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	                    throw e;
 	                }
 	            }, executor);
-
-	        return tail;
+		tail.join();
+		return;
+	     //   return tail;
 	}
 	
 	public String handleExtension(String name, Object[] args) 
@@ -191,6 +193,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 
 		if (name.equals("btRunFullAutoTrace")) 
 		{
+
 			enqueue (()-> 
 			{
 				int nFirstTPi = 0;
@@ -271,7 +274,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			enqueue (()-> 
 			{
-				macroCloseBT();			
+				macroClose();			
 			});
 		}
 		
@@ -288,6 +291,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	 *  in case of timelapse data, the last frame to trace  **/
 	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints, final Integer nFirstFrame, final Integer nLastFrame)
 	{
+
 		int nFirstTP = 0;
 		int nLastTP = 0;
 		bMacroMode = true;
@@ -877,16 +881,12 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			bt.bvvFrame.setTitle( sFilename );
 		});
 
-//		TaskBT.runOnEDTAndWait(()->
-//		{
-//			IJ.log("BigTrace macro: opened new file " + sFilename + ".");
-//		});
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
 	
 	/** macro function closes BigTrace **/
-	public void macroCloseBT()
+	public void macroClose()
 	{
 		bt.closeWindows();
 		TaskBT.runOnEDTAndWait(()->

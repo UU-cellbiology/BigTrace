@@ -15,6 +15,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.SwingUtilities;
 
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -193,12 +194,23 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		bt.bInputLock = true;
 		bt.setLockMode( true );
 		fullAutoTrace.addPropertyChangeListener( bt.btPanel );
-		TaskBT.runOnEDT( ()->
+
+		if(bt.btMacro.bMacroMode)
 		{
-			butAuto.setEnabled( true );
-			butAuto.setIcon( tabIconCancel );
-			butAuto.setToolTipText( "Stop auto trace" );
-		});
+			  SwingUtilities.invokeLater(()->
+			  {
+				  butAuto.setEnabled( true );
+				  butAuto.setIcon( tabIconCancel );
+				  butAuto.setToolTipText( "Stop auto trace" );
+			  });
+		}
+		else
+		{
+			  butAuto.setEnabled( true );
+			  butAuto.setIcon( tabIconCancel );
+			  butAuto.setToolTipText( "Stop auto trace" );
+		}
+
 		fullAutoTrace.butAuto = butAuto;
 		fullAutoTrace.tabIconRestore = tabIconAuto;
 		if( !bt.btMacro.bMacroMode )
@@ -207,8 +219,11 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		}
 		else
 		{
-			fullAutoTrace.runFullAutoTrace();	
+			fullAutoTrace.runFullAutoTrace();
+			TaskBT.runOnEDTAndWait( () ->
+			{
 			fullAutoTrace.wrapUp();
+		});
 		}
 	}
 

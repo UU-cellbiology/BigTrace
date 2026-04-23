@@ -23,6 +23,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
@@ -561,24 +562,47 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		return Views.interval(full_int, full_int);
 	}
-		
-	public synchronized void setLockMode(boolean bLockMode)
-	{	 		 		
-		TaskBT.runOnEDT( () -> 
+	
+	public void setLockMode(final boolean bLockMode)
+	{
+		if(!this.btMacro.bMacroMode)
 		{
-		 	 boolean bState = !bLockMode;
-
-		 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
-		 	 GuiMisc.setPanelStatusAllComponents(btPanel.roiMeasure, bState);
-		 	 GuiMisc.setPanelStatusAllComponents(btPanel.btTracksPanel, bState);
-		 	 GuiMisc.setPanelStatusAllComponents(btPanel.btAniPanel, bState);
-		 	 btPanel.voxelSizePanel.allowVoxelSizeChange(bState);
-
-		 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
-		 	 //keep it on
-		 	 roiManager.butShowAll.setEnabled(true);
-		});
+			synchronized ( BigTrace.this )
+			{
+				lockGUI(bLockMode);
+				//System.out.println("regular lock "  + bLockMode);
+			}
+		}
+		else
+		{
+			setLockModeMacro(bLockMode);
+			//System.out.println("macro lock"+ bLockMode);
+		}
 	}
+
+	public void setLockModeMacro(final boolean bLockMode)
+	{	 	
+		  SwingUtilities.invokeLater(()->
+		  {
+			 lockGUI(bLockMode);
+		  });
+	}
+	void lockGUI(final boolean bLockMode)
+	{
+	 	 boolean bState = !bLockMode;
+			
+	 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
+	 	 GuiMisc.setPanelStatusAllComponents(btPanel.roiMeasure, bState);
+	 	 GuiMisc.setPanelStatusAllComponents(btPanel.btTracksPanel, bState);
+	 	 GuiMisc.setPanelStatusAllComponents(btPanel.btAniPanel, bState);
+	 	 btPanel.voxelSizePanel.allowVoxelSizeChange(bState);
+
+	 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
+	 	 //keep it on
+	 	 roiManager.butShowAll.setEnabled(true);
+
+	}
+
 	
 	/** turn on Trace Box mode **/
 	public void getSemiAutoTrace(RealPoint target)

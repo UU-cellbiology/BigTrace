@@ -13,7 +13,6 @@ import net.imglib2.view.IntervalView;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
-import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
 import ij.IJ;
 
@@ -187,25 +186,25 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
     
     public void wrapUp()
     {
-    	TaskBT.runOnEDT( () ->
+    	if(butAuto != null && tabIconRestore != null)
     	{
-    		if(butAuto != null && tabIconRestore != null)
-    		{
-    			butAuto.setIcon( tabIconRestore );
-    			butAuto.setToolTipText( "Full auto tracing" );
-    		}
-    		bt.visualBoxes.bShowTraceBox = false;
-    		oneClickTrace.releaseMultiThread();
+    		butAuto.setIcon( tabIconRestore );
+    		butAuto.setToolTipText( "Full auto tracing" );
+    	}
+    	bt.visualBoxes.bShowTraceBox = false;
+    	oneClickTrace.releaseMultiThread();
 
-    		//unlock user interaction
-    		bt.bInputLock = false;
-    		bt.setLockMode(false);
-    		if(bt.btMacro.bMacroMode)
-    		{
-    			bt.roiManager.updateRoiListModel();
-    			IJ.log( "Macro auto trace is finished with " +Integer.toString( nCount )+" new ROIs." );
-    		}
-    	});
+    	//unlock user interaction
+    	bt.bInputLock = false;
+
+    	bt.setLockMode(false);
+
+    	if(bt.btMacro.bMacroMode)
+    	{
+    		bt.roiManager.updateRoiListModel();
+    		IJ.log( "Macro auto trace is finished with " +Integer.toString( nCount )+" new ROIs." );
+    	}
+
     }
     
 }
