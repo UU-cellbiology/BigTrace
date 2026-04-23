@@ -663,21 +663,19 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 									
 	}
 
-
 	public AffineTransform3D getCenteredViewTransform(final AffineTransform3D ini_transform, final Interval inInterval, double zoomFraction)
 	{
-		int i;
+
 		int nDim = inInterval.numDimensions();
 		final long [] minDim = inInterval.minAsLongArray();
 		final long [] maxDim = inInterval.maxAsLongArray();
 		float [] centerCoord = new float[nDim];
-		float [] centerCoordWorldOld = new float[nDim];
-		
+		float [] centerCoordWorldOld = new float[nDim];		
 		
 		//center of the interval in the volume coordinates
-		for(i=0;i<nDim;i++)
+		for(int d = 0; d < nDim; d++)
 		{
-			centerCoord[i] = Math.round(minDim[i]+ 0.5*(maxDim[i]-minDim[i]));
+			centerCoord[d] = Math.round(minDim[d]+ 0.5*(maxDim[d]-minDim[d]));
 		}
 		
 		//current window dimensions
@@ -699,7 +697,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		transform.scale(scalefin);
 		
-		
 		//current coordinates of center in the current(old) transform
 		transform.apply(centerCoord, centerCoordWorldOld);
 
@@ -719,9 +716,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		double [] dl = transform.getTranslation();
 		
 		//translation after source transform to new position
-		for(i=0;i<3;i++)
+		for(int d = 0; d < 3; d++)
 		{
-			dl[i]+= (centerViewPoint[i]-centerCoordWorldOld[i]);
+			dl[d]+= (centerViewPoint[d]-centerCoordWorldOld[d]);
 		}
 		transform.setTranslation(dl);
 		
@@ -729,8 +726,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 	
 	public AffineTransform3D getCenteredViewTransform(final Interval inInterval, double zoomFraction)
-	{
-		
+	{		
 		final AffineTransform3D transform = new AffineTransform3D();
 		
 		bvvViewer.state().getViewerTransform(transform);
@@ -752,7 +748,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	public void showTraceBox()
 	{
-
 		// there is a trace box already, let's remove it
 		if(bvv_trace!=null)
 		{
@@ -768,8 +763,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 				btData.bcTraceChannel.storeBC(bvv_sources.get(btData.nChAnalysis));
 				bvv_sources.get(btData.nChAnalysis).setDisplayRange(0.0, 0.0);
 				bvv_sources.get(btData.nChAnalysis).setAlphaRange(0.0, 0.0);
-			}
-			
+			}			
 		}
 
 		bvv_trace = BvvFunctions.show(btData.trace_weights, "weights", Bvv.options().addTo(bvvHandle));
@@ -789,13 +783,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_trace.setAlphaRange(0., 150.0);
 
 		}
-
 	}
 	
 	/** removes tracebox from BVV **/
 	public void removeTraceBox()
 	{
-
 		if(bvv_trace != null)
 		{
 			btData.bcTraceBox.storeBC(bvv_trace);
@@ -860,15 +852,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			//opaque run
 			roiManager.draw(gl, pvm, camview, screen_size, false);
-		}	
-		
-			
+		}						
 	}
 	
 	public void renderTransparent(final GL3 gl, final RenderData data, final OffScreenFrameBufferWithDepth sceneVolBuffer)
 	{
-		
-		//gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+		//draw transparent things
 		int [] screen_size = new int [] {(int)data.getScreenWidth(), (int) data.getScreenHeight()};		
 		final Matrix4f pvm = new Matrix4f( data.getPv() );
 		final Matrix4f view = MatrixMath.affine( data.getRenderTransformWorldToScreen(), new Matrix4f() );
@@ -881,9 +870,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		gl.glBlendEquation(GL.GL_FUNC_ADD);
 		//disable depth writing
 		gl.glDepthMask(false);
-		
-		//draw transparent things
-		
+	
 		//render the origin of coordinates
 		if (btData.bShowOrigin)
 		{
@@ -906,12 +893,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//one click tracing box
 		if(visualBoxes.bShowTraceBox)
 		{
-			visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);
-			
+			visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);		
 		}
 		roiManager.draw(gl, pvm, camview, screen_size, true);
-		
-		
+				
 		gl.glDepthMask(true);
 	
 		sceneBufTransparent.unbind( gl, false );
@@ -919,15 +904,13 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
 		gl.glDisable( GL_DEPTH_TEST );	
 		sceneBufTransparent.drawQuadAlpha( gl );
-
-	}
-	
-	
+	}	
 	
 	public void repaintBVV()
 	{
 		bvvViewer.requestRepaint();
 	}
+	
 	public void repaintScene()
 	{
 		bvvViewer.requestRepaint(RepaintType.SCENE);
@@ -978,12 +961,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvv_sources.get(i).setLightingType( btData.nVolumeLight );
 
 		}
-
 	}
 	
 	public void initBVVSourcesSpimData()
 	{
-
 		Path p = Paths.get(btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
 		List<BvvStackSource<?>> sourcesSPIM;
@@ -1156,8 +1137,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 	
 	public void resetViewYZ()
-	{
-		
+	{		
 		double scale;
 		final long [][] nBox;
 		if(!bTraceMode)
@@ -1201,8 +1181,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	}
 	
 	public void resetViewXZ()
-	{
-		
+	{		
 		double scale;
 		final long [][] nBox;
 		if(!bTraceMode)
@@ -1244,7 +1223,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		final AnisotropicTransformAnimator3D anim = new AnisotropicTransformAnimator3D(bvvViewer.state().getViewerTransform(), t, (long)(btData.nAnimationDuration*0.5));
 		
 		bvvViewer.setTransformAnimator(anim);
-
 	}
 	
 	/** given mouse click coordinates, returns the line along the view ray **/
@@ -1258,7 +1236,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		Matrix4f matPerspWorld = new Matrix4f();
 		MatrixMath.screenPerspective(0, btData.dCam, btData.dClipNear, btData.dClipFar, sW, sH, 0, matPerspWorld ).mul( MatrixMath.affine( transform, new Matrix4f() ) );
 		
-
 		Vector3f temp = new Vector3f(); 
 		
 		//Main click Line 
@@ -1279,7 +1256,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	
 	public Line3D findClickLine()
 	{
-
 		java.awt.Point point_mouse  = bvvViewer.getMousePosition();
 
 		if(point_mouse == null)
@@ -1323,6 +1299,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		return false;		
 		
 	}
+	
 	/** find click location in 3D when using volumetric render 
 	 **/
 	public <X extends RealType< X >>boolean findPointLocationVolumetric(final IntervalView< X > viewclick, java.awt.Point point_mouse_in, final RealPoint target)
@@ -1463,11 +1440,10 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		//RealPoint outP = new RealPoint(3);
 		VolumeMisc.findMaxLocation(hyperSphere, target);
 		
-		//target.setPosition(foundPositions.get(finInd));
-		
-		
+		//target.setPosition(foundPositions.get(finInd));		
 		return true;	
 	}
+	
 	/** function finds a voxel with max intensity value
 	 *  In case of success returns true and coordinates of voxel in target **/
 	public <X extends RealType< X >> boolean findPointLocationMaxIntensity(final IntervalView< X > viewclick, java.awt.Point point_mouse_in, final RealPoint target)
@@ -1495,7 +1471,6 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		double foundMaxValue = (-1) * Double.MAX_VALUE;
 		
 		//init stuff
-
 		dataCube.iniFaces();
 		java.awt.Point point_mouse = new java.awt.Point();
 		
@@ -1547,8 +1522,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			}
 		target.setPosition(foundMaxPosition);
 		//System.out.println("al2 val:"+Double.toString(foundMaxValue));
-		//System.out.println("al2:"+Integer.toString(foundMaxPosition.getIntPosition(0))+" "+Integer.toString(foundMaxPosition.getIntPosition(1))+" "+Integer.toString(foundMaxPosition.getIntPosition(2)));
-		
+		//System.out.println("al2:"+Integer.toString(foundMaxPosition.getIntPosition(0))+" "+Integer.toString(foundMaxPosition.getIntPosition(1))+" "+Integer.toString(foundMaxPosition.getIntPosition(2)));		
 		return true;	
 	}	
 	
@@ -1602,8 +1576,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			bvvViewer.state().setCurrentTimepoint(nTimePoint);
 		}
 		btPanel.clipPanel.setBoundingBox( scene.getClipBox());
-	} 
- 		
+	} 		
 	
 	@Override
 	public ExtensionDescriptor[] getExtensionFunctions() {
