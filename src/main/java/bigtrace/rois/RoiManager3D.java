@@ -483,7 +483,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 rois.add(newRoi);		 
 		 if(!bt.btMacro.bMacroMode)
 		 {
-			 TaskBT.runOnEDT( ()->
+			 TaskBT.runOnEDTAndWait( ()->
 			 {
 				listModel.addElement(getFullDisplayedRoiName(newRoi));
 			 	jlist.setSelectedIndex( rois.size() - 1 );
@@ -521,7 +521,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 rois.add(nInsertN, newRoi);
 		 if(!bt.btMacro.bMacroMode)
 		 {
-			 TaskBT.runOnEDT( ()->
+			 TaskBT.runOnEDTAndWait( ()->
 			 {
 				listModel.insertElementAt(newRoi.getName(), nInsertN);
 			 	jlist.setSelectedIndex( nInsertN );
@@ -1367,8 +1367,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		else
 		{
 			roiPolyOneClickMode.setIcon(tabIconOCTrace);
-			roiPolyOneClickMode.setToolTipText("One click trace");
-			
+			roiPolyOneClickMode.setToolTipText("One click trace");			
 		}
 	}
 	

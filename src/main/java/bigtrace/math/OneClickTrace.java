@@ -239,8 +239,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			//fill array of previous point
 			allPointsIntersection = existingTracing.makeJointSegmentDouble();
 			nTotPoints = allPointsIntersection.size();
-		}
-	
+		}	
 
 		if(bNewTrace)
 		{
@@ -397,7 +396,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 		//adding last part of the trace
-		bt.roiManager.addSegment(points.get(points.size()-1), points);
+		bt.roiManager.addSegment( points.get( points.size() - 1 ), points);
 		
 		return nCountPoints;
 	}
