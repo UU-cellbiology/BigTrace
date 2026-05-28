@@ -16,6 +16,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
+import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -76,6 +77,7 @@ import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
 import bigtrace.gui.AxesOverlayRenderer;
 import bigtrace.gui.GuiMisc;
+import bigtrace.gui.MCUBVVControls;
 import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
 import bigtrace.io.ViewsIO;
@@ -191,6 +193,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		if(arg.equals(""))
 		{
 			btData.sFileNameFullImg = IJ.getFilePath("Open TIF/BDV/Bioformats file (3D, composite, time)...");
+			if(btData.sFileNameFullImg == null)
+				return;
 		}
 		else
 		{
@@ -366,6 +370,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 	    btPanel.finFrame.addWindowListener( closeWA );
 	    bvvFrame.addWindowListener(	closeWA );
+		try {
+			final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
+			new MCUBVVControls(
+					bvvHandle.getViewerPanel(),
+					controlPanel);
+		} catch (final Exception e) {}	
 		bInputLock = false;
 		
 		//check if there is a saved view
