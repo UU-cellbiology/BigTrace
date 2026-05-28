@@ -1,32 +1,22 @@
 package bigtrace;
 
 import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Desktop;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
+import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -40,7 +30,6 @@ import com.jogamp.opengl.GL3;
 
 import ij.IJ;
 import ij.ImageJ;
-import ij.Prefs;
 import ij.macro.ExtensionDescriptor;
 import ij.macro.Functions;
 import ij.macro.MacroExtension;
@@ -88,6 +77,7 @@ import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
 import bigtrace.gui.AxesOverlayRenderer;
 import bigtrace.gui.GuiMisc;
+import bigtrace.gui.MCUBVVControls;
 import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
 import bigtrace.io.ViewsIO;
@@ -203,6 +193,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		if(arg.equals(""))
 		{
 			btData.sFileNameFullImg = IJ.getFilePath("Open TIF/BDV/Bioformats file (3D, composite, time)...");
+			if(btData.sFileNameFullImg == null)
+				return;
 		}
 		else
 		{
@@ -378,6 +370,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 	    btPanel.finFrame.addWindowListener( closeWA );
 	    bvvFrame.addWindowListener(	closeWA );
+		try {
+			final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
+			new MCUBVVControls(
+					bvvHandle.getViewerPanel(),
+					controlPanel);
+		} catch (final Exception e) {}	
 		bInputLock = false;
 		
 		//check if there is a saved view
