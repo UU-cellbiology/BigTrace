@@ -13,6 +13,7 @@ import net.imglib2.view.IntervalView;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
+import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
 import ij.IJ;
 
@@ -82,10 +83,13 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		int nCurrRoiN = nCount;
 		for(int nTP = nFirstTP; nTP <= nLastTP; nTP++)
 		{
-			
-			bt.bvvViewer.setTimepoint(nTP);
+			final int tp = nTP;
+			bt.btData.nCurrTimepoint = tp;
+			TaskBT.runOnEDT(() -> bt.bvvViewer.setTimepoint(tp));
+			//bt.bvvViewer.setTimepoint(nTP);
 			IntervalView<T> traceIV =  bt.getTraceInterval(bt.btData.bTraceOnlyClipped);	
 			mask.initTraceMask( traceIV, false );
+			oneClickTrace.nTimePoint = tp;
 			oneClickTrace.traceMask = mask;
 			oneClickTrace.fullInput = traceIV;
 			

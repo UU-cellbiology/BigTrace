@@ -13,6 +13,8 @@ import bigtrace.BigTraceBGWorker;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
+import bigtrace.rois.RoiManager3D;
+
 import net.imglib2.AbstractInterval;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
@@ -41,6 +43,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** if a tracing leaving this box,
 	 * new full box is recalculated at the current location **/
 	public FinalInterval innerTraceBox; 
+	
+	public int nTimePoint = -1;
 	
 	public RealPoint startPoint;
 	
@@ -127,7 +131,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	private String progressState;
 	
-	private LineTrace3D existingTracing;
+	private LineTrace3D currentTracing;
 	
 	@Override
 	public String getProgressState()
@@ -150,7 +154,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public void runTracing ()
 	{
-		existingTracing = null;
+		currentTracing = null;
 		
 		if(bUpdateProgressBar)
 		{
@@ -171,7 +175,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//in case we continue tracing
 		if(!bNewTrace)
 		{
-			existingTracing  = (LineTrace3D)bt.roiManager.getActiveRoi();
+			currentTracing  = (LineTrace3D)bt.roiManager.getActiveRoi();
 			startPoint = new RealPoint(bt.roiManager.getLastTracePoint());
 		}
 		//init math
@@ -212,18 +216,18 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			//see so we do not trace in the same direction as existing curve
 			//get the vector of the last direction at the end of the curve
-			if(existingTracing.vertices.size()>1)
+			if(currentTracing.vertices.size() > 1)
 			{
-				final int lastSegmIndex = existingTracing.segments.size()-1;
+				final int lastSegmIndex = currentTracing.segments.size()-1;
 				double [] prevDirection = new double[3];
-				if(existingTracing.segments.get(lastSegmIndex).size()>1)
+				if(currentTracing.segments.get(lastSegmIndex).size() > 1)
 				{
-					final int prevPointIndex = existingTracing.segments.get(lastSegmIndex).size()-2;
-					existingTracing.segments.get(lastSegmIndex).get(prevPointIndex).localize(prevDirection);
+					final int prevPointIndex = currentTracing.segments.get(lastSegmIndex).size()-2;
+					currentTracing.segments.get(lastSegmIndex).get(prevPointIndex).localize(prevDirection);
 				}
 				else
 				{
-					existingTracing.vertices.get(existingTracing.vertices.size()-2).localize(prevDirection);
+					currentTracing.vertices.get(currentTracing.vertices.size()-2).localize(prevDirection);
 				}
 				LinAlgHelpers.subtract(startPoint.positionAsDoubleArray(), prevDirection, prevDirection);
 				LinAlgHelpers.normalize(prevDirection);
@@ -237,7 +241,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				}				
 			}
 			//fill array of previous point
-			allPointsIntersection = existingTracing.makeJointSegmentDouble();
+			allPointsIntersection = currentTracing.makeJointSegmentDouble();
 			nTotPoints = allPointsIntersection.size();
 		}	
 
@@ -263,7 +267,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 			
 			//reverse ROI
-			bt.roiManager.getActiveRoi().reversePoints();
+			currentTracing.reversePoints();
+			//bt.roiManager.getActiveRoi().reversePoints();
 			
 			//init math at new point
 			getMathForCurrentPoint(startPoint);
@@ -293,6 +298,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		return ;
 	}
+	
 	/** traces line in one direction. Returns number of current found points
 	 * or -1 if it got interrupted.
 	 * @param bFirstTrace 
@@ -311,20 +317,23 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		allPointsIntersection.add(startPoint.positionAsDoubleArray());
 		if(bFirstTrace)
 		{
-			LineTrace3D newTracing;
-			newTracing = (LineTrace3D) bt.roiManager.makeRoi(Roi3D.LINE_TRACE, bt.btData.nCurrTimepoint);
+			//LineTrace3D newTracing;
+			if(nTimePoint >= 0)
+				currentTracing = (LineTrace3D) bt.roiManager.makeRoi(Roi3D.LINE_TRACE, nTimePoint);				
+			else
+				currentTracing = (LineTrace3D) bt.roiManager.makeRoi(Roi3D.LINE_TRACE, bt.btData.nCurrTimepoint);
 			if(bt.btData.bEstimateROIThicknessFromParams)
 			{
-				newTracing.setLineThickness( fEstimatedThickness );
+				currentTracing.setLineThickness( fEstimatedThickness );
 			}
-			newTracing.addFirstPoint(points.get(0));
+			currentTracing.addFirstPoint(points.get(0));
 			if(!bInsertROI)
 			{
-				bt.roiManager.addRoi(newTracing);
+				bt.roiManager.addRoi(currentTracing);
 			}
 			else
 			{
-				bt.roiManager.insertRoi(newTracing, nInsertROIInd);
+				bt.roiManager.insertRoi(currentTracing, nInsertROIInd);
 			}
 		}
 		else
@@ -341,8 +350,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			if(points.size() == nPointPerSegment)
 			{
 				RealPoint lastSegmentPoint = points.get(points.size()-1).positionAsRealPoint();
-				bt.roiManager.addSegment(points.get(points.size()-1), points);
-				
+				//bt.roiManager.addSegment(points.get(points.size()-1), points);
+				RoiManager3D.addSegmentLineTrace(currentTracing, points.get(points.size()-1), points);
+				bt.repaintBVV();
 				points = new ArrayList<>();
 				points.add( lastSegmentPoint );
 				if(bUpdateProgressBar)
@@ -396,8 +406,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 		//adding last part of the trace
-		bt.roiManager.addSegment( points.get( points.size() - 1 ), points);
-		
+		//bt.roiManager.addSegment( points.get( points.size() - 1 ), points);
+		RoiManager3D.addSegmentLineTrace(currentTracing, points.get(points.size() - 1), points);
+		bt.repaintBVV();
 		return nCountPoints;
 	}
 	

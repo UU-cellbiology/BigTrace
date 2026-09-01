@@ -480,16 +480,17 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 	 /** adds provided ROI to the end of the list **/
 	 public synchronized void addRoi(final Roi3D newRoi)
 	 {		
-		 rois.add(newRoi);		 
+		 rois.add(newRoi);		
+		 final int newIndex = rois.size() - 1;
+		 activeRoi.set( newIndex );
 		 if(!bt.btMacro.bMacroMode)
 		 {
-			 TaskBT.runOnEDTAndWait( ()->
+			 TaskBT.runOnEDT( ()->
 			 {
 				listModel.addElement(getFullDisplayedRoiName(newRoi));
 			 	jlist.setSelectedIndex( rois.size() - 1 );
 			 });
 		 }
-		 activeRoi.set( rois.size() - 1 );
 	 }
 
 	 
@@ -814,6 +815,13 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > > extends 
 		 tracing.addPointAndSegment(point_,segments_);
 		 bt.repaintBVV();
 	 }
+	 
+	 public static void addSegmentLineTrace(LineTrace3D tracing, RealPoint point_, ArrayList<RealPoint> segments_)
+	 {
+		 //add point to line
+		 tracing.addPointAndSegment(point_,segments_);
+	 }
+	 
 	 public RealPoint getLastTracePoint()
 	 { 
 		 LineTrace3D tracing;

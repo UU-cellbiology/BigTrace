@@ -485,15 +485,15 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 	            	colorsCh[c] = Color.WHITE;
 
 	            }
-            	if(btdata.nBitDepth!=32)
+            	if(btdata.nBitDepth != 32)
 				{
-            		channelRanges[0][c]=(int)imp.getDisplayRangeMin();
-            		channelRanges[1][c]=(int)imp.getDisplayRangeMax();
+            		channelRanges[0][c] = (int)imp.getDisplayRangeMin();
+            		channelRanges[1][c] = (int)imp.getDisplayRangeMax();
 				}
             	else
 				{
-					channelRanges[0][c]=0;
-					channelRanges[1][c]=65535;						
+					channelRanges[0][c] = 0;
+					channelRanges[1][c] = 65535;						
 				}
 	        }
 	}
