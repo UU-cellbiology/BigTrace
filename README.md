@@ -1,4 +1,4 @@
-[![](https://github.com/ekatrukha/bigtrace/actions/workflows/build-main.yml/badge.svg)](https://github.com/ekatrukha/bigtrace/actions/workflows/build-main.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17185904.svg)](https://doi.org/10.5281/zenodo.17185904)
+[![](https://github.com/ekatrukha/bigtrace/actions/workflows/build-main.yml/badge.svg)](https://github.com/ekatrukha/bigtrace/actions/workflows/build-main.yml) [![DOI](./logo/bigtrace_doi.svg)](https://doi.org/10.5281/zenodo.15847258)
 
 [![logo](./logo/bigtrace_logo_dark_150.png)](https://github.com/ekatrukha/BigTrace#gh-dark-mode-only)
 [![logo](./logo/bigtrace_logo_light_150.png)](https://github.com/ekatrukha/BigTrace#gh-light-mode-only)
