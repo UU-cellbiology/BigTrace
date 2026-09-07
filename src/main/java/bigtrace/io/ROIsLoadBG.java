@@ -199,7 +199,9 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 					  try {
 						  Thread.sleep(1);
 					  } catch (InterruptedException ignore) {}
-					  setProgress((Integer.parseInt(line_array[1])-1) * 100 / nRoiN);
+					  final int nProgress = Math.max(Math.min( (Integer.parseInt(line_array[1])-1) * 100 / nRoiN, 100), 0);
+					  
+					  setProgress(nProgress);
 					  setProgressState("loading ROI #"+line_array[1]+" of "+Integer.toString(nRoiN));
 					  break;
 					  
