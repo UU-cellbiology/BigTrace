@@ -20,7 +20,6 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.mesh.Mesh;
-import net.imglib2.mesh.Meshes;
 import net.imglib2.mesh.alg.MeshCursor;
 import net.imglib2.mesh.impl.nio.BufferMesh;
 import net.imglib2.type.NativeType;
@@ -583,15 +582,18 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			final ArrayList< double[] > tangents = this.getJointSegmentTangentsResampled();
 			final ArrayList<ArrayList< RealPoint >> point_contours = Pipe3D.getCountours(points, tangents, btdata.sectorN, 0.5 * this.getLineThickness() * btdata.dMinVoxelSize, btdata.rotationMinFrame);
 			//return to voxel space	for the render		
-			for(int i=0; i<point_contours.size(); i++)
+			for(int i = 0; i < point_contours.size(); i++)
 			{
 				point_contours.set(i, Roi3D.scaleGlobInv(point_contours.get(i), btdata.globCal));
 			}
+			
 			final BufferMesh meshx = VisWireMesh.initClosedVolumeMesh(point_contours, Roi3D.scaleGlobInv(points, btdata.globCal) );
 			
 			if(meshx == null)
 				return null;
-			volumeMesh = Meshes.removeDuplicateVertices( meshx, 2 );
+
+			volumeMesh = meshx;
+
 			bMeshInit = true;
 		}
 		
