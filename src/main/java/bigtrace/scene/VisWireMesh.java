@@ -391,7 +391,6 @@ public class VisWireMesh {
 	
 	private void initGPUBufferWire( final GL3 gl )
 	{
-
 		if(nPointsN > 1)
 		{
 			// ..:: VERTEX BUFFERS & ARRAY OBJECTS ::..

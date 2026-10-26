@@ -403,6 +403,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		addROIsegment(bt, norm1,0, 1, true);
 
 	}
+	
 	public void calculateIntervals()
 	{
 		allIntervals = new ArrayList<>();
@@ -423,7 +424,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 			//union function will take the "proper one"
 			FinalInterval currInt = new FinalInterval(new long [] {10,10,10},new long [] {0,0,0});
 
-			for (int nPoint = 0;nPoint<allSegments.get( 0 ).size();nPoint++)
+			for (int nPoint = 0; nPoint < allSegments.get( 0 ).size(); nPoint++)
 			{
 				allSegments.get( nTP ).get(nPoint).localize(current_point_new); 
 				planeNormNew = StraightenCurve.getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize,allFrames.get( nTP )[0][nPoint],allFrames.get( nTP )[1][nPoint], current_point_new);
@@ -519,7 +520,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		{
 			ra_template = template.randomAccess();
 		}	
-		int nRadius = (int) Math.round(0.5*allRois.get(0).getLineThickness());
+		int nRadius = (int) Math.round(0.5 * allRois.get(0).getLineThickness());
 		ArrayList< ValuePair< int[],RealPoint>  > planeNormZero;
 		ArrayList< ValuePair< int[],RealPoint>  > planeNormNew;
 		double [] current_point_zero = new double [3];
@@ -531,7 +532,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 		long [] posInt = new long[outInterval.numDimensions()];
 		double newVal;
 		double oldVal;
-		for (int nPoint = 0;nPoint<allSegments.get( 0 ).size();nPoint++)
+		for (int nPoint = 0; nPoint < allSegments.get( 0 ).size(); nPoint++)
 		{
 			allSegments.get( 0 ).get(nPoint).localize(current_point_zero); 
 			planeNormZero = StraightenCurve.getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize, allFrames.get( 0 )[0][nPoint],allFrames.get( 0 )[1][nPoint], current_point_zero);
@@ -547,7 +548,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 				planeNormNew.get(i).getB().localize( curr_XY_new );
 				curr_XY_new = Roi3D.scaleGlobInv(curr_XY_new, bt.btData.globCal);
 
-				for(int d=0;d<3;d++)
+				for(int d = 0; d < 3; d++)
 				{
 					currXY_zero_mCh[d] = curr_XY_zero[d];
 					posInt[d] = Math.round( curr_XY_new[d]);
@@ -571,9 +572,7 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 				if(newVal>oldVal)
 				{
 					posFill.setReal(newVal);
-				}
-
-				
+				}		
 			}
 		}
 		
