@@ -129,7 +129,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 				{
 					if(bt.roiManager.activeRoi.intValue()>=0)
 					{
-						bt.roiManager.dialProperties();
+						bt.roiManager.rmDialogs.dialProperties();
 					}
 				}
 			}
@@ -494,7 +494,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		//Settings
 		if(e.getSource() == butSettings)
 		{
-			bt.roiManager.rmDiag.dialOneClickProperties();
+			bt.roiManager.rmDialogs.dialOneClickProperties();
 		}
 	}
 	@Override

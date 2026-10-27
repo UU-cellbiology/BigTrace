@@ -22,9 +22,9 @@ import bdv.util.Affine3DHelpers;
 import bigtrace.geometry.Line3D;
 import bigtrace.gui.AnisotropicRotationAnimator;
 import bigtrace.gui.TransformHandlerBT;
+import bigtrace.roimanager.RoiManager3DPanel;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.RoiManager3DPanel;
 import bigtrace.volume.VolumeMisc;
 
 

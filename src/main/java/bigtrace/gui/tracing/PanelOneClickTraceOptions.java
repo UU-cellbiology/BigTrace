@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.tracing;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -12,6 +12,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import bigtrace.BigTrace;
+import bigtrace.gui.GBCHelper;
+import bigtrace.gui.NumberField;
 import ij.Prefs;
 
 /** options for one-click tracing **/
@@ -98,10 +100,8 @@ public class PanelOneClickTraceOptions extends JPanel
 			gbc.gridwidth = 2;
 			this.add(cbTraceMask,gbc);		
 		}
-		
-
-
 	}
+	
 	public void getSetOptions()
 	{
 		bt.btData.nVertexPlacementPointN = Math.max(3, Integer.parseInt(nfPlaceVertex.getText()));

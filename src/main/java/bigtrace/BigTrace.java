@@ -85,9 +85,9 @@ import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.math.TraceBoxMath;
 import bigtrace.math.TracingBGVect;
+import bigtrace.roimanager.RoiManager3D;
+import bigtrace.roimanager.RoiManager3DPanel;
 import bigtrace.rois.LineTrace3D;
-import bigtrace.rois.RoiManager3D;
-import bigtrace.rois.RoiManager3DPanel;
 import bigtrace.scene.VisPolyLineAA;
 import bigtrace.volume.VolumeMisc;
 

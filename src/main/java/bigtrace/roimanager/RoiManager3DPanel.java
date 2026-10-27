@@ -1,4 +1,4 @@
-package bigtrace.rois;
+package bigtrace.roimanager;
 
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -39,7 +39,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 {
 	private static final long serialVersionUID = -2843907862066423151L;
 	
-	final BigTrace <T> bt;
+	final BigTrace<T> bt;
 	final RoiManager3D<T> rm;
 	
 	public static final int ADD_POINT = 0, 
@@ -131,7 +131,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 				if (evt.getClickCount() == 2 || SwingUtilities.isRightMouseButton(evt) ) 
 				{
 					// Double-click detected
-					rm.rmDiag.dialSemiAutoProperties();
+					rm.rmDialogs.dialSemiAutoProperties();
 				} 
 			}
 		});	
@@ -153,7 +153,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 				if (evt.getClickCount() == 2 || SwingUtilities.isRightMouseButton(evt)) 
 				{
 					// Double-click detected
-					rm.rmDiag.dialOneClickProperties();
+					rm.rmDialogs.dialOneClickProperties();
 				} 
 			}
 		});
@@ -254,7 +254,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 				{
 					if(rm.activeRoi.intValue() >= 0)
 					{
-						rm.dialProperties();
+						rm.rmDialogs.dialProperties();
 					}
 				}
 			}
@@ -527,8 +527,9 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 		//SETTINGS
 		if(e.getSource() == roiSettings)
 		{
-			rm.rmDiag.dialRenderSettings();
+			rm.rmDialogs.dialRenderSettings();
 		}
+		
 		//ACTIVE CHANNEL
 		if(e.getSource() == cbActiveChannel)
 		{
@@ -560,19 +561,20 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 			
 			if(e.getSource() == butSaveROIs)
 			{
-				rm.rmDiag.diagSaveROIs();
+				rm.rmDialogs.diagSaveROIs();
 			}
 		}
+		
 		//LOAD ROIS
 		if(e.getSource() == butLoadROIs)
 		{
-			rm.rmDiag.diagLoadROIs();
+			rm.rmDialogs.diagLoadROIs();
 		}
 		
 		//IMPORT ROIS
 		if(e.getSource() == roiImport)
 		{
-			rm.rmDiag.diagImportROIs();
+			rm.rmDialogs.diagImportROIs();
 		}
 		
 		//Groups Manager
@@ -581,14 +583,15 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 			rm.dialShowGroups();
 			
 		}
+		
 		//GROUP VISIBILITY
 		if(e.getSource() == butDisplayGroup)
 		{
-			rm.rmDiag.dialGroupVisibility();
+			rm.rmDialogs.dialGroupVisibility();
 		}
 		
 		///SIDE ROI SPECIFIC LIST BUTTONS
-		if(rm.activeRoi.intValue()>=0)
+		if(rm.activeRoi.intValue() >= 0)
 		{
 			//DELETE
 			if(e.getSource() == butDelete)
@@ -604,14 +607,15 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 			//DESELECT
 			if(e.getSource() == butDeselect)
 			{
-				rm.unselect();
-				 
+				rm.unselect();				 
 			}
+			
 			//PROPERTIES
 			if(e.getSource() == butProperties)
 			{
-				rm.dialProperties();
+				rm.rmDialogs.dialProperties();
 			}
+			
 			//APPLY GROUP		
 			if(e.getSource() == butApplyGroup)
 			{

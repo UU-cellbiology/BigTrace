@@ -15,6 +15,7 @@ import bigtrace.BigTraceData;
 import bigtrace.geometry.Line3D;
 import bigtrace.measure.MeasureValues;
 import bigtrace.measure.Sphere3DMeasure;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.scene.VisPointsScaled;
 
 import net.imglib2.Cursor;

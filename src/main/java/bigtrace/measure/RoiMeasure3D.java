@@ -235,7 +235,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 					{
 						if(bt.roiManager.activeRoi.intValue()>=0)
 						{
-							bt.roiManager.dialProperties();
+							bt.roiManager.rmDialogs.dialProperties();
 						}
 					}
 			    }

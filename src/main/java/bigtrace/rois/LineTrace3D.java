@@ -13,6 +13,7 @@ import com.jogamp.opengl.GL3;
 
 import bigtrace.BigTraceData;
 import bigtrace.geometry.Line3D;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.geometry.CurveShapeInterpolation;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisWireMesh;

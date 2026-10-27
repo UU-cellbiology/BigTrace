@@ -1,27 +1,17 @@
-package bigtrace.rois;
+package bigtrace.roimanager;
 
 import java.awt.Color;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.swing.JButton;
-import javax.swing.JColorChooser;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 
 import org.joml.Matrix4fc;
 import com.jogamp.opengl.GL3;
 
-import bdv.tools.brightness.ColorIcon;
 import ij.Prefs;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
@@ -30,10 +20,16 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import bigtrace.BigTrace;
 import bigtrace.geometry.Line3D;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.PanelFullAutoTrace;
 import bigtrace.gui.TaskBT;
+import bigtrace.gui.tracing.PanelFullAutoTrace;
 import bigtrace.measure.RoiMeasure3D;
+import bigtrace.rois.Box3D;
+import bigtrace.rois.ColorUserSettings;
+import bigtrace.rois.CrossSection3D;
+import bigtrace.rois.LineTrace3D;
+import bigtrace.rois.Point3D;
+import bigtrace.rois.PolyLine3D;
+import bigtrace.rois.Roi3D;
 import bigtrace.tracks.TrackingPanel;
 
 
@@ -47,7 +43,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 
 	public ArrayList<Roi3DGroup> groups = new ArrayList<>();
 
-	final static String sUndefinedGroupName = "*undefined*";
+	public final static String sUndefinedGroupName = "*undefined*";
 
 	public int nActiveGroup = 0;
 
@@ -68,26 +64,21 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	//TRACKS PANEL
 	public TrackingPanel<T> btTracksPanel = null;
 	
-	//dialogs
-	public final RoiManager3DDialogs<T> rmDiag;
+	public final PanelFullAutoTrace< T > panelFullAutoTrace;
 	
+	//dialogs
+	public final RoiManager3DDialogs rmDialogs;
 	
 	
 	public static interface Listener {
 		public void activeRoiChanged(int nRoi);				
 	}
-	
 
-
-	public final PanelFullAutoTrace< T > panelFullAutoTrace;
-
-		
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public RoiManager3D(final BigTrace<T> bt)
 	{
 
 		this.bt = bt;
-		rmDiag = new RoiManager3DDialogs(bt);
+		rmDialogs = new RoiManager3DDialogs(bt);
 		panelFullAutoTrace = new PanelFullAutoTrace<>(bt);
 
 		//initialize new *undefined* ROI group
@@ -594,180 +585,6 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 			roiMeasure.cbActiveChannel.setSelectedIndex(nChannel);
 		}
 	}
-
-	
-	/** show ROI Properties dialog**/
-	public void dialProperties()
-	{
-		JPanel dialProperties = new JPanel(new GridBagLayout());
-		GridBagConstraints cd = new GridBagConstraints();
-		NumberField nfTimePoint = new NumberField(4);
-		NumberField nfPointSize = new NumberField(4);
-		NumberField nfLineThickness = new NumberField(4);
-		NumberField nfOpacity = new NumberField(4);
-		
-		Roi3D currentROI = getActiveRoi();
-
-		String[] sRenderType = { "Outline", "Wire", "Surface" };
-		JComboBox<String> renderTypeList = new JComboBox<>(sRenderType);
-		nfTimePoint.setIntegersOnly(true);
-		nfTimePoint.setText(Integer.toString(currentROI.getTimePoint()));
-		nfPointSize.setText(Float.toString(currentROI.getPointSize()));
-		nfLineThickness.setText(Float.toString(currentROI.getLineThickness()));
-		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
-		decimalFormatSymbols.setDecimalSeparator('.');
-		DecimalFormat df = new DecimalFormat("0.00", decimalFormatSymbols);
-		nfOpacity.setText(df.format(currentROI.getOpacity()));
-		
-		nfOpacity.setLimits(0.0, 1.0);
-		
-
-		JButton butPointColor = new JButton( new ColorIcon( currentROI.getPointColor() ) );
-		
-		butPointColor.addActionListener( e -> {
-			Color newColor = JColorChooser.showDialog(bt.btPanel.finFrame, "Choose point color", currentROI.getPointColor() );
-			if (newColor != null)
-			{
-				selectColors.setColor(newColor, 0);
-				butPointColor.setIcon(new ColorIcon(newColor));
-			}
-			
-		});
-		
-		JButton butLineColor  = new JButton( new ColorIcon( currentROI.getLineColor()) );
-
-		
-		butLineColor.addActionListener( e -> {
-				Color newColor = JColorChooser.showDialog(bt.btPanel.finFrame, "Choose line color", currentROI.getPointColor() );
-				if (newColor!=null)
-				{	
-					selectColors.setColor(newColor, 1);							
-					butLineColor.setIcon(new ColorIcon(newColor));
-				}
-				
-		});
-		
-		cd.gridx = 0;
-		cd.gridy = 0;
-		dialProperties.add(new JLabel("ROI Type: "),cd);
-		cd.gridx++;
-		dialProperties.add(new JLabel(Roi3D.intTypeToString(currentROI.getType())),cd);
-
-		cd.gridx = 0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Group: "),cd);
-		cd.gridx++;
-		//just in case
-		if(currentROI.getGroupInd()> groups.size()-1)
-		{
-			dialProperties.add(new JLabel(RoiManager3D.sUndefinedGroupName),cd);
-		}
-		else
-		{
-			dialProperties.add(new JLabel(groups.get(currentROI.getGroupInd()).getName()),cd);	
-		}
-	
-		cd.gridx = 0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Time point: "),cd);
-		cd.gridx++;
-		dialProperties.add(nfTimePoint,cd);
-		
-		cd.gridx = 0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Point size: "),cd);
-		cd.gridx++;
-		dialProperties.add(nfPointSize,cd);
-		
-		cd.gridx=0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Point color: "),cd);
-		cd.gridx++;
-		dialProperties.add(butPointColor,cd);
-		
-		if(currentROI.getType()>Roi3D.POINT)
-		{
-			cd.gridx=0;
-			cd.gridy++;
-			dialProperties.add(new JLabel("Line thickness: "),cd);
-			cd.gridx++;
-			dialProperties.add(nfLineThickness,cd);
-			cd.gridx=0;
-			cd.gridy++;
-			dialProperties.add(new JLabel("Line color: "),cd);
-			cd.gridx++;
-			dialProperties.add(butLineColor,cd);
-		}
-		cd.gridx=0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Opacity: "),cd);
-		cd.gridx++;
-		dialProperties.add(nfOpacity,cd);
-		
-
-		cd.gridx=0;
-		cd.gridy++;
-		dialProperties.add(new JLabel("Render as: "),cd);
-		renderTypeList.setSelectedIndex(currentROI.getRenderType());
-		cd.gridx++;
-		dialProperties.add(renderTypeList,cd);
-
-		
-		
-		int reply = JOptionPane.showConfirmDialog(null, dialProperties, "ROI Properties", 
-				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-		
-		
-		if (reply == JOptionPane.OK_OPTION) 
-		{
-			
-			//time point
-			currentROI.setTimePoint(Math.min(Math.max(0, Integer.parseInt(nfTimePoint.getText())), bt.btData.nNumTimepoints - 1));
-			//point size 
-			currentROI.setPointSize(Float.parseFloat(nfPointSize.getText()));
-			
-			//point color
-			if(selectColors.getColor(0)!=null)
-			{
-				currentROI.setPointColorRGB(selectColors.getColor(0));
-				selectColors.setColor(null, 0);
-				//newPointColor = null;
-			}
-			//opacity
-			float fNewOpacity = Float.parseFloat(nfOpacity.getText());
-			if(fNewOpacity < 0.0f)
-				{fNewOpacity = 0.0f;}
-			if(fNewOpacity > 1.0f)
-				{fNewOpacity = 1.0f;}
-			currentROI.setOpacity(fNewOpacity);
-			
-			//render type
-			if(renderTypeList.getSelectedIndex()!=currentROI.getRenderType())
-			{
-				currentROI.setRenderType(renderTypeList.getSelectedIndex());
-			}
-			//line
-			if(currentROI.getType() > Roi3D.POINT)
-			{
-				//line thickness
-				float fNewLineThickess = Float.parseFloat(nfLineThickness.getText());
-				if(Math.abs(fNewLineThickess-currentROI.getLineThickness())>0.00001)
-				{
-					currentROI.setLineThickness(fNewLineThickess );
-				}
-				//line color
-				if(selectColors.getColor(1)!=null)
-				{				
-					currentROI.setLineColorRGB(selectColors.getColor(1));
-					selectColors.setColor(null, 1);				
-				}
-
-			}
-			bt.repaintBVV();		}
-	}
-	
-
-	
 
 	/** updates ROIs image for a specific group **/
 	void updateROIsGroupDisplay(int nGroupN)

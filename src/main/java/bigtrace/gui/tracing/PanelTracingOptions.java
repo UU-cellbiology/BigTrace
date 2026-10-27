@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.tracing;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -11,6 +11,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import bigtrace.BigTrace;
+import bigtrace.gui.NumberField;
 import ij.Prefs;
 
 

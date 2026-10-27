@@ -10,10 +10,10 @@ import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGWorker;
+import bigtrace.roimanager.RoiManager3D;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.RoiManager3D;
 
 import net.imglib2.AbstractInterval;
 import net.imglib2.FinalInterval;

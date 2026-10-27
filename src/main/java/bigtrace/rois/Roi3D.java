@@ -9,6 +9,7 @@ import org.joml.Matrix4fc;
 import com.jogamp.opengl.GL3;
 
 import bigtrace.geometry.Line3D;
+import bigtrace.roimanager.Roi3DGroup;
 
 import net.imglib2.Cursor;
 import net.imglib2.Interval;

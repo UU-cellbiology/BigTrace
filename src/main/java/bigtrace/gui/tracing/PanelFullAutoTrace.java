@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.tracing;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -21,6 +21,10 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
+import bigtrace.gui.GBCHelper;
+import bigtrace.gui.NumberField;
+import bigtrace.gui.RangeSliderPanel;
+import bigtrace.gui.TaskBT;
 import bigtrace.math.FullAutoTrace;
 import ij.Prefs;
 

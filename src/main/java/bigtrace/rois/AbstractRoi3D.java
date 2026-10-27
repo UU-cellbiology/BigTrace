@@ -3,6 +3,7 @@ package bigtrace.rois;
 import java.awt.Color;
 
 import bigtrace.BigTraceData;
+import bigtrace.roimanager.Roi3DGroup;
 
 
 public abstract class AbstractRoi3D implements Roi3D 

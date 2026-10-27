@@ -1,4 +1,4 @@
-package bigtrace.rois;
+package bigtrace.roimanager;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -38,6 +38,8 @@ import javax.swing.event.ListSelectionListener;
 import bdv.tools.brightness.ColorIcon;
 import bigtrace.BigTraceData;
 import bigtrace.gui.NumberField;
+import bigtrace.rois.ColorUserSettings;
+import bigtrace.rois.Roi3D;
 import ij.IJ;
 import ij.Prefs;
 import ij.io.OpenDialog;

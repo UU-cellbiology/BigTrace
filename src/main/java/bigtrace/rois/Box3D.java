@@ -12,6 +12,7 @@ import com.jogamp.opengl.GL3;
 
 import bigtrace.BigTraceData;
 import bigtrace.geometry.Line3D;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.scene.VisPolyLineAA;
 
 import net.imglib2.AbstractInterval;

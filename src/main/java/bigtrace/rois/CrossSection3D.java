@@ -19,6 +19,7 @@ import bigtrace.BigTraceData;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.geometry.Plane3D;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisPolygonFlat;
 

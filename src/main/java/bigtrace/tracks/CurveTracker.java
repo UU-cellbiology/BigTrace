@@ -24,10 +24,10 @@ import bigtrace.BigTraceBGWorker;
 import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.measure.MeasureValues;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.Roi3DGroup;
 import bigtrace.volume.VolumeMisc;
 
 public class CurveTracker < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
