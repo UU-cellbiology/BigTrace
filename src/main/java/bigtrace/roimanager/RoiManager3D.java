@@ -679,8 +679,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	
 	public void dialShowGroups()
 	{
-		Roi3DGroupManager<T> dialGroup = new Roi3DGroupManager<>(this);
-		dialGroup.initGUI();
+		final Roi3DGroupManager<T> dialGroup = new Roi3DGroupManager<>(this);
 		dialGroup.show();
 		rmPanel.updateGroupSelector();
 	}

@@ -31,8 +31,6 @@ public class RangeSliderPanel extends JPanel implements FocusListener, NumberFie
 	 */
 	private static final long serialVersionUID = 1L;
 
-
-
 	public static interface Listener {
 		public void sliderChanged();
 	}
