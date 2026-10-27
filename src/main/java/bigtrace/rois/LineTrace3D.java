@@ -152,7 +152,6 @@ public class LineTrace3D extends AbstractCurve3D
 		pointSize = point_size;
 		verticesVis.setSize(pointSize);
 	}
-	
 
 	@Override
 	public void setLineThickness(float line_thickness) 
@@ -161,7 +160,6 @@ public class LineTrace3D extends AbstractCurve3D
 		segmentsVis.setThickness(lineThickness);
 		updateRenderVertices();
 	}
-	
 	
 	@Override
 	public void setRenderType(int nRenderType)
@@ -253,26 +251,21 @@ public class LineTrace3D extends AbstractCurve3D
 	}
 
 	@Override
-	public void reversePoints() {
-		
-		int i;
-		
+	public void reversePoints() 
+	{		
 		vertices = Roi3D.reverseArrayRP(vertices); 
 		//update drawing component
 		verticesVis.setVertices(vertices);
 		
 		ArrayList<ArrayList<RealPoint>> segments_r = new ArrayList<>();
-		for(i = segments.size() - 1; i >= 0; i--)
+		for(int i = segments.size() - 1; i >= 0; i--)
 		{
 			segments_r.add(Roi3D.reverseArrayRP(segments.get(i)));
 		}
 		segments = segments_r;
 		
 		//update drawing component
-		updateRenderVertices();
-		
-		return;
-		
+		updateRenderVertices();	
 	}
 	
 	public int getNumberOfPointsInJointSegment()
@@ -398,6 +391,25 @@ public class LineTrace3D extends AbstractCurve3D
 		return dMinDist;
 	}
 	
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		//adjust sizes without rebuilding things
+		setPointSize(( float ) ( getPointSize() * sizeFactor ));
+		
+		lineThickness *= sizeFactor;
+		segmentsVis.setThickness(lineThickness);
 
+		//update vertices
+		vertices = RoiBGScaler.scaleRealPointArray( vertices, coordFactor );
+		//update segments
+		ArrayList<ArrayList<RealPoint>> segments_n = new ArrayList<>();
+		for(int i = 0; i < segments.size(); i++)
+		{
+			segments_n.add(RoiBGScaler.scaleRealPointArray( segments.get( i ), coordFactor ));
+		}
+		segments = segments_n;
+		updateRenderVertices();
+	}
 }
 

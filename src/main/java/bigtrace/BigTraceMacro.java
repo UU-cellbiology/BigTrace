@@ -610,7 +610,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log( "First axis parameter should be in the range of 0-2, wher 0 = X axis, 1 = Y axis, 2 = Z axis" );
 			IJ.log( "Setting the value to 0, X axis." );
 		}
-		int nShape = 0 ;
+		int nShape = 0;
 		if(sShape == "Round")
 		{
 			nShape  = 1;

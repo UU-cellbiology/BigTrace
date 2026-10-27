@@ -15,8 +15,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.List;
+
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -32,8 +35,10 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import bigtrace.BigTraceData;
+import bigtrace.gui.panels.NumberField;
 import bigtrace.gui.rois.PanelGroupProperties;
 import bigtrace.rois.Roi3D;
+import bigtrace.rois.RoiBGScaler;
 import ij.IJ;
 import ij.Prefs;
 import ij.io.OpenDialog;
@@ -96,7 +101,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 		 butMerge.addActionListener(this);
 		 butColor = new JButton("Color");
 		 butColor.addActionListener(this);
-		 butScale = new JButton("Scale");
+		 butScale = new JButton("Scale ROIs");
 		 butScale.addActionListener(this);
 		 butSave = new JButton("Save");
 		 butSave.addActionListener(this);
@@ -106,15 +111,15 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 		 jlist.setSelectedIndex(roiManager.nActiveGroup);
 		 
 		 GridBagConstraints cr = new GridBagConstraints();
-		 cr.gridx=0;
-		 cr.gridy=0;
+		 cr.gridx = 0;
+		 cr.gridy = 0;
 		 //cr.weighty=0.5;
-		 cr.gridheight=GridBagConstraints.REMAINDER;
+		 cr.gridheight = GridBagConstraints.REMAINDER;
 		 presetList.add(listScroller,cr);
 
 		 cr.gridx++;
 		 cr.gridy++;
-		 cr.gridheight=1;
+		 cr.gridheight = 1;
 		 //cr.fill = GridBagConstraints.NONE;
 		 presetList.add(butEdit,cr);		 
 		 cr.gridy++;
@@ -171,8 +176,8 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 		
 		JCheckBox cbDeleteGroup = new JCheckBox();
 		cbDeleteGroup .setSelected( Prefs.get( "BigTrace.bMergeDeleteGroup", true ) ); 
-		cd.gridx=0;
-		cd.gridy=0;
+		cd.gridx = 0;
+		cd.gridy = 0;
 		cd.gridwidth = 2; 
 		dialMerge.add(new JLabel("Move ROIs from group "+roiManager.groups.get( indList ).getName() +" to"),cd);
 		cd.gridy++;
@@ -192,7 +197,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 			boolean bDeleteGroup = false;
-			if(indList!=0)
+			if(indList != 0)
 			{
 				bDeleteGroup = cbDeleteGroup.isSelected();
 				Prefs.set( "BigTrace.bMergeDeleteGroup", bDeleteGroup );
@@ -200,11 +205,11 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			//get the index of the group to merge
 			int nGroupMergeInd = cbGroup.getSelectedIndex();
 			
-			if(nGroupMergeInd>=indList)
+			if(nGroupMergeInd >= indList)
 			{
 				nGroupMergeInd++;
 			}
-			roiManager.moveROIsGroups(indList,nGroupMergeInd);
+			roiManager.moveROIsGroups(indList, nGroupMergeInd);
 			//System.out.println(roiManager.groups.get(nGroupMergeInd).getName());
 			if(bDeleteGroup)
 			{
@@ -217,14 +222,14 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 	void dialogColor(int indList)	
 	{
 		String [] luts = IJ.getLuts();
-		JComboBox<String> cbLUTs = new JComboBox<>(luts);
+		final JComboBox<String> cbLUTs = new JComboBox<>(luts);
 		int reply = JOptionPane.showConfirmDialog(null, cbLUTs, "Color ROIs in group using LUT", 
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);	
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 			
 			String sLUTName = ( String ) cbLUTs.getSelectedItem();
-			ArrayList<Roi3D> groupROI = new ArrayList<>();
+			final ArrayList<Roi3D> groupROI = new ArrayList<>();
 		
 			for (int i = 0; i < roiManager.rois.size(); i++)
 			{
@@ -247,6 +252,97 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			}
 			roiManager.bt.repaintBVV();
 		}
+	}
+	
+	/** show Group ROI scale dialog**/
+	void dialogScale(int indList)	
+	{
+		final JPanel dialScale = new JPanel(new GridBagLayout());
+		final String [] sList = new String[] {"Scale all ROIs", "Scale selected group"};
+		final String [] sAxes = new String[] {"X ", "Y ", "Z "};
+		final JComboBox<String> cbScaleSelection = new JComboBox<>(sList);
+		final double [] scaleFactor = new double[3];
+		for(int d = 0; d < 3; d++)
+		{
+			scaleFactor[ d ] = Prefs.get("BigTrace.ScaleRoiFactor" + Integer.toString(d), 1.0);
+		}
+		
+		final ArrayList<NumberField> nfScaleArray = new ArrayList<>();
+		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
+		decimalFormatSymbols.setDecimalSeparator('.');
+		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
+		for(int d = 0; d < 3; d++)
+		{
+			nfScaleArray.add( new NumberField(4));
+			nfScaleArray.get(d).setText(df.format(scaleFactor[d]));
+		}
+		final GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		if(indList > -1)
+		{
+			gbc.gridwidth = 6;
+			cbScaleSelection.setSelectedItem( Prefs.get( "BigTrace.scaleSelection", sList[0]) );
+			dialScale.add( cbScaleSelection, gbc);
+			gbc.gridy ++;
+			gbc.gridwidth = 1;
+		}
+		for(int d = 0; d < 3; d++)
+		{
+			dialScale.add( new JLabel(sAxes[d]), gbc);
+			gbc.gridx++;
+			dialScale.add( nfScaleArray.get( d ), gbc);
+			gbc.gridx++;
+		}
+		
+		int reply = JOptionPane.showConfirmDialog(null, dialScale, "Scale ROIs", 
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		
+		if (reply == JOptionPane.OK_OPTION) 
+		{
+			//save settings
+			for(int d = 0; d < 3; d++)
+				scaleFactor[ d ] = Double.parseDouble(nfScaleArray.get(d).getText());
+			
+			for(int d = 0; d < 3; d++)
+			{
+				Prefs.set("BigTrace.ScaleRoiFactor" + Integer.toString(d), scaleFactor[d]);				
+			}
+			List<Roi3D> scaleROIs = roiManager.rois;
+			if(indList > -1)
+			{
+				String sSelection = (String)cbScaleSelection.getSelectedItem();
+				Prefs.set( "BigTrace.scaleSelection", sSelection );
+				if(sSelection.equals( sList[1] ))
+				{
+					scaleROIs = new ArrayList<>();
+					for (int i = 0; i < roiManager.rois.size(); i++)
+					{
+						if(roiManager.rois.get(i).getGroupInd() == indList)
+						{
+							scaleROIs.add(roiManager.rois.get(i));
+						}
+					}
+				}
+			}
+			
+			if(scaleROIs.size() > 0)
+			{
+				//lock interaction
+				roiManager.bt.bInputLock = true;
+				roiManager.bt.setLockMode(true);
+				//run in a separate thread
+				final RoiBGScaler roiBGScaler = new RoiBGScaler(roiManager.bt, scaleROIs, scaleFactor);
+				roiBGScaler.addPropertyChangeListener(roiManager.bt.btPanel);
+				roiBGScaler.execute();
+			}
+			else
+			{
+				IJ.log("Cannot find ROIs to apply scaling.");
+				roiManager.bt.btPanel.progressBar.setString("ROIs scaling aborted.");
+			}
+		}
+		
 	}
     
 	/** show Group Properties dialog**/
@@ -312,7 +408,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			writer.write("BigTrace_groups,version," + BigTraceData.sVersion + "\n");
 			nGroupN=roiManager.groups.size();
 			writer.write("GroupsNumber,"+Integer.toString(nGroupN)+"\n");
-			for(nGroup=0;nGroup<nGroupN;nGroup++)
+			for(nGroup = 0; nGroup < nGroupN; nGroup++)
 			{
 				  //Sleep for up to one second.
 				try {
@@ -385,13 +481,13 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 		}
         
 		//some error reading the file
-        if(bFirstPartCheck<1)
+        if(bFirstPartCheck < 1)
         {
         	 System.err.println("Not a BigTrace ROI Group file format \n Groups are not loaded.");
              //bt.bInputLock = false;
              //bt.roiManager.setLockMode(false);
         }
-        if(bFirstPartCheck==1)
+        if(bFirstPartCheck == 1)
         {
         	 System.err.println("Plugin/file version mismatch,\n loading Groups may be corrupted.");
              //bt.bInputLock = false;
@@ -431,7 +527,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 					line_array = line.split(",");
 					nLineN++;
 					//first line check
-					if(line_array.length==3 && nLineN==1)
+					if(line_array.length == 3 && nLineN == 1)
 					{
 						if(line_array[0].equals("BigTrace_groups"))
 						{
@@ -497,7 +593,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
         	System.err.print(e.getMessage());
         }
         
-        if(nLoadedGroupsN>0)
+        if(nLoadedGroupsN > 0)
         {
         	return bFirstPartCheck;
         }
@@ -539,17 +635,16 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 
 	@Override
 	public void actionPerformed(ActionEvent ae) 
-	{
-		
+	{	
 		int indList = jlist.getSelectedIndex();
 		
-		if(indList>-1)
+		if(indList > -1)
 		{
 			//EDIT
 			if(ae.getSource() == butEdit)
 			{
 				boolean bNameChange;
-				if(indList==0)
+				if(indList == 0)
 				{
 					bNameChange= false;
 				}
@@ -567,7 +662,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			if(ae.getSource() == butCopyNew)
 			{
 				Roi3DGroup newGroup;
-				if(jlist.getSelectedIndex()==0)
+				if(jlist.getSelectedIndex() == 0)
 				{
 					newGroup = new Roi3DGroup(roiManager.groups.get(indList), "new_group"); 
 				}
@@ -596,18 +691,22 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			{				
 				dialogColor(indList);
 			}
+
 			//SAVE
 			if(ae.getSource() == butSave)
-			{
-			
+			{			
 				dialogSaveGroups();
 			}
 			//LOAD
 			if(ae.getSource() == butLoad)
 			{			
 				dialogLoadGroups();
-			}
-			
+			}		
+		}
+		//Scale
+		if(ae.getSource() == butScale)
+		{				
+			dialogScale(indList);
 		}
 	}
 
@@ -631,6 +730,7 @@ public class Roi3DGroupManager implements ListSelectionListener, ActionListener
 			butMerge.setEnabled( true );
 		}	
 	}
+	
 	/** deletes Group and asks what to do with ROIs **/ 
 	void deleteGroup(int indList)
 	{

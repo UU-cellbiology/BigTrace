@@ -27,9 +27,9 @@ public class BigTraceRenderSettings implements Command {
 
 	@Parameter( label = "Number of dither samples",
 			description = "Pixels are interpolated from this many nearest neighbors when dithering. This is not very expensive, it's fine to turn it up to 8.",
-			min="1",
-			max="8",
-			style="slider")
+			min = "1",
+			max = "8",
+			style = "slider")
 	private int numDitherSamples = (int) Prefs.get("BigTrace.numDitherSamples", RenderSettings.defNumDitherSamples);
 
 	@Parameter( label = "GPU cache tile size" )

@@ -80,6 +80,9 @@ public interface Roi3D
 	
 	public double getMinDist(final Line3D line);
 	
+	/** scale ROI coordinates vie coordFactor and sizes (points, thickness) by sizeFactor **/
+	public void scale(final double [] coordFactor, final double sizeFactor);
+	
 	/** returns bounding box including only centerline vertices (for curves) **/
 	public Interval getBoundingBoxVisual();
 	

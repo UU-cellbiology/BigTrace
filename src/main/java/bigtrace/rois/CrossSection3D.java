@@ -153,8 +153,7 @@ public class CrossSection3D extends AbstractRoi3D
 		vertices = new ArrayList<>();
 		for(int i = 0; i < vertices_.size(); i++)
 			vertices.add(new RealPoint(vertices_.get(i)));		
-		updateRenderVertices();
-		
+		updateRenderVertices();		
 	}
 
 	@Override
@@ -475,6 +474,14 @@ public class CrossSection3D extends AbstractRoi3D
 		{
 			bTransparent = true;
 		}
+	}
+	
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		setPointSize(( float ) ( getPointSize() * sizeFactor ));
+		vertices = RoiBGScaler.scaleRealPointArray( vertices, coordFactor );
+		updateRenderVertices();
 	}
 
 }

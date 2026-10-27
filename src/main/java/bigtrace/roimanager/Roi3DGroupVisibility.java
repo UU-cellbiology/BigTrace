@@ -28,9 +28,9 @@ public class Roi3DGroupVisibility implements  ActionListener {
 		 
 		 groupNames = new ArrayList<>();
 		 groupCheckbox = new ArrayList<>();
-		 JPanel panelGroupVis = new JPanel(new GridLayout(0,2));
+		 JPanel panelGroupVis = new JPanel(new GridLayout(0, 2));
 
-		 for(int i = 0;i<roiManager.groups.size();i++)
+		 for(int i = 0; i < roiManager.groups.size(); i++)
 		 {
 			 groupNames.add(new JLabel(roiManager.groups.get(i).getName()));
 			 groupCheckbox.add(new JCheckBox());
@@ -55,14 +55,13 @@ public class Roi3DGroupVisibility implements  ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent ae) {
 		//switch off visibility
-		for(int i=0;i< groupCheckbox.size();i++)
+		for(int i = 0; i < groupCheckbox.size(); i++)
 		{
 			if(ae.getSource() == groupCheckbox.get(i))
 			{	
 				roiManager.groups.get(i).bVisible =groupCheckbox.get(i).isSelected(); 
 				roiManager.repaintBVV();
 			}
-
 		}
 	}	
 	

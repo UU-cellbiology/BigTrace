@@ -32,8 +32,9 @@ public class PanelROIProperties extends JPanel
 	
 	public PanelROIProperties(final BigTrace<?> bt_)
 	{
+		super(new GridBagLayout());
 		this.bt = bt_;
-		JPanel dialProperties = new JPanel(new GridBagLayout());
+
 		GridBagConstraints cd = new GridBagConstraints();
 
 		currentROI = bt.roiManager.getActiveRoi();
@@ -79,68 +80,68 @@ public class PanelROIProperties extends JPanel
 		
 		cd.gridx = 0;
 		cd.gridy = 0;
-		dialProperties.add(new JLabel("ROI Type: "),cd);
+		this.add(new JLabel("ROI Type: "),cd);
 		cd.gridx++;
-		dialProperties.add(new JLabel(Roi3D.intTypeToString(currentROI.getType())),cd);
+		this.add(new JLabel(Roi3D.intTypeToString(currentROI.getType())),cd);
 
 		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Group: "),cd);
+		this.add(new JLabel("Group: "),cd);
 		cd.gridx++;
 		//just in case
 		if(currentROI.getGroupInd() > bt.roiManager.groups.size()-1)
 		{
-			dialProperties.add(new JLabel(RoiManager3D.sUndefinedGroupName),cd);
+			this.add(new JLabel(RoiManager3D.sUndefinedGroupName),cd);
 		}
 		else
 		{
-			dialProperties.add(new JLabel(bt.roiManager.groups.get(currentROI.getGroupInd()).getName()),cd);	
+			this.add(new JLabel(bt.roiManager.groups.get(currentROI.getGroupInd()).getName()),cd);	
 		}
 	
 		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Time point: "),cd);
+		this.add(new JLabel("Time point: "),cd);
 		cd.gridx++;
-		dialProperties.add(nfTimePoint,cd);
+		this.add(nfTimePoint,cd);
 		
 		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Point size: "),cd);
+		this.add(new JLabel("Point size: "),cd);
 		cd.gridx++;
-		dialProperties.add(nfPointSize,cd);
+		this.add(nfPointSize,cd);
 		
-		cd.gridx=0;
+		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Point color: "),cd);
+		this.add(new JLabel("Point color: "),cd);
 		cd.gridx++;
-		dialProperties.add(butPointColor,cd);
+		this.add(butPointColor,cd);
 		
 		if(currentROI.getType() > Roi3D.POINT)
 		{
 			cd.gridx = 0;
 			cd.gridy++;
-			dialProperties.add(new JLabel("Line thickness: "),cd);
+			this.add(new JLabel("Line thickness: "),cd);
 			cd.gridx++;
-			dialProperties.add(nfLineThickness,cd);
+			this.add(nfLineThickness,cd);
 			cd.gridx = 0;
 			cd.gridy++;
-			dialProperties.add(new JLabel("Line color: "),cd);
+			this.add(new JLabel("Line color: "),cd);
 			cd.gridx++;
-			dialProperties.add(butLineColor,cd);
+			this.add(butLineColor,cd);
 		}
 		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Opacity: "),cd);
+		this.add(new JLabel("Opacity: "),cd);
 		cd.gridx++;
-		dialProperties.add(nfOpacity,cd);
+		this.add(nfOpacity,cd);
 		
 
 		cd.gridx = 0;
 		cd.gridy++;
-		dialProperties.add(new JLabel("Render as: "),cd);
+		this.add(new JLabel("Render as: "),cd);
 		renderTypeList.setSelectedIndex(currentROI.getRenderType());
 		cd.gridx++;
-		dialProperties.add(renderTypeList,cd);
+		this.add(renderTypeList,cd);
 	}
 	
 	public void getSetProperties()

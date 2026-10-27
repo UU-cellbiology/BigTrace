@@ -390,11 +390,13 @@ public class Box3D extends AbstractRoi3D
 		
 		return getBoundingBox();	
 	}
+	
 	@Override
 	public < T extends RealType< T > & NativeType< T >  > Cursor< T > getSingle3DVolumeCursor( RandomAccessibleInterval< T > input )
 	{		
 		return Views.interval( input, getBoundingBox() ).cursor();
 	}
+	
 	/** define if the shape is transparent **/
 	@Override
 	public void defineTransparency()
@@ -408,5 +410,11 @@ public class Box3D extends AbstractRoi3D
 //		{
 //			bTransparent = true;
 //		}
+	}
+	
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		return;
 	}
 }

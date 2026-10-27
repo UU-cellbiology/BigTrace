@@ -451,11 +451,11 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		JPanel pCoalignVector = new JPanel(new GridLayout(0,2,6,0));
 		
 		ArrayList<NumberField> nfCoalignVector = new ArrayList<>();
-		int d;
+
 		DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
 		decimalFormatSymbols.setDecimalSeparator('.');
 		DecimalFormat df = new DecimalFormat("0.000", decimalFormatSymbols);
-		for(d = 0; d < 3; d++)
+		for(int d = 0; d < 3; d++)
 		{
 			nfCoalignVector.add( new NumberField(4));
 			nfCoalignVector.get(d).setText(df.format(coalignVector[d]));
@@ -472,7 +472,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		if (reply == JOptionPane.OK_OPTION) 
 		{
 			double [] inVector = new double[3];
-			for(d = 0; d < 3; d++)
+			for(int d = 0; d < 3; d++)
 				inVector[ d ] = Double.parseDouble(nfCoalignVector.get(d).getText());
 			double len = LinAlgHelpers.length(inVector);
 			if(len < 0.000001)
@@ -482,7 +482,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 			else
 			{
 				LinAlgHelpers.normalize(inVector);
-				for(d = 0; d < 3; d++)
+				for(int d = 0; d < 3; d++)
 				{
 					coalignVector[ d ] = inVector[ d ];
 					Prefs.set("BigTrace.coalignVec" + Integer.toString(d), coalignVector[d]);				
@@ -1096,7 +1096,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		final RealSum realSum = new RealSum();
 		for(int i = 0; i < values.length; i++)
 		{
-			realSum.add((values[i]-mean)*(values[i]-mean));
+			realSum.add((values[i] - mean) * (values[i] - mean));
 		}
 		
 		if(values.length == 1)
@@ -1109,7 +1109,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 	{
 		final RealSum realSum = new RealSum();
 		
-		for(int i=0;i<values.length;i++)
+		for(int i = 0; i < values.length; i++)
 		{
 			realSum.add( values[i]);
 		}
@@ -1132,74 +1132,74 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		
 		extractROISettings.setLayout(new GridBagLayout());
 		
-		GridBagConstraints cd = new GridBagConstraints();
+		final GridBagConstraints gbc = new GridBagConstraints();
 
 		final NumberField nfBoxExpand = new NumberField(4);
 		nfBoxExpand.setIntegersOnly(true);
 
-		GBCHelper.alighLeft(cd);
-		cd.gridx = 0;
-		cd.gridy = 0;	
-		extractROISettings.add(new JLabel("Extract box around:"),cd);
-		cd.gridx++;
+		GBCHelper.alighLeft(gbc);
+		gbc.gridx = 0;
+		gbc.gridy = 0;	
+		extractROISettings.add(new JLabel("Extract box around:"),gbc);
+		gbc.gridx++;
 		final String[] sExtractBoxROIsRange = { "Selected ROI", "All visible ROIs" };
 		JComboBox<String> extractBoxRoiList = new JComboBox<>(sExtractBoxROIsRange);
 		extractBoxRoiList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractBoxROIList", 0));
-		extractROISettings.add(extractBoxRoiList, cd);	
+		extractROISettings.add(extractBoxRoiList, gbc);	
 		
-		cd.gridy++;
-		cd.gridx = 0;	
-		extractROISettings.add(new JLabel("Extract only voxels inside ROI:"),cd);
-		cd.gridx++;
+		gbc.gridy++;
+		gbc.gridx = 0;	
+		extractROISettings.add(new JLabel("Extract only voxels inside ROI:"),gbc);
+		gbc.gridx++;
 		JCheckBox extractVoxelsInsideROI = new JCheckBox();
 		extractVoxelsInsideROI.setSelected( Prefs.get("BigTrace.bOnlyVoxelsInsideROI", false) );
-		extractROISettings.add(extractVoxelsInsideROI,cd);
+		extractROISettings.add(extractVoxelsInsideROI,gbc);
 		
-		cd.gridy++;
-		cd.gridx = 0;	
-		extractROISettings.add(new JLabel("Box size:"),cd);
-		cd.gridx++;
+		gbc.gridy++;
+		gbc.gridx = 0;	
+		extractROISettings.add(new JLabel("Box size:"),gbc);
+		gbc.gridx++;
 		String[] sExtractRoiType = { "Tight", "Enlarge/shrink below" };
 		JComboBox<String> extractBoxTypeList = new JComboBox<>(sExtractRoiType);
 		extractBoxTypeList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractRoiType", 0));
-		extractROISettings.add(extractBoxTypeList,cd);
+		extractROISettings.add(extractBoxTypeList,gbc);
 		
 		nfBoxExpand.setText(Integer.toString((int)Prefs.get("BigTrace.nExpandROIBox", 5)));
-		cd.gridy++;
-		cd.gridx = 0;
-		extractROISettings.add(new JLabel("Expand box by (px):"),cd);
-		cd.gridx++;
-		extractROISettings.add(nfBoxExpand,cd);
+		gbc.gridy++;
+		gbc.gridx = 0;
+		extractROISettings.add(new JLabel("Expand box by (px):"),gbc);
+		gbc.gridx++;
+		extractROISettings.add(nfBoxExpand,gbc);
 		
 		String[] sExtractBoxTime = { "Single ROI's time point", "All time points" };
 		JComboBox<String> extractBoxTimeList = new JComboBox<>(sExtractBoxTime);
 		if(bt.btData.nNumTimepoints > 1 )
 		{
-			cd.gridy++;
-			cd.gridx = 0;
-			extractROISettings.add(new JLabel("Time range per ROI:"),cd);
+			gbc.gridy++;
+			gbc.gridx = 0;
+			extractROISettings.add(new JLabel("Time range per ROI:"),gbc);
 			extractBoxTimeList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractBoxTime", 0));
-			cd.gridx++;
-			extractROISettings.add(extractBoxTimeList,cd);
+			gbc.gridx++;
+			extractROISettings.add(extractBoxTimeList,gbc);
 			
 		}
-		cd.gridy++;
-		cd.gridx = 0;	
-		extractROISettings.add(new JLabel("Output:"),cd);
-		cd.gridx++;
+		gbc.gridy++;
+		gbc.gridx = 0;	
+		extractROISettings.add(new JLabel("Output:"),gbc);
+		gbc.gridx++;
 		String[] sExtractBoxOutput = { "show in ImageJ", "save as TIF" };
 		JComboBox<String> extractBoxOutputList = new JComboBox<>(sExtractBoxOutput);
 		extractBoxOutputList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractBoxOutput", 0));
-		extractROISettings.add(extractBoxOutputList,cd);
+		extractROISettings.add(extractBoxOutputList,gbc);
 		
 		if(bt.bApplyLLSTransform)
 		{
-			cd.gridy++;
-			cd.gridx = 0;	
-			extractROISettings.add(new JLabel("Intensity interpolation:"),cd);
-			cd.gridx++;
+			gbc.gridy++;
+			gbc.gridx = 0;	
+			extractROISettings.add(new JLabel("Intensity interpolation:"),gbc);
+			gbc.gridx++;
 			String[] sIntInterpolationType = { "Nearest Neighbor", "Linear", "Lanczos" };
-			extractROISettings.add(new JLabel(sIntInterpolationType[bt.btData.intensityInterpolation]),cd);
+			extractROISettings.add(new JLabel(sIntInterpolationType[bt.btData.intensityInterpolation]),gbc);
 		}
 		
 		int reply = JOptionPane.showConfirmDialog(null, extractROISettings, "Extract box around ROI(s)", 

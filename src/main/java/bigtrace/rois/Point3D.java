@@ -70,7 +70,7 @@ public class Point3D extends AbstractRoi3D
 	public void setVertex(final RealPoint vertex_)
 	{
 		vertex = new RealPoint(vertex_);
-		vertexVis = new VisPointsScaled(vertex_,pointSize,pointColor, renderType);
+		vertexVis = new VisPointsScaled(vertex_, pointSize, pointColor, renderType);
 	}
 	
 	@Override
@@ -277,8 +277,7 @@ public class Point3D extends AbstractRoi3D
 	
 	@Override
 	public void setLineThickness(float line_thickness) 
-	{
-		
+	{	
 		lineThickness = line_thickness;
 		return;
 	}
@@ -342,5 +341,17 @@ public class Point3D extends AbstractRoi3D
 		{
 			bTransparent = true;
 		}
+	}
+
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		setPointSize(( float ) ( getPointSize() * sizeFactor ));
+		RealPoint newC = new RealPoint(3);
+		for(int d = 0; d < 3; d++)
+		{
+			newC.setPosition( vertex.getDoublePosition( d ) * coordFactor[d], d );
+		}
+		vertex = newC;
 	}
 }
