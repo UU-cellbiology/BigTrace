@@ -6,10 +6,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.roimanager.RoiManager3D;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
@@ -33,7 +31,7 @@ import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
 	public BigTrace<T> bt;
 	
@@ -129,20 +127,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	ArrayImg<FloatType, FloatArray> gradFloat;
 	ArrayImg<FloatType, FloatArray> hessFloat;
 	
-	private String progressState;
-	
 	private LineTrace3D currentTracing;
 	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 	
 	@Override
 	protected Void doInBackground() throws Exception 

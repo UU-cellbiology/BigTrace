@@ -834,16 +834,16 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	            	progressBar.setValue(progress);
 	            }
 	            
-	            if(evt.getSource() instanceof bigtrace.BigTraceBGWorker)
+	            if(evt.getSource() instanceof bigtrace.BigTraceBGTask)
 	            {
-	            	progressBar.setString(((bigtrace.BigTraceBGWorker)(evt.getSource())).getProgressState());
+	            	progressBar.setString(((bigtrace.BigTraceBGTask)(evt.getSource())).getProgressState());
 	            }
 	        }
 	        if ("ProgressBarString" == evt.getPropertyName()) 
 	        {
-	            if(evt.getSource() instanceof bigtrace.BigTraceBGWorker)
+	            if(evt.getSource() instanceof bigtrace.BigTraceBGTask)
 	            {
-	            	progressBar.setString(((bigtrace.BigTraceBGWorker)(evt.getSource())).getProgressState());
+	            	progressBar.setString(((bigtrace.BigTraceBGTask)(evt.getSource())).getProgressState());
 	            }
 	        }
 	        

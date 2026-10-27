@@ -40,13 +40,11 @@ import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 import ij.plugin.LutLoader;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
+public class Roi3DGroupManager implements ListSelectionListener, ActionListener 
+{
 
-public class Roi3DGroupManager < T extends RealType< T > & NativeType< T > > implements ListSelectionListener, ActionListener {
-
-	final RoiManager3D <T> roiManager;
+	final RoiManager3D <?> roiManager;
 
 	private final JDialog dialog;
 	private final JOptionPane optionPane;
@@ -66,7 +64,7 @@ public class Roi3DGroupManager < T extends RealType< T > & NativeType< T > > imp
 	final JButton butSave;
 	final JButton butLoad;
 		
-	public Roi3DGroupManager(RoiManager3D<T> roiManager_)	
+	public Roi3DGroupManager(RoiManager3D<?> roiManager_)	
 	{
 		 roiManager  = roiManager_;	 
 

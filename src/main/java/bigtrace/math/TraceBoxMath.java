@@ -5,11 +5,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.volume.VolumeMisc;
 
 import net.imglib2.FinalInterval;
@@ -28,23 +25,12 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
 	public BigTrace<T> bt;
 	public IntervalView<T> input; 
-	private String progressState;
 	public RealPoint refinePosition = null;
 	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected Void doInBackground() throws Exception {

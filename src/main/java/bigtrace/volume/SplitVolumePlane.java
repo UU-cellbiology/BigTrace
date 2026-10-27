@@ -4,13 +4,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
-import javax.swing.SwingWorker;
-
-import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
-import bigtrace.geometry.Intersections3D;
-import bigtrace.rois.Box3D;
-import bigtrace.rois.CrossSection3D;
 import ij.measure.Calibration;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -25,14 +18,18 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.Views;
 
-public class SplitVolumePlane < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+import bigtrace.BigTrace;
+import bigtrace.BigTraceBGTask;
+import bigtrace.geometry.Intersections3D;
+import bigtrace.rois.Box3D;
+import bigtrace.rois.CrossSection3D;
 
-	private String progressState;
+public class SplitVolumePlane < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
 	
 	final CrossSection3D crossSection;
 	final BigTrace<T> bt;
-	int nSliceType;
-	
+	int nSliceType;	
 	
 	public SplitVolumePlane(final CrossSection3D crossSection_, final BigTrace<T> bt_, final int nSliceType_)
 	{
@@ -40,17 +37,6 @@ public class SplitVolumePlane < T extends RealType< T > & NativeType< T > > exte
 		crossSection = crossSection_;
 		bt = bt_;
 		nSliceType= nSliceType_;
-	}
-	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState=state_;
 	}
 	
 	@Override

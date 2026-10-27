@@ -7,36 +7,23 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 
-import javax.swing.SwingWorker;
-
 import net.imglib2.RealPoint;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.BigTraceData;
 import bigtrace.rois.AbstractCurve3D;
 
 import ij.IJ;
 
-public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class ROIsExportSWC< T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
-	private String progressState;
+
 	public BigTrace<T> bt;
 	public String sFilename;
 	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
-
 	@Override
 	protected Void doInBackground() throws Exception 
 	{

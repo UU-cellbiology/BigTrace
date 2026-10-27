@@ -2,30 +2,17 @@ package bigtrace.math;
 
 import java.util.ArrayList;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.volume.VolumeMisc;
 import net.imglib2.RealPoint;
 
-public class TracingBGVect extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class TracingBGVect extends BigTraceBGTask
 {
 	
 	public BigTrace<?> bt;
-	private String progressState;
 	public ArrayList<RealPoint> trace;
 	public RealPoint target;
-
-	@Override
-	public String getProgressState() {
-		return progressState;
-	}
-
-	@Override
-	public void setProgressState(String state_) {
-		progressState = state_;
-	}
 
 	@Override
 	protected Void doInBackground() throws Exception {

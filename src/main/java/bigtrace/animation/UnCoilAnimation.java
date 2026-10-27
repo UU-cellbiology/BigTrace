@@ -11,8 +11,6 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
 import net.imagej.ImgPlus;
 import net.imagej.axis.Axes;
 import net.imagej.axis.AxisType;
@@ -39,7 +37,7 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.geometry.Pipe3D;
 import bigtrace.geometry.Plane3D;
 import bigtrace.io.UnCoilHDF5Saver;
@@ -52,10 +50,8 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.Calibration;
 
-public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
-	
-	private String progressState;
 	
 	public AbstractCurve3D inputROI;
 	
@@ -98,17 +94,6 @@ public class UnCoilAnimation < T extends RealType< T > & NativeType< T > > exten
 	public UnCoilAnimation(final BigTrace<T> bt_)
 	{
 		bt = bt_;	
-	}
-	@Override
-	public String getProgressState() 
-	{		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) 
-	{		
-		progressState = state_;		
 	}
 	
 	@Override

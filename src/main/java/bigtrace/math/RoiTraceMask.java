@@ -3,8 +3,6 @@ package bigtrace.math;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
@@ -20,10 +18,10 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.rois.Roi3D;
 
-public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
     final BigTrace<T> bt;
     
@@ -31,8 +29,6 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     
     boolean bMaskInit = false;
     
-	private String progressState;
-
     IntervalView< NativeBoolType > traceMask;
     
     public OneClickTrace <T> oneclick = null;
@@ -41,6 +37,13 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
 	{
 		bt = bt_;
     }
+    
+	@Override
+	protected Void doInBackground() throws Exception
+	{
+		initTraceMask ( traceInterval, true);
+		return null;
+	}
     
     public void initTraceMask (final IntervalView< T > traceInterval_, boolean bReportProgress)
     {
@@ -254,23 +257,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	return new ValuePair< >(maxVal, new RealPoint(maxLocation));
     }
 
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 
-	@Override
-	protected Void doInBackground() throws Exception
-	{
-		initTraceMask ( traceInterval, true);
-		return null;
-	}
 	
 	@Override
 	public void done() 

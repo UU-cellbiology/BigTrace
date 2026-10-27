@@ -3,7 +3,6 @@ import java.util.concurrent.ExecutionException;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.SwingWorker;
 
 import net.imglib2.RealPoint;
 import net.imglib2.type.NativeType;
@@ -12,16 +11,14 @@ import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
 import ij.IJ;
 
-public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
 	final BigTrace<T> bt;
-	
-	private String progressState;
 	
 	public int nFirstTP;
 	
@@ -45,18 +42,6 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 	{
 		this.bt = bt;
 		mask = new RoiTraceMask<>(bt);
-	}
-	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-		firePropertyChange( "ProgressBarString", "a", "b");
 	}
 	
 	@Override

@@ -1,9 +1,7 @@
 package bigtrace.tracks;
 
-
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 
@@ -20,7 +18,7 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.measure.MeasureValues;
@@ -30,7 +28,7 @@ import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
 import bigtrace.volume.VolumeMisc;
 
-public class CurveTracker < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class CurveTracker < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {	
 	final BigTrace<T> bt;
 	
@@ -53,23 +51,11 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 	Roi3DGroup newGroupTrack;
 	
 	final RandomAccessibleInterval<T> full_RAI;
-	
-	private String progressState;
-	
+
 	JButton butTrack = null;
 	
 	ImageIcon tabIconTrain = null; 
 	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 	
 	public CurveTracker(BigTrace<T> bt)
 	{

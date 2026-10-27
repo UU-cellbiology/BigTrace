@@ -3,17 +3,9 @@ package bigtrace.volume;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
-import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
-import bigtrace.geometry.Pipe3D;
-import bigtrace.measure.Circle2DMeasure;
-import bigtrace.rois.Roi3D;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.Calibration;
-import bigtrace.rois.AbstractCurve3D;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -31,9 +23,16 @@ import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class StraightenCurve < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+import bigtrace.BigTrace;
+import bigtrace.BigTraceBGTask;
+import bigtrace.geometry.Pipe3D;
+import bigtrace.measure.Circle2DMeasure;
+import bigtrace.rois.Roi3D;
+import bigtrace.rois.AbstractCurve3D;
 
-	private String progressState;
+public class StraightenCurve < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
+
 	final BigTrace<T> bt;
 	final float fRadiusIn;
 	final int nStraightenAxis;
@@ -59,19 +58,6 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		nOutput = nOutput_;
 		sSaveFolderPath = sSaveFolderPath_;
 		cal = new Calibration();
-	}
-	
-	@Override
-	public String getProgressState() {
-		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) {
-		
-		progressState = state_;
-		
 	}
 	
 	@Override

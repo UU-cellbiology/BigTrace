@@ -6,28 +6,17 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.rois.Roi3D;
 import ij.IJ;
 
-public class LineProfileBG extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class LineProfileBG extends BigTraceBGTask
 {
-	private String progressState;
+
 	public BigTrace<?> bt;
 	public String sFilename;
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
+
 	@Override
 	protected Void doInBackground() throws Exception {
 

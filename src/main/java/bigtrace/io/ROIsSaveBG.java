@@ -6,34 +6,22 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
-import javax.swing.SwingWorker;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
+
 import bigtrace.BigTraceData;
 import bigtrace.roimanager.Roi3DGroupManager;
 import ij.IJ;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
-public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
 
-	private String progressState;
 	public BigTrace<T> bt;
 	public String sFilename;
-	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
-	
+		
 	@Override
 	protected Void doInBackground() throws Exception 
 	{
@@ -46,7 +34,7 @@ public class ROIsSaveBG < T extends RealType< T > & NativeType< T > > extends Sw
 		int nRoi, nRoiN;		
     	
     	//get the group manager to save groups
-    	Roi3DGroupManager<T> roiGM = new Roi3DGroupManager<>(bt.roiManager);
+    	Roi3DGroupManager roiGM = new Roi3DGroupManager(bt.roiManager);
     	
         try {
 			final File file = new File(sFilename);

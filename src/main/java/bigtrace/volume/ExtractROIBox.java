@@ -3,10 +3,8 @@ package bigtrace.volume;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.rois.Roi3D;
 
 import ij.IJ;
@@ -26,10 +24,9 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
 
-	private String progressState;
-	
 	final BigTrace<T> bt;
 	
 	int nExpandROIBox;
@@ -57,18 +54,6 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 		nOutput = nOutput_;
 		sSaveFolderPath = sSaveFolderPath_;
 		cal = new Calibration();
-	}
-	
-	@Override
-	public String getProgressState() 
-	{		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) 
-	{		
-		progressState=state_;		
 	}
 	
 	@Override

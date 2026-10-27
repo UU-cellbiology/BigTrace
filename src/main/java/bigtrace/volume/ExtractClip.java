@@ -3,10 +3,8 @@ package bigtrace.volume;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -18,10 +16,9 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.Views;
 
-public class ExtractClip < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
-	
-	private String progressState;
-	
+public class ExtractClip < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
+
 	final BigTrace<T> bt;
 	
 	Calibration cal;
@@ -92,20 +89,7 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 		
 		return null;
 	}
-	
-	@Override
-	public String getProgressState() {
-		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) {
-		
-		progressState = state_;
-		
-	}
-	
+
     @Override
     public void done() 
     {
