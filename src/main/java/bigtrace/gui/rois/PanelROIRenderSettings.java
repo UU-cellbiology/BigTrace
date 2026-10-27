@@ -17,7 +17,7 @@ import javax.swing.JTabbedPane;
 import bdv.tools.brightness.ColorIcon;
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.panels.NumberField;
 import bigtrace.roimanager.RoiManager3D;
 import ij.Prefs;
 

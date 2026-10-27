@@ -11,7 +11,7 @@ import javax.swing.JTabbedPane;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.panels.NumberField;
 import ij.Prefs;
 
 public class PanelSemiAutoOptions extends JTabbedPane

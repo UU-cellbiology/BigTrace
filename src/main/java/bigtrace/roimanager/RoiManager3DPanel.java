@@ -32,7 +32,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
-import bigtrace.gui.PanelTitle;
+import bigtrace.gui.panels.PanelTitle;
 import ij.Prefs;
 
 public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener, ActionListener 

@@ -35,9 +35,9 @@ import net.imglib2.util.LinAlgHelpers;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.PanelTitle;
-import bigtrace.gui.RangeSliderPanel;
+import bigtrace.gui.panels.NumberField;
+import bigtrace.gui.panels.PanelTitle;
+import bigtrace.gui.panels.RangeSliderPanel;
 import bigtrace.measure.MeasureValues;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;

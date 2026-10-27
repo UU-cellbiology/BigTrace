@@ -4,7 +4,7 @@ import org.scijava.command.Command;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
-import bigtrace.gui.RenderSettings;
+import bigtrace.gui.panels.RenderSettings;
 import ij.Prefs;
 
 

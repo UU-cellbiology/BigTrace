@@ -22,9 +22,9 @@ import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.RangeSliderPanel;
 import bigtrace.gui.TaskBT;
+import bigtrace.gui.panels.NumberField;
+import bigtrace.gui.panels.RangeSliderPanel;
 import bigtrace.math.FullAutoTrace;
 import ij.Prefs;
 

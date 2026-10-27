@@ -37,8 +37,8 @@ import javax.swing.event.ListSelectionListener;
 
 import bdv.tools.brightness.ColorIcon;
 import bigtrace.BigTraceData;
-import bigtrace.gui.NumberField;
-import bigtrace.rois.ColorUserSettings;
+import bigtrace.gui.ColorUserSettings;
+import bigtrace.gui.panels.NumberField;
 import bigtrace.rois.Roi3D;
 import ij.IJ;
 import ij.Prefs;

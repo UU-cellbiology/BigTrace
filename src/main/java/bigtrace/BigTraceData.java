@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import bigtrace.gui.BCsettings;
-import bigtrace.gui.RenderSettings;
+import bigtrace.gui.panels.RenderSettings;
 import bigtrace.rois.Roi3D;
 import ij.Prefs;
 import net.imglib2.FinalInterval;

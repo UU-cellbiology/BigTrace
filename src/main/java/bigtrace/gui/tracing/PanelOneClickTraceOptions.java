@@ -13,7 +13,7 @@ import javax.swing.JPanel;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.panels.NumberField;
 import ij.Prefs;
 
 /** options for one-click tracing **/

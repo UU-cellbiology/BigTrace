@@ -14,9 +14,9 @@ import javax.swing.JPanel;
 
 import bdv.tools.brightness.ColorIcon;
 import bigtrace.BigTrace;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.ColorUserSettings;
+import bigtrace.gui.panels.NumberField;
 import bigtrace.roimanager.RoiManager3D;
-import bigtrace.rois.ColorUserSettings;
 import bigtrace.rois.Roi3D;
 
 public class PanelROIProperties extends JPanel

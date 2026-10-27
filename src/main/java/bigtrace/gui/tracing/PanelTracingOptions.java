@@ -11,7 +11,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import bigtrace.BigTrace;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.panels.NumberField;
 import ij.Prefs;
 
 

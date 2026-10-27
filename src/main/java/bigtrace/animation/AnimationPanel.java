@@ -42,8 +42,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import bigtrace.BigTrace;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.PanelTitle;
+import bigtrace.gui.panels.NumberField;
+import bigtrace.gui.panels.PanelTitle;
 import bigtrace.io.StorylineLoad;
 import bigtrace.io.StorylineSave;
 import bigtrace.rois.Roi3D;

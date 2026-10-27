@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.panels;
 
 
 import ij.Prefs;
