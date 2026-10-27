@@ -21,9 +21,13 @@ import net.imglib2.view.Views;
 public class ExtractClip < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
 	
 	private String progressState;
-	public BigTrace<T> bt;
+	
+	final BigTrace<T> bt;
+	
 	Calibration cal;
+	
 	int nOutput;
+	
 	public int nMinTimePoint, nMaxTimePoint;
 
 	public ExtractClip( final BigTrace<T> bt_, final int nTimePointMin_, final int nTimePointMax_, final int nOutput_)
@@ -70,7 +74,7 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends S
 		
 		Path p = Paths.get(bt.btData.sFileNameFullImg);
 		String filename = p.getFileName().toString();
-		ImagePlus ip = VolumeMisc.wrapImgImagePlusCal(Views.interval(full_RAI, cropInt), filename + "_crop",cal, bt.btData.nNumTimepoints);
+		ImagePlus ip = VolumeMisc.wrapImgImagePlusCal(Views.interval(full_RAI, cropInt), filename + "_crop", cal, bt.btData.nNumTimepoints);
 		if(nOutput == 0)
 		{
 			ip.show();
