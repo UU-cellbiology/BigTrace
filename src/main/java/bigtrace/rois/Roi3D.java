@@ -79,7 +79,10 @@ public interface Roi3D
 	
 	public double getMinDist(final Line3D line);
 	
+	/** returns bounding box including only centerline vertices (for curves) **/
 	public Interval getBoundingBoxVisual();
+	
+	/** returns bounding box including centerline vertices and the pipe around them (for curves) **/
 	public Interval getBoundingBox();
 	
 	/** given 3D RAI (without channel or time),
@@ -137,6 +140,7 @@ public interface Roi3D
 		}
 		return reversed; 
 	}
+	
 	/**
 	 * transforms realpoint in pixel coordinates to space units
 	 * **/

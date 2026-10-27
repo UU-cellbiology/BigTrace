@@ -140,7 +140,7 @@ public class UnCoilHDF5Saver < T extends RealType< T > & NativeType< T > >
 				0, bt.btData.globCal[ 1 ], 0, 0,
 				0, 0, bt.btData.globCal[ 2 ], 0 );
 		double[] minShift = unCoil.allIntervals.get( nTP ).minAsDoubleArray();
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			minShift[ d ] *= bt.btData.globCal[ d ];
 		}

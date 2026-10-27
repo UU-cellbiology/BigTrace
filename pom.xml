@@ -90,7 +90,7 @@
         <scifio.version>0.48.0</scifio.version>
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
-		<bvv-playground.version>0.6.2</bvv-playground.version>
+		<bvv-playground.version>0.6.3</bvv-playground.version>
 		<bdv-loaders.version>0.23.3</bdv-loaders.version>
 	</properties>
 

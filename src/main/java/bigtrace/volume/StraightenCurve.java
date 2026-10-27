@@ -23,6 +23,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
@@ -332,7 +333,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 	
 	/** generates XY sampling grid coordinates in the shape of a circle from -nRadius till nRadius values (in dPixSize units) in XY plane 
 	 * defined by two normalized perpendicular vectors X and Y and with center at c **/
-	public static ArrayList< ValuePair< int[],RealPoint> > getNormCircleGridXYPairs(final int nRadius,final double dPixSize,final double [] x,final double [] y, final double [] c)
+	public static ArrayList< ValuePair< int[],RealPoint> > getNormCircleGridXYPairs(final int nRadius, final double dPixSize, final double [] x, final double [] y, final double [] c)
 	{
 		 ArrayList< ValuePair< int[],RealPoint> > circleXY = new  ArrayList< > ();
 		 
@@ -346,17 +347,42 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		 {
 			 circle.cursorCircle.fwd();
 			 circle.cursorCircle.localize(currentPoint);
-			 LinAlgHelpers.scale(x, currentPoint[0]*dPixSize, xp);
-			 LinAlgHelpers.scale(y, currentPoint[1]*dPixSize, yp);
-			 LinAlgHelpers.add(xp, yp,xp);
-			 LinAlgHelpers.add(xp, c,xp);
-			 circleXY.add(new ValuePair<>(new int[] {(int)Math.round(currentPoint[0])+nRadius, (int)Math.round( currentPoint[1])+nRadius},new RealPoint(xp)));
+			 LinAlgHelpers.scale(x, currentPoint[0] * dPixSize, xp);
+			 LinAlgHelpers.scale(y, currentPoint[1] * dPixSize, yp);
+			 LinAlgHelpers.add(xp, yp, xp);
+			 LinAlgHelpers.add(xp, c, xp);
+			 circleXY.add(new ValuePair<>(new int[] {(int)Math.round(currentPoint[0])+nRadius, (int)Math.round( currentPoint[1])+nRadius}, new RealPoint(xp)));
 		 }		 
 
 		 return circleXY;
 	}
-
-	
+	/** Calculates an interval for the square's corners from -nRadius till nRadius values (in dPixSize units) in XY plane 
+	 * defined by two normalized perpendicular vectors X and Y and with center at c **/
+	public static FinalInterval getCornersInterval(final int dR, final double dPixSize, final double [] x, final double [] y, final double [] c, final double [] globCal)
+	{
+		FinalInterval currInt = new FinalInterval(new long[]{10,10,10}, new long[]{0,0,0});
+		final double [] signs = new double[] {-dR, dR};
+		double[] cornerScaled;
+		final double [] xp = new double[3];
+		final double [] yp = new double[3];
+		final long[] posInt = new long[3];
+        for (double sx : signs)
+        {
+            for (double sy : signs)
+            {
+   			 	LinAlgHelpers.scale(x, sx * dPixSize, xp);
+   			 	LinAlgHelpers.scale(y, sy * dPixSize, yp);
+   			 	LinAlgHelpers.add(xp, yp, xp);
+   			 	LinAlgHelpers.add(xp, c, xp);
+   			 	cornerScaled = Roi3D.scaleGlobInv(xp, globCal);
+   			 	for (int d = 0; d < 3; d++)
+   			 		posInt[d] = Math.round(cornerScaled[d]);
+   			 	currInt = Intervals.union(currInt, new FinalInterval(posInt, posInt));
+            }
+        }
+        return currInt;
+		
+	}
     /*
      * Executed in event dispatching thread
      */
