@@ -137,8 +137,8 @@ public class ROIsImportTrackMateBG  extends SwingWorker<Void, String> implements
 		{
 			listModelin.addElement(allRois.get(i).getName());
 		}
-		bt.roiManager.listModel = listModelin;
-		bt.roiManager.jlist.setModel(bt.roiManager.listModel);
+		bt.roiManager.rmPanel.listModel = listModelin;
+		bt.roiManager.jlist.setModel(bt.roiManager.rmPanel.listModel);
 		sFinalOut="importing TrackMate tracks done.";
 		setProgressState(sFinalOut);
 		IJ.log("Imported " + Integer.toString(nTotTracks)+ " tracks, created "+Long.toString(nTotParticles)+" point ROIs."); 

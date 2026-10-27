@@ -214,7 +214,7 @@ public class RoiMeasure3D < T extends RealType< T > & NativeType< T > > extends 
 		gbc = new GridBagConstraints();
 		
 		//synchronized ROI list
-		jlist = new JList<>(bt.roiManager.listModel);
+		jlist = new JList<>(bt.roiManager.rmPanel.listModel);
 		listScroller = new JScrollPane(jlist);
 		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		jlist.addListSelectionListener(this);

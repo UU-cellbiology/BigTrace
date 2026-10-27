@@ -87,6 +87,7 @@ import bigtrace.math.TraceBoxMath;
 import bigtrace.math.TracingBGVect;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.RoiManager3D;
+import bigtrace.rois.RoiManager3DPanel;
 import bigtrace.scene.VisPolyLineAA;
 import bigtrace.volume.VolumeMisc;
 
@@ -474,7 +475,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		oneClickTrace.startPoint = pclick;
 		oneClickTrace.bNewTrace = bNewTrace_;
 		oneClickTrace.addPropertyChangeListener(btPanel);
-		roiManager.setOneClickTracing( true );
+		roiManager.rmPanel.setOneClickTracing( true );
 		if(btData.bOneClickUseMask)
 		{
 			oneClickTrace.bUseMask = true;
@@ -542,7 +543,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	{
 	 	 boolean bState = !bLockMode;
 			
-	 	 GuiMisc.setPanelStatusAllComponents(roiManager, bState);
+	 	 GuiMisc.setPanelStatusAllComponents(roiManager.rmPanel, bState);
 	 	 GuiMisc.setPanelStatusAllComponents(btPanel.roiMeasure, bState);
 	 	 GuiMisc.setPanelStatusAllComponents(btPanel.btTracksPanel, bState);
 	 	 GuiMisc.setPanelStatusAllComponents(btPanel.btAniPanel, bState);
@@ -550,7 +551,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	 	 btPanel.clipPanel.butExtractClipped.setEnabled( bState );
 	 	 //keep it on
-	 	 roiManager.butShowAll.setEnabled(true);
+	 	 roiManager.rmPanel.butShowAll.setEnabled(true);
 
 	}
 
@@ -571,12 +572,12 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 
 	public void showCorners(ArrayList<long []> corners)
 	{
-		RoiManager3D.mode=RoiManager3D.ADD_POINT;
+		RoiManager3DPanel.mode = RoiManager3DPanel.ADD_POINT;
 		for(int i=0;i<corners.size();i++)
 		{
 			RealPoint vv = new RealPoint(0.,0.,0.);
 			vv.setPosition(corners.get(i));
-			roiManager.addPoint(vv);	
+			roiManager.rmPanel.addPoint(vv);	
 		}
 	}
 

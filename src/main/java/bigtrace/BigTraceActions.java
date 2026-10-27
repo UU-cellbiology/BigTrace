@@ -24,7 +24,7 @@ import bigtrace.gui.AnisotropicRotationAnimator;
 import bigtrace.gui.TransformHandlerBT;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.RoiManager3D;
+import bigtrace.rois.RoiManager3DPanel;
 import bigtrace.volume.VolumeMisc;
 
 
@@ -153,9 +153,9 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 //					System.out.println(target.getDoublePosition(1));
 //					System.out.println(target.getDoublePosition(2));
 					
-					switch (RoiManager3D.mode)
+					switch (RoiManager3DPanel.mode)
 					{
-						case RoiManager3D.ADD_POINT_SEMIAUTOLINE:
+						case RoiManager3DPanel.ADD_POINT_SEMIAUTOLINE:
 							
 							bt.setTraceBoxMode(true);
 							
@@ -189,7 +189,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 								}
 							}
 							break;
-						case RoiManager3D.ADD_POINT_ONECLICKLINE:
+						case RoiManager3DPanel.ADD_POINT_ONECLICKLINE:
 							
 							boolean bMakeNewTrace = false;
 							
@@ -209,7 +209,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 							bt.runOneClickTrace(target, bMakeNewTrace);
 							break;
 						default:
-							bt.roiManager.addPoint(target);
+							bt.roiManager.rmPanel.addPoint(target);
 					}
 					
 				}
@@ -218,7 +218,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 			//continue to trace within the trace box
 			else
 			{
-				if(RoiManager3D.mode==RoiManager3D.ADD_POINT_SEMIAUTOLINE)
+				if(RoiManager3DPanel.mode == RoiManager3DPanel.ADD_POINT_SEMIAUTOLINE)
 				{
 					if(bt.findPointLocationFromClick(bt.btData.trace_weights, target))
 					{
@@ -396,9 +396,9 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 			}
 			else
 			{	
-				if(RoiManager3D.mode == RoiManager3D.ADD_POINT_ONECLICKLINE)
+				if(RoiManager3DPanel.mode == RoiManager3DPanel.ADD_POINT_ONECLICKLINE)
 				{
-					if(bt.roiManager.activeRoi.intValue()>=0)
+					if(bt.roiManager.activeRoi.intValue() >= 0)
 					{
 						if(bt.roiManager.getActiveRoi().getType() == Roi3D.LINE_TRACE)
 						{

@@ -98,7 +98,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        	"Try 'Append' loading mode.\n");
 	        		 return;
 	        	}
-	        	bt.roiManager.updateGroupsList();
+	        	bt.roiManager.rmPanel.updateGroupsList();
 	        	line = br.readLine();
 	        }
 	        //skip to ROI part

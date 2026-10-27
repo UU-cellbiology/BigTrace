@@ -88,10 +88,14 @@
         <!-- Use older versions of dependencies to stay compatible with FIJI stable / Java 8. -->
         <bigdataviewer-core.version>10.6.8</bigdataviewer-core.version>
         <scifio.version>0.48.0</scifio.version>
-		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
+        
+        <!-- dependencies of BT -->
 		<bvv-playground.version>0.6.3</bvv-playground.version>
 		<bdv-loaders.version>0.23.3</bdv-loaders.version>
+		
+		<!-- NB: Deploy releases to the SciJava Maven repository. -->
+		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
+
 	</properties>
 
 	<dependencies>
@@ -113,10 +117,6 @@
 			</exclusions>
 		</dependency>
 		
-		<!--dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>imagej-mesh</artifactId>
-		</dependency -->
 		<dependency>
 		    <groupId>net.imglib2</groupId>
 		    <artifactId>imglib2-mesh</artifactId>	

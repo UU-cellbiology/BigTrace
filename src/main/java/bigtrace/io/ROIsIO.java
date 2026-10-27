@@ -15,7 +15,7 @@ public class ROIsIO
 		{
         	bt.roiManager.groups = new ArrayList<>();
         	bt.roiManager.rois.clear();
-        	bt.roiManager.listModel.clear();
+        	bt.roiManager.rmPanel.listModel.clear();
 		}
 		
         bt.bInputLock = true;

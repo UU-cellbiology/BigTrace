@@ -545,7 +545,7 @@ public class Roi3DGroupManager < T extends RealType< T > & NativeType< T > > imp
 		try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
 			
 	        bFirstPartCheck = loadGroups(br);
-	        roiManager.updateGroupsList();
+	        roiManager.rmPanel.updateGroupsList();
 	        br.close();
 		}
 		//catching errors in file opening

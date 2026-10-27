@@ -117,35 +117,35 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		URL icon_path = this.getClass().getResource("/bt_icons/cube_icon.png");
 	    ImageIcon tabIcon = new ImageIcon(icon_path);
 
-	    tabPane.addTab("",tabIcon,panelView(), "View/Clip");
+	    tabPane.addTab("", tabIcon, panelView(), "View/Clip");
 
 	    //ROI MANAGER
 	    icon_path = this.getClass().getResource("/bt_icons/node.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,roiManager,"Tracing");
+	    tabPane.addTab("", tabIcon, roiManager.rmPanel, "Tracing");
 	    
 	    //MEASUREMENTS	    
 	    icon_path = this.getClass().getResource("/bt_icons/measure.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,roiMeasure,"Measure");
+	    tabPane.addTab("", tabIcon, roiMeasure, "Measure");
 	    
 	    //TRACKS	
 	    if(bt.btData.nNumTimepoints > 1)
 	    {
 		    icon_path = this.getClass().getResource("/bt_icons/tracks.png");
 		    tabIcon = new ImageIcon(icon_path);
-		    tabPane.addTab("",tabIcon ,btTracksPanel,"Tracking");
+		    tabPane.addTab("", tabIcon, btTracksPanel, "Tracking");
 	    }
 	    
 	    //ANIMATION
 	    icon_path = this.getClass().getResource("/bt_icons/director.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,btAniPanel,"Movie animation");
+	    tabPane.addTab("", tabIcon, btAniPanel, "Movie animation");
 	    
 	    //HELP/SHORTCUTS
 	    icon_path = this.getClass().getResource("/bt_icons/shortcut.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,panelInformation(),"Help/Shortcuts");
+	    tabPane.addTab("", tabIcon, panelInformation(), "Help/Shortcuts");
 	    	    
 	    tabPane.setSize(350, 300);
 	    tabPane.setSelectedIndex(1);

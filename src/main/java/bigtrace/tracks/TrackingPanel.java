@@ -108,7 +108,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		cr = new GridBagConstraints();
 		
 		//synchronized ROI list
-		jlist = new JList<>(bt.roiManager.listModel);
+		jlist = new JList<>(bt.roiManager.rmPanel.listModel);
 		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		listScroller = new JScrollPane(jlist);
 		jlist.addListSelectionListener(this);

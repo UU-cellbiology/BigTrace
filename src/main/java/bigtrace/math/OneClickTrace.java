@@ -943,7 +943,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 
     	
     	bt.visualBoxes.bShowTraceBox = false;
-    	bt.roiManager.setOneClickTracing( false );
+    	bt.roiManager.rmPanel.setOneClickTracing( false );
     	
     	//deselect the trace if we just made it
     	if( bNewTrace )

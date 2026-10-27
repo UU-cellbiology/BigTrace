@@ -493,7 +493,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 		
 		String [] sRoiSaveOptions = new String [] {"Save ROIs BigTrace format","Export interpolated traces CSV", "Export neurite SWC"};	
 
-		String output = (String) JOptionPane.showInputDialog(bt.roiManager, "Save/export ROIs",
+		String output = (String) JOptionPane.showInputDialog(bt.roiManager.rmPanel, "Save/export ROIs",
 				"Save mode:", JOptionPane.QUESTION_MESSAGE, null,
 				sRoiSaveOptions, // Array of choices
 				sRoiSaveOptions[(int)Prefs.get("BigTrace.SaveRoisMode", 0)]);
@@ -567,7 +567,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
         filename = path+openDial.getFileName();
      
         String [] sRoiLoadOptions = new String [] {"Clean load ROIs and groups","Append ROIs as undefined group"};	
-        String input = (String) JOptionPane.showInputDialog(bt.roiManager, "Loading ROIs",
+        String input = (String) JOptionPane.showInputDialog(bt.roiManager.rmPanel, "Loading ROIs",
                 "Load mode:", JOptionPane.QUESTION_MESSAGE, null,
                 sRoiLoadOptions, // Array of choices
                 sRoiLoadOptions[(int)Prefs.get("BigTrace.LoadRoisMode", 0)]);
@@ -592,7 +592,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
 	      
         String [] sRoiImportOptions = new String [] {"Points from TrackMate XML (Export)","Points from CSV (coming soon)"};
 		
-        String input = (String) JOptionPane.showInputDialog(bt.roiManager, "Importing ROIs",
+        String input = (String) JOptionPane.showInputDialog(bt.roiManager.rmPanel, "Importing ROIs",
                 "Import:", JOptionPane.QUESTION_MESSAGE, null, // Use default icon
                 sRoiImportOptions, // Array of choices
                 sRoiImportOptions[(int)Prefs.get("BigTrace.ImportRoisMode", 0)]);
@@ -628,7 +628,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
         
         String [] sTMColorOptions = new String [] {"Random color per track","Current active group color"};
 		
-        String inputColor = (String) JOptionPane.showInputDialog(bt.roiManager, "Coloring ROIs",
+        String inputColor = (String) JOptionPane.showInputDialog(bt.roiManager.rmPanel, "Coloring ROIs",
                 "For color, use:", JOptionPane.QUESTION_MESSAGE, null, // Use
                                                                                 // default
                                                                                 // icon
@@ -653,7 +653,7 @@ public class RoiManager3DDialogs < T extends RealType< T > & NativeType< T > >
         Prefs.set("BigTrace.ImportTMColorMode", nImportColor);		
 
        	bt.roiManager.rois.clear();
-        bt.roiManager.listModel.clear();
+        bt.roiManager.rmPanel.listModel.clear();
         
         bt.bInputLock = true;
         bt.setLockMode(true);

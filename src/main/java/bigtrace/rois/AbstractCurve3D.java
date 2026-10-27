@@ -385,7 +385,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 				current_pixel =Roi3D.scaleGlobInv(current_pixel, globCal);
 				if(nPoint<10 && nPoint%2==0)
 				{
-					bt.roiManager.addPoint(new RealPoint(current_pixel));
+					bt.roiManager.rmPanel.addPoint(new RealPoint(current_pixel));
 				}
 				ra.setPosition(current_pixel);
 				//intensity
