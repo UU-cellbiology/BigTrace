@@ -71,12 +71,12 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		gbc.weighty = 0.0;
 		
 		final NumberField nfMaxIntFullTraceStart = new NumberField(5);
-		final NumberField nfAutoMinCurvePoints = new NumberField(5);
+		final NumberField nfAutoMinCurveLength = new NumberField(5);
 		
 		nfMaxIntFullTraceStart.setIntegersOnly( false );
 		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt", 128.0)) );
-		nfAutoMinCurvePoints.setIntegersOnly( true );
-		nfAutoMinCurvePoints.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMinPointsCurve", 3)) );
+		nfAutoMinCurveLength.setIntegersOnly( false );
+		nfAutoMinCurveLength.setText( df3.format(Prefs.get("BigTrace.nAutoMinPointsCurve", 3)) );
 
 		final JCheckBox cbMinLengthInUnits = new JCheckBox();
 		cbMinLengthInUnits.setSelected( Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
@@ -96,7 +96,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		gbc.gridy++;
 		dialogFullAutoSettings.add(new JLabel("Minimum curve length:"), gbc);
 		gbc.gridx++;
-		dialogFullAutoSettings.add(nfAutoMinCurvePoints, gbc);
+		dialogFullAutoSettings.add(nfAutoMinCurveLength, gbc);
 
 		gbc.gridx = 0;
 		gbc.gridy++;
@@ -178,7 +178,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			final double dAutoMinStartTrace = Double.parseDouble(nfMaxIntFullTraceStart.getText());
 			Prefs.set("BigTrace.dAutoMinStartTraceInt", dAutoMinStartTrace );
 			
-			final int nAutoMinPointsCurve = Integer.parseInt(nfAutoMinCurvePoints.getText());
+			final int nAutoMinPointsCurve = Integer.parseInt(nfAutoMinCurveLength.getText());
 			Prefs.set("BigTrace.nAutoMinPointsCurve", nAutoMinPointsCurve );
 
 			final boolean bMinCurveLengthInUnits = cbMinLengthInUnits.isSelected();
