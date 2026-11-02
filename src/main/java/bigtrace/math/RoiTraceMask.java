@@ -5,15 +5,18 @@ import java.util.concurrent.ExecutionException;
 
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RealPoint;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.BooleanArray;
+import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -30,6 +33,9 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     boolean bMaskInit = false;
     
     IntervalView< NativeBoolType > traceMask;
+    IntervalView< NativeBoolType > traceMaskExtended;
+    RandomAccess< NativeBoolType > raMask;
+    OutOfBounds< NativeBoolType > raExtended;
     
     public OneClickTrace <T> oneclick = null;
     
@@ -83,12 +89,13 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     			 }
     		 }
     	}
-		 if(bReportProgress)
-		 {
-			 setProgressState("ROI mask created.");
-		 }
 		
-    	//ImageJFunctions.show( traceMask);
+    	raExtended = Views.extendValue( traceMask, true ).randomAccess();
+    	raMask = traceMask.randomAccess();
+    	if(bReportProgress)
+		{
+		 setProgressState("ROI mask created.");
+		}
     }
     
     public boolean isOccupied(final RealPoint point)
@@ -96,24 +103,23 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	//see if the point inside the interval
      	if(bMaskInit)
     	{
-     		if(!Intervals.contains( traceMask, point ))
-     			return false;
      		final long [] posLong = new long[3];
-     		for(int d=0;d<3;d++)
+     		for(int d = 0; d < 3; d++)
      		{
      			posLong[d] = Math.round( point.getFloatPosition( d ));
      		}
-     		return traceMask.getAt( posLong ).get();
+     		return isOccupied(posLong);
     	}
 		System.err.println("auto-trace mask was not initialized!");
-		return false;
+		return true;
     }
     
-    /** fast method, does not check boundaries of the mask 
-     * or if it is initialized**/
+    /** fast method, does not check if the mask is initialized 
+     * and fills the out-of-boundaries as occupied **/
     public boolean isOccupied(final long[] posLong)
     {
- 		return traceMask.getAt( posLong ).get();
+    	raExtended.setPosition( posLong );
+    	return raExtended.get().get();
     }
     
     public void markLocation(final RealPoint point)
@@ -128,8 +134,8 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
      		{
      			posLong[d] = Math.round( point.getFloatPosition( d ));
      		}
-     		traceMask.getAt( posLong ).set( true );
-     		
+     		raMask.setPosition( posLong );
+     		raMask.get().set( true );     		
      		return;
      	
     	}
@@ -167,11 +173,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     			while ( cursorRoi.hasNext() )
     			{
     				cursorRoi.fwd();
-    				
-    				if(Intervals.contains( traceMask, cursorRoi ))
-    				{
-    					cursorRoi.get().set( true );
-    				}
+   					cursorRoi.get().set( true );
     			}
     		}
     	}

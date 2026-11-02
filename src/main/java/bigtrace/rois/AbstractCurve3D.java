@@ -587,7 +587,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 			bMeshInit = true;
 		}
 		
-		return new MeshCursor<>( input.randomAccess(), volumeMesh, new double[] { 1., 1., 1. } );
+		return new MeshCursor<>( input.randomAccess(), volumeMesh, new double[] { 1., 1., 1. }, input );
 	}
 	
 	/** define if the shape is transparent **/

@@ -72,8 +72,9 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 			bt.btData.nCurrTimepoint = tp;
 			TaskBT.runOnEDT(() -> bt.bvvViewer.setTimepoint(tp));
 			//bt.bvvViewer.setTimepoint(nTP);
-			IntervalView<T> traceIV =  bt.getTraceInterval(bt.btData.bTraceOnlyClipped);	
-			mask.initTraceMask( traceIV, false );
+			final IntervalView<T> traceIV =  bt.getTraceInterval(bt.btData.bTraceOnlyClipped);	
+			mask.initTraceMask( bt.getTraceInterval(true), false );
+			//mask.initTraceMask( traceIV, false );
 			oneClickTrace.nTimePoint = tp;
 			oneClickTrace.traceMask = mask;
 			oneClickTrace.fullInput = traceIV;
