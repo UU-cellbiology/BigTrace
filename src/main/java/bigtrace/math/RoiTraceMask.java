@@ -7,6 +7,9 @@ import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RealPoint;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.BooleanArray;
@@ -16,7 +19,6 @@ import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.ValuePair;
-import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -29,11 +31,15 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     final BigTrace<T> bt;
     
     public IntervalView< T > traceInterval = null;
-    
+    public Interval maxSearchInterval = null;
     boolean bMaskInit = false;
     
     IntervalView< NativeBoolType > traceMask;
     IntervalView< NativeBoolType > traceMaskExtended;
+    
+    IntervalView< T > startTraceInterval;
+    IntervalView< NativeBoolType > startTraceMask;
+    
     RandomAccess< NativeBoolType > raMask;
     OutOfBounds< NativeBoolType > raExtended;
     
@@ -47,19 +53,37 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
 	@Override
 	protected Void doInBackground() throws Exception
 	{
-		initTraceMask ( traceInterval, true);
+		initTraceMask ( traceInterval, maxSearchInterval, true);
 		return null;
 	}
-    
-    public void initTraceMask (final IntervalView< T > traceInterval_, boolean bReportProgress)
+	
+	/** inits tracing mask.
+	 * traceInterval_ is the tracing interval
+	 * and optionally maxSearchInterval_ (subregion of traceInterval) can be provided **/
+    public void initTraceMask (final IntervalView< T > traceInterval_, final Interval maxSearchInterval_, boolean bReportProgress)
     {
     	//current data
     	traceInterval = traceInterval_;
-    	final long[] dim = Intervals.dimensionsAsLongArray(traceInterval);
+    	final long[] dim = traceInterval.dimensionsAsLongArray();
     	//make a mask
-    	ArrayImg< NativeBoolType, BooleanArray > maskArr = ArrayImgs.booleans( dim );//.unsignedBytes(dim);
+		final DiskCachedCellImgOptions options = DiskCachedCellImgOptions.options()
+			    .cellDimensions(32, 32, 32);
+		final Img<NativeBoolType> maskArr = new DiskCachedCellImgFactory<>(new NativeBoolType(), options)
+			    .create(dim);
+        	
     	traceMask = Views.translate(maskArr, traceInterval.minAsLongArray());
-    	
+    	if(maxSearchInterval_ == null)
+    	{
+	    	maxSearchInterval = traceInterval;
+	    	startTraceMask = Views.interval( traceMask, maxSearchInterval );
+	    	startTraceInterval = Views.interval( traceInterval, maxSearchInterval );
+    	}
+    	else
+    	{
+	    	maxSearchInterval = maxSearchInterval_;
+	    	startTraceMask = Views.interval( traceMask, maxSearchInterval );
+	    	startTraceInterval = Views.interval( traceInterval, maxSearchInterval );
+    	}
     	//fill mask with current ROI shapes
     	final ArrayList<Roi3D> rois = bt.roiManager.rois;
     	int nTotROIs = 0;   	
@@ -85,7 +109,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     			 if(bReportProgress)
     			 {
     				 nCurrRoi++;
-    				 setProgress( 100*nCurrRoi/nTotROIs );
+    				 setProgress( 100 * nCurrRoi / nTotROIs );
     			 }
     		 }
     	}
@@ -94,7 +118,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	raMask = traceMask.randomAccess();
     	if(bReportProgress)
 		{
-		 setProgressState("ROI mask created.");
+    		setProgressState("ROI mask created.");
 		}
     }
     
@@ -186,14 +210,12 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     public ValuePair<Double, RealPoint> findMaskedMax()
     {
     	final double [] maxLocation = new double[3];
-    	double maxVal = (-1)*Double.MAX_VALUE;
-    	//double [] cursorLoc = new double[3];
-    	//double [] maskLoc = new double[3];
+    	double maxVal = (-1) * Double.MAX_VALUE;
     	if(bMaskInit)
     	{
     		// create a cursor for the image (the order does not matter)
-    		final Cursor< T > cursor = traceInterval.localizingCursor();
-    		final Cursor< NativeBoolType > cursorMask = traceMask.localizingCursor();
+    		final Cursor< T > cursor = startTraceInterval.localizingCursor();
+    		final Cursor< NativeBoolType > cursorMask = startTraceMask.localizingCursor();
 
     		T currVal;
     		while(cursor.hasNext())
@@ -206,12 +228,10 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     				{
     					maxVal = currVal.getRealDouble();
     					cursor.localize( maxLocation );
-    					//maxLocation.setPosition( cursor );
     				}
     			}
     			
     		}
- 
     	}
     	else
     	{
@@ -220,44 +240,44 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	return new ValuePair< >(maxVal, new RealPoint(maxLocation));
     }
     
-    public ValuePair<Double, RealPoint> findMaskedMaxAboveThreshold(final double dThreshold)
-    {
-    	final double [] maxLocation = new double[3];
-    	double maxVal = (-1)*Double.MAX_VALUE;
-    	//double [] cursorLoc = new double[3];
-    	//double [] maskLoc = new double[3];
-    	if(bMaskInit)
-    	{
-    		// create a cursor for the image (the order does not matter)
-    		final Cursor< T > cursor = traceInterval.localizingCursor();
-    		final Cursor< NativeBoolType > cursorMask = traceMask.localizingCursor();
-
-    		T currVal;
-    		boolean bKeepSearch = true;
-    		while(bKeepSearch && cursor.hasNext())
-    		{
-    			cursor.fwd();    			
-    			if(!cursorMask.next().get())
-    			{ 
-    				currVal = cursor.get();
-    				if(currVal.getRealDouble() > dThreshold)
-    				{
-    					maxVal = currVal.getRealDouble();
-    					cursor.localize( maxLocation );
-    					bKeepSearch = false;
-    					//maxLocation.setPosition( cursor );
-    				}
-    			}
-    			
-    		}
- 
-    	}
-    	else
-    	{
-    		System.err.println("auto-trace mask was not initialized!");
-    	}
-    	return new ValuePair< >(maxVal, new RealPoint(maxLocation));
-    }
+//    public ValuePair<Double, RealPoint> findMaskedMaxAboveThreshold(final double dThreshold)
+//    {
+//    	final double [] maxLocation = new double[3];
+//    	double maxVal = (-1)*  Double.MAX_VALUE;
+//    	//double [] cursorLoc = new double[3];
+//    	//double [] maskLoc = new double[3];
+//    	if(bMaskInit)
+//    	{
+//    		// create a cursor for the image (the order does not matter)
+//    		final Cursor< T > cursor = traceInterval.localizingCursor();
+//    		final Cursor< NativeBoolType > cursorMask = traceMask.localizingCursor();
+//
+//    		T currVal;
+//    		boolean bKeepSearch = true;
+//    		while(bKeepSearch && cursor.hasNext())
+//    		{
+//    			cursor.fwd();    			
+//    			if(!cursorMask.next().get())
+//    			{ 
+//    				currVal = cursor.get();
+//    				if(currVal.getRealDouble() > dThreshold)
+//    				{
+//    					maxVal = currVal.getRealDouble();
+//    					cursor.localize( maxLocation );
+//    					bKeepSearch = false;
+//    					//maxLocation.setPosition( cursor );
+//    				}
+//    			}
+//    			
+//    		}
+// 
+//    	}
+//    	else
+//    	{
+//    		System.err.println("auto-trace mask was not initialized!");
+//    	}
+//    	return new ValuePair< >(maxVal, new RealPoint(maxLocation));
+//    }
 
 
 	
@@ -282,7 +302,6 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
 		}
 		catch (Exception e)
 		{
-
 			//System.out.println("Tracing interrupted by user.");
 			setProgressState("Tracing interrupted by user.");
 			setProgress(100);	

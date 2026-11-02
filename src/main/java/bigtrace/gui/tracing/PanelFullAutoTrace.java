@@ -36,7 +36,6 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 	final ImageIcon tabIconCancel;
 	FullAutoTrace<T> fullAutoTrace;
 	JButton butAuto;
-
 	
 	public PanelFullAutoTrace (final BigTrace<T> bt_)
 	{
@@ -61,36 +60,55 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		
 		dialogFullAutoSettings.setLayout(new GridBagLayout());
 		
-		DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+		final DecimalFormatSymbols symbols = new DecimalFormatSymbols();
 		symbols.setDecimalSeparator('.');
-		DecimalFormat df3 = new DecimalFormat ("#.#####", symbols);
+		final DecimalFormat df3 = new DecimalFormat ("#.#####", symbols);
 		
-		GridBagConstraints gbc = new GridBagConstraints();
+		final GridBagConstraints gbc = new GridBagConstraints();
 
 		GBCHelper.alighLeft(gbc);
 		
 		gbc.weighty = 0.0;
 		
-		NumberField nfMaxIntFullTraceStart = new NumberField(5);
-		NumberField nfAutoMinCurvePoints = new NumberField(5);
+		final NumberField nfMaxIntFullTraceStart = new NumberField(5);
+		final NumberField nfAutoMinCurvePoints = new NumberField(5);
 		
 		nfMaxIntFullTraceStart.setIntegersOnly( false );
-		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt",128.0)) );
+		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt", 128.0)) );
 		nfAutoMinCurvePoints.setIntegersOnly( true );
-		nfAutoMinCurvePoints.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMinPointsCurve",3)) );
-	
+		nfAutoMinCurvePoints.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMinPointsCurve", 3)) );
+
+		final JCheckBox cbMinLengthInUnits = new JCheckBox();
+		cbMinLengthInUnits.setSelected( Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
+		
+		final JCheckBox cbStartOnlyInsideClip = new JCheckBox();
+		cbStartOnlyInsideClip.setSelected( Prefs.get("BigTrace.bStartOnlyInsideClip", false) );
+
+		
 		gbc.gridx = 0;
 		gbc.gridy = 0;
-		dialogFullAutoSettings.add(new JLabel("Min intensity trace start:"),gbc);
+		dialogFullAutoSettings.add(new JLabel("Min intensity trace start:"), gbc);
 		gbc.gridx++;
 		
-		dialogFullAutoSettings.add(nfMaxIntFullTraceStart,gbc);
+		dialogFullAutoSettings.add(nfMaxIntFullTraceStart, gbc);
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		dialogFullAutoSettings.add(new JLabel("Min # points in curve:"),gbc);
+		dialogFullAutoSettings.add(new JLabel("Minimum curve length:"), gbc);
 		gbc.gridx++;
-		dialogFullAutoSettings.add(nfAutoMinCurvePoints,gbc);
+		dialogFullAutoSettings.add(nfAutoMinCurvePoints, gbc);
+
+		gbc.gridx = 0;
+		gbc.gridy++;
+		dialogFullAutoSettings.add(new JLabel("Min length is in units:"), gbc);
+		gbc.gridx++;
+		dialogFullAutoSettings.add(cbMinLengthInUnits, gbc);
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		dialogFullAutoSettings.add(new JLabel("Start tracing only inside clip:"), gbc);
+		gbc.gridx++;
+		dialogFullAutoSettings.add(cbStartOnlyInsideClip, gbc);
 		
 		
 		final RangeSliderPanel timeRange;
@@ -118,7 +136,6 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			cbSingleTimeFrame.addItemListener( (e)->{timeRange.setEnabled(!cbSingleTimeFrame.isSelected());} );	
 			cbSingleTimeFrame.setSelected(bSingleTimePoint);			
 
-	
 			gbc.gridx = 0;
 			gbc.gridy++;
 			dialogFullAutoSettings.add(new JLabel("Only current timepoint:"), gbc);
@@ -163,6 +180,13 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			
 			final int nAutoMinPointsCurve = Integer.parseInt(nfAutoMinCurvePoints.getText());
 			Prefs.set("BigTrace.nAutoMinPointsCurve", nAutoMinPointsCurve );
+
+			final boolean bMinCurveLengthInUnits = cbMinLengthInUnits.isSelected();
+			Prefs.set("BigTrace.bMinCurveLengthInUnits", bMinCurveLengthInUnits );
+			
+			final boolean bStartOnlyInsideClip = cbStartOnlyInsideClip.isSelected();
+			Prefs.set("BigTrace.bStartOnlyInsideClip", bStartOnlyInsideClip );
+			
 			int nFirstTP = 0;
 			int nLastTP = 0;
 			if(timeRange != null && cbSingleTimeFrame != null)
@@ -184,7 +208,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 
 	}
 	
-	public void launchFullAutoTrace(final double dAutoMinStartTrace, final int nAutoMinPointsCurve, final int nFirstTP, final int nLastTP)
+	public void launchFullAutoTrace(final double dAutoMinStartTrace, final double dAutoMinCurveLength, final int nFirstTP, final int nLastTP)
 	{
 		fullAutoTrace = new FullAutoTrace<>(bt);
 		
@@ -193,7 +217,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 
 		fullAutoTrace.dAutoMinStartTraceInt = dAutoMinStartTrace;
 
-		fullAutoTrace.nAutoMinPointsCurve = nAutoMinPointsCurve;
+		fullAutoTrace.dAutoMinCurveLength = dAutoMinCurveLength;
 		
 		bt.bInputLock = true;
 		bt.setLockMode( true );
@@ -226,7 +250,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			fullAutoTrace.runFullAutoTrace();
 			TaskBT.runOnEDTAndWait( () ->
 			{
-			fullAutoTrace.wrapUp();
+				fullAutoTrace.wrapUp();
 		});
 		}
 	}

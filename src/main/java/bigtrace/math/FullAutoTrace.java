@@ -15,6 +15,7 @@ import bigtrace.BigTraceBGTask;
 import bigtrace.gui.TaskBT;
 import bigtrace.rois.LineTrace3D;
 import ij.IJ;
+import ij.Prefs;
 
 public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
@@ -26,11 +27,15 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public double dAutoMinStartTraceInt = 128.;
 	
-	public int nAutoMinPointsCurve = 0;
+	public double dAutoMinCurveLength = 0;
+	
+	boolean bMinCurveLengthInUnits = Prefs.get("BigTrace.bMinCurveLengthInUnits", false );
 	
 	final OneClickTrace<T> oneClickTrace = new OneClickTrace<>();
 	
 	final RoiTraceMask<T> mask;
+	
+	boolean bStartOnlyAtClip = Prefs.get("BigTrace.bStartOnlyInsideClip", false );
 	
 	public JButton butAuto = null;
 	
@@ -73,7 +78,9 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 			TaskBT.runOnEDT(() -> bt.bvvViewer.setTimepoint(tp));
 			//bt.bvvViewer.setTimepoint(nTP);
 			final IntervalView<T> traceIV =  bt.getTraceInterval(bt.btData.bTraceOnlyClipped);	
-			mask.initTraceMask( bt.getTraceInterval(true), false );
+			boolean bStartClipped = bt.btData.bTraceOnlyClipped  || bStartOnlyAtClip;
+			
+			mask.initTraceMask( bt.getTraceInterval(bt.btData.bTraceOnlyClipped), bt.getTraceInterval(bStartClipped), false );
 			//mask.initTraceMask( traceIV, false );
 			oneClickTrace.nTimePoint = tp;
 			oneClickTrace.traceMask = mask;
@@ -100,7 +107,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					setProgressState("current curve start intensity " + Double.toString( newMax.getA() ));
 
 					oneClickTrace.runTracing();
-					mask.markLocation(newMax.getB() );
+					mask.markLocation(newMax.getB());
 					if(!oneClickTrace.bStartLocationOccupied)
 					{
 						mask.markROI( bt.roiManager.getActiveRoi() );
@@ -109,7 +116,12 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					if( bt.roiManager.getActiveRoi() instanceof LineTrace3D )
 					{
 						final LineTrace3D newtrace = (LineTrace3D)bt.roiManager.getActiveRoi();
-						if(newtrace.getNumberOfPointsInJointSegment() < nAutoMinPointsCurve)
+						boolean bRemoveROI;
+						if(bMinCurveLengthInUnits)
+							bRemoveROI = newtrace.getLength() < dAutoMinCurveLength;
+						else
+							bRemoveROI = newtrace.getNumberOfPointsInJointSegment() < dAutoMinCurveLength;
+						if(bRemoveROI)
 						{
 							bt.roiManager.deleteActiveROI();
 							nCount--;
@@ -122,7 +134,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 							nCurrRoiN = nCount;						
 							if(nCount % 20 == 0)
 							{
-								IJ.log( "Auto trace progress: found " +Integer.toString( nCount ) + " ROIs, current start intensity is " +Double.toString( newMax.getA() )+".");									
+								IJ.log( "Auto trace progress: found "  + Integer.toString( nCount ) + " ROIs, current start intensity is " + Double.toString( newMax.getA() ) + ".");									
 							}
 						}
 					}

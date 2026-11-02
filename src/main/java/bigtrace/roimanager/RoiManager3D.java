@@ -229,7 +229,8 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 
 		 if(bt.btData.nNumTimepoints > 1)
 		 {
-			 return "T"+String.format("%0"+sTimeFormat+"d", roi.getTimePoint())+"_"+bt.roiManager.getGroupPrefixRoiNameBase(roi);
+			 return "T" + String.format("%0" + sTimeFormat + "d", 
+					 roi.getTimePoint()) + "_" + bt.roiManager.getGroupPrefixRoiNameBase(roi);
 		 }
 		 
 		 //single time point, skip time
@@ -261,7 +262,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		 }
 		 //not sure what is going on here (why activeRoi becomes -1),
 		 //but workaround for now
-		 activeRoi.set( nVal-1 );
+		 activeRoi.set( nVal - 1 );
 		 if(activeRoi.intValue() < 0)
 		 {
 			 jlist.clearSelection();
@@ -296,8 +297,8 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	       int nShift;
 	       float fOpacityScale = 1.0f;
 	       float fOpacitySave = 1.0f;
-	       int nMinF = Math.min(0,bt.btData.timeFade);
-	       int nMaxF = Math.max(0,bt.btData.timeFade);
+	       int nMinF = Math.min(0, bt.btData.timeFade);
+	       int nMaxF = Math.max(0, bt.btData.timeFade);
 	       if(bt.btData.timeRender == 0)
 	       {
 		       nMinF = 0;
@@ -400,21 +401,16 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		 
 		 //add point to line
 		 tracing = (LineTrace3D) getActiveRoi();
-		 tracing.addPointAndSegment(point_,segments_);
+		 tracing.addPointAndSegment(point_, segments_);
 		 bt.repaintBVV();
 	 }
-	 
-	 public static void addSegmentLineTrace(LineTrace3D tracing, RealPoint point_, ArrayList<RealPoint> segments_)
-	 {
-		 //add point to line
-		 tracing.addPointAndSegment(point_,segments_);
-	 }
+
 	 
 	 public RealPoint getLastTracePoint()
 	 { 
 		 LineTrace3D tracing;
 		 tracing = (LineTrace3D) getActiveRoi();
-		 return tracing.vertices.get(tracing.vertices.size()-1);
+		 return tracing.vertices.get(tracing.vertices.size() - 1);
 	 }
 
 	 
@@ -436,7 +432,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		 PolyLine3D polyline;
 		 
 		 //new Line
-		 if(jlist.getSelectedIndex()<0 || getActiveRoi().getType()!=Roi3D.POLYLINE)
+		 if(jlist.getSelectedIndex() < 0 || getActiveRoi().getType() != Roi3D.POLYLINE)
 		 {
 			 polyline  = (PolyLine3D) makeRoi(Roi3D.POLYLINE, bt.btData.nCurrTimepoint);
 			 polyline.addPointToEnd(point_);
@@ -589,10 +585,10 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	/** updates ROIs image for a specific group **/
 	void updateROIsGroupDisplay(int nGroupN)
 	{
-		Roi3DGroup updateGroup =groups.get(nGroupN);
+		Roi3DGroup updateGroup = groups.get(nGroupN);
 		for (Roi3D roi : rois)
 		{
-			if(roi.getGroupInd()==nGroupN)
+			if(roi.getGroupInd() == nGroupN)
 			{
 				roi.setGroup(updateGroup);
 			}
@@ -698,7 +694,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 
 	public void applyGroupToROI(Roi3D roiIn, Roi3DGroup rGroup)
 	{
-		for (int i = 0;i < groups.size(); i++)
+		for (int i = 0; i < groups.size(); i++)
 		{
 			if(rGroup.equals( groups.get( i ) ))
 			{

@@ -8,7 +8,6 @@ import java.util.concurrent.Executors;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGTask;
-import bigtrace.roimanager.RoiManager3D;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
@@ -162,7 +161,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		if(!bNewTrace)
 		{
 			currentTracing  = (LineTrace3D)bt.roiManager.getActiveRoi();
-			startPoint = new RealPoint(bt.roiManager.getLastTracePoint());
+			//get last point
+			startPoint = new RealPoint(currentTracing.vertices.get(currentTracing.vertices.size() - 1));
 		}
 		//init math
 		getMathForCurrentPoint(startPoint);
@@ -254,7 +254,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			
 			//reverse ROI
 			currentTracing.reversePoints();
-			//bt.roiManager.getActiveRoi().reversePoints();
 			
 			//init math at new point
 			getMathForCurrentPoint(startPoint);
@@ -337,7 +336,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				RealPoint lastSegmentPoint = points.get(points.size()-1).positionAsRealPoint();
 				//bt.roiManager.addSegment(points.get(points.size()-1), points);
-				RoiManager3D.addSegmentLineTrace(currentTracing, points.get(points.size()-1), points);
+				currentTracing.addPointAndSegment( points.get(points.size() - 1), points);
 				bt.repaintBVV();
 				points = new ArrayList<>();
 				points.add( lastSegmentPoint );
@@ -393,7 +392,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		//adding last part of the trace
 		//bt.roiManager.addSegment( points.get( points.size() - 1 ), points);
-		RoiManager3D.addSegmentLineTrace(currentTracing, points.get(points.size() - 1), points);
+		currentTracing.addPointAndSegment( points.get(points.size() - 1), points );
 		bt.repaintBVV();
 		return nCountPoints;
 	}
@@ -471,14 +470,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		if(es != null)
 			es.shutdown();
 	}
+	
 	/** checks if the point intersects already traced part of the curve**/
 	boolean checkIntersection(RealPoint currpoint)
 	{
 		double [] currPos = currpoint.positionAsDoubleArray();
 		boolean bIntersect = false;
-		for(int i=0;i<allPointsIntersection.size() && !bIntersect ;i++)
+		for(int i = 0; i < allPointsIntersection.size() && !bIntersect; i++)
 		{
-			if(LinAlgHelpers.distance(currPos,allPointsIntersection.get(i))<0.5)
+			if(LinAlgHelpers.distance(currPos,allPointsIntersection.get(i)) < 0.5)
 			{
 				bIntersect = true;
 			}
@@ -506,9 +506,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		
 		//get all relevant neighbors
-		float maxSal = (-1)*Float.MAX_VALUE;
+		float maxSal = (-1) * Float.MAX_VALUE;
 		
-		float currSal = (-1)*Float.MAX_VALUE;
+		float currSal = (-1) * Float.MAX_VALUE;
 		
 		ArrayList<int[]> scannedPos;
 		
@@ -533,8 +533,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			for (int d = 0; d < 3; d++)
 			{
 				candPos[d] = Math.round(currpoint.getFloatPosition(d))+candidateNeighbor[d];
-			}
-			
+			}		
 		
 			if(Intervals.contains(fullInput, new RealPoint(new float []{candPos[0],candPos[1],candPos[2]})))
 			{
@@ -582,7 +581,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 		//System.out.println(maxSal);
-		if(maxSal>0.000001)
+		if(maxSal > 0.000001)
 		{			
 			final double dCos = LinAlgHelpers.dot(newDirection, lastDirectionVector);			
 			if(dCos>0)
@@ -675,7 +674,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	{
 		final long[][] rangeM = new long[2][3];
 
-		for(int d=0; d < 3; d++)
+		for(int d = 0; d < 3; d++)
 		{
 			rangeM[0][d] = (long)(target.getDoublePosition(d)) - range[d];
 			rangeM[1][d] = (long)(target.getDoublePosition(d)) + range[d];								
@@ -702,10 +701,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	FinalInterval getLocalSearchArea(final RealPoint target_in, final float fSDN)
 	{
 		final long[][] rangeMax = new long[2][3];
-		for(int d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
-			rangeMax[0][d] = Math.round(target_in.getFloatPosition(d)-fSDN*bt.btData.sigmaTrace[d]);
-			rangeMax[1][d] = Math.round(target_in.getFloatPosition(d)+fSDN*bt.btData.sigmaTrace[d]);
+			rangeMax[0][d] = Math.round(target_in.getFloatPosition(d) - fSDN * bt.btData.sigmaTrace[d]);
+			rangeMax[1][d] = Math.round(target_in.getFloatPosition(d) + fSDN * bt.btData.sigmaTrace[d]);
 		}
 		return new FinalInterval(rangeMax[0],rangeMax[1]);
 	}
@@ -721,16 +720,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** returns orientation vector at the provided location **/
 	public double[] getVectorAtLocation(final RealPoint point)
 	{
-		int d;
 		final double [] currDirVector = new double[3];
 		final long [] currpos = new long [4];
 
-		for (d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
 			currpos[d] = Math.round(point.getFloatPosition(d));
 		}
 		
-		for(d=0;d<3;d++)
+		for(int d = 0; d < 3; d++)
 		{
 			currpos[3] = d;
 			raV.setPosition(currpos);
@@ -742,9 +740,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	ArrayList<int[]> getNeighborPixels(final double [] directionVector)
 	{
 		final ArrayList<int[]> out = new ArrayList<>();
-		for(int i=0;i<26;i++)
+		for(int i = 0; i < 26; i++)
 		{
-			if(LinAlgHelpers.dot(directionVector, nNeighborsVectors[i])>0.5)
+			if(LinAlgHelpers.dot(directionVector, nNeighborsVectors[i]) > 0.5)
 			{
 				out.add(nNeighborsIndexes[i]);
 			}
@@ -798,7 +796,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					//let's determine "neighbor type"
 					int nType = Math.abs(d1)+Math.abs(d2)+Math.abs(d3);
 					//remove central pixel
-					if(nType!=0)
+					if(nType != 0)
 					{
 						//let's make a hash string
 						String sKey = Integer.toString(d1)+Integer.toString(d2)+Integer.toString(d3);

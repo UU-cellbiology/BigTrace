@@ -206,7 +206,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				final int nFirstTP = nFirstTPi;
 				final int nLastTP = nLastTPi;
 
-				macroRunFullAutoTrace(((Double)args[0]).doubleValue(), (int)Math.round(((Double)args[1]).doubleValue()), nFirstTP, nLastTP);
+				macroRunFullAutoTrace(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), nFirstTP, nLastTP);
 			});
 		}
 		
@@ -283,23 +283,23 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	/** macro function runs full auto on all time points 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
-	 * @param nMinNumPoints
-	 * 	specifies the minimum number of points in a curve
+	 * @param dMinCurveLength
+	 * 	specifies the minimum curve length
 	 **/
-	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints)
+	public void macroRunFullAutoTrace(final Double dMinIntensity, final Double dMinCurveLength)
 	{
-		macroRunFullAutoTrace(dMinIntensity, nMinNumPoints, 0, bt.btData.nNumTimepoints - 1);		
+		macroRunFullAutoTrace(dMinIntensity, dMinCurveLength, 0, bt.btData.nNumTimepoints - 1);		
 	}
 	/** macro function runs full auto on specified time points range. 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
-	 * @param nMinNumPoints
-	 * 	specifies the minimum number of points in a curve
+	 * @param dMinCurveLength
+	 * 	specifies the minimum curve length
 	 * @param nFirstFrame 
 	 * 	in case of timelapse data, first frame to start (numbering from 0) 
 	 * @param nLastFrame
 	 *  in case of timelapse data, the last frame to trace  **/
-	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints, final Integer nFirstFrame, final Integer nLastFrame)
+	public void macroRunFullAutoTrace(final Double dMinIntensity, final Double dMinCurveLength, final Integer nFirstFrame, final Integer nLastFrame)
 	{
 
 		int nFirstTP = 0;
@@ -315,16 +315,26 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		TaskBT.runOnEDTAndWait(()->
 		{
+			boolean bMinCurveLengthInUnits = Prefs.get("BigTrace.bMinCurveLengthInUnits", false );
+			String sUnits = "";
+			if(bMinCurveLengthInUnits)
+			{
+				sUnits = " " + bt.btData.sVoxelUnit;
+			}
+			else
+			{
+				sUnits = " voxels";
+			}
 			IJ.log( "BigTrace macro: running full autotrace with parameters:" );
 			IJ.log( "   Min intensity trace start: " + Double.toString( dMinIntensity ));
-			IJ.log( "   Min # points in curve: " + Integer.toString( nMinNumPoints ));
+			IJ.log( "   Min curve length: " + Double.toString( dMinCurveLength ) + sUnits) ;
 			IJ.log( "   First time frame: " + Integer.toString( nFirstFrame ));
 			IJ.log( "   Last time frame: " + Integer.toString( nLastFrame ));
 			printShapeInterpolation();
 			IJ.log( "One-click tracing parameters" );
 			printOneClickParams();
 		});
-		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
+		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, dMinCurveLength, nFirstFrame, nLastFrame );
 		bMacroMode = false;
 	}
 	

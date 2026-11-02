@@ -185,7 +185,7 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		oneClickTask.startPoint = rpMax;
 		if(bt.btData.bTrackingUseMask)
 		{
-			oneClickTask.traceMask.initTraceMask( traceIV, true );
+			oneClickTask.traceMask.initTraceMask( traceIV, traceIV, true );
 			
 		}
 		

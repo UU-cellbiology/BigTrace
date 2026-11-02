@@ -427,8 +427,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 	
 	@Override
 	public void valueChanged(ListSelectionEvent e) 
-	{
-		
+	{		
 		if (e.getValueIsAdjusting() == false) 
 		{
 			bt.repaintBVV();
@@ -442,12 +441,13 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
             } else if (jlist.getSelectedIndices().length > 1) {
             
             //Single selection
-            } else 
+            } 
+            else 
             {
 
             	rm.activeRoi.set(jlist.getSelectedIndex());
             	//update the timepoint
-            	if(rm.getActiveRoi().getTimePoint()!=bt.bvvViewer.state().getCurrentTimepoint())
+            	if(rm.getActiveRoi().getTimePoint() != bt.bvvViewer.state().getCurrentTimepoint())
             	{
             		bt.btData.bDeselectROITime = false;
             		bt.bvvViewer.setTimepoint(rm.getActiveRoi().getTimePoint());
