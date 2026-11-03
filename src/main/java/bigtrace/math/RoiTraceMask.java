@@ -12,6 +12,7 @@ import net.imglib2.RealPoint;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.img.Img;
+import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.NativeBoolType;
@@ -57,6 +58,13 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     long [] blockMaxPos;     // flat 3 * N
     boolean [] blockDirty;
     
+    
+    /** masks larger than this (in bytes) are disk-cached, smaller ones are kept in memory **/
+    static final long MAX_IN_MEMORY_MASK_BYTES = 512L * 1024L * 1024L;
+    
+    /** cell size of the mask image **/
+    static final int MASK_CELL_SIZE = 32;
+    
     public RoiTraceMask(final BigTrace<T> bt_)
 	{
 		bt = bt_;
@@ -78,10 +86,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	traceInterval = traceInterval_;
     	final long[] dim = traceInterval.dimensionsAsLongArray();
     	//make a mask
-		final DiskCachedCellImgOptions options = DiskCachedCellImgOptions.options()
-			    .cellDimensions(32, 32, 32);
-		final Img<NativeBoolType> maskArr = new DiskCachedCellImgFactory<>(new NativeBoolType(), options)
-			    .create(dim);
+    	final Img<NativeBoolType> maskArr = createMaskImg( dim );
         	
     	traceMask = Views.translate(maskArr, traceInterval.minAsLongArray());
     	if(maxSearchInterval_ == null)
@@ -392,7 +397,20 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	return new ValuePair< >(maxVal, new RealPoint(maxLocation));
     }
     
-
+    /** creates mask image: an in-memory CellImg if it is not larger than
+     * MAX_IN_MEMORY_MASK_BYTES, otherwise a disk-cached one **/
+    static Img<NativeBoolType> createMaskImg(final long [] dim)
+    {
+    	//NativeBoolType is stored as one byte per voxel
+    	final long nMaskBytes = Intervals.numElements( dim );
+    	if(nMaskBytes <= MAX_IN_MEMORY_MASK_BYTES)
+    	{
+    		return new CellImgFactory<>(new NativeBoolType(), MASK_CELL_SIZE).create( dim );
+    	}
+    	final DiskCachedCellImgOptions options = DiskCachedCellImgOptions.options()
+    			.cellDimensions(MASK_CELL_SIZE, MASK_CELL_SIZE, MASK_CELL_SIZE);
+    	return new DiskCachedCellImgFactory<>(new NativeBoolType(), options).create( dim );
+    }
 
 	
 	@Override
