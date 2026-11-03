@@ -52,7 +52,7 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 	public static int mode = (int) Prefs.get("BigTrace.RoiManagerMode", ADD_POINT_LINE);
 	
 	//ROI LIST
-	public DefaultListModel< String > listModel; 
+	public final DefaultListModel< String > listModel; 
 	public final JList<String> jlist;
 	final JScrollPane listScroller;
 	

@@ -345,6 +345,27 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		 }
 	 }
 	 
+	 /** removes all ROIs with the exact name sName (case sensitive, as returned by getName(),
+	  *  without group/time prefix). Keeps the active ROI if it was not removed.
+	  *  Returns the number of removed ROIs. **/
+	 public int removeRoisByName(final String sName)
+	 {
+		 final int nRemoved;
+		 synchronized(roiLock)
+		 {
+			 final Roi3D activeR = getActiveRoi();
+			 final int nBefore = rois.size();
+			 rois.removeIf( roi -> sName.equals( roi.getName() ) );
+			 nRemoved = nBefore - rois.size();
+			 if(nRemoved == 0)
+				 return 0;
+			 // reference-based, so the shifted index is correct
+			 activeRoi.set( activeR == null ? -1 : rois.indexOf( activeR ) );
+		 }
+		 updateRoiListModel();
+		 return nRemoved;
+	 }
+	 
 	 /** removes all ROIs (use this instead of rois.clear() + listModel.clear()) **/
 	 public void clearRois()
 	 {

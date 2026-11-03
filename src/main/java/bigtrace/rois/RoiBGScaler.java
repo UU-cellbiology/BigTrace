@@ -37,7 +37,7 @@ public class RoiBGScaler extends BigTraceBGTask
 		return null;
 	}
 	
-	void scaleROIs()
+	public void scaleROIs()
 	{
 		final double sizeFactor = getSizeFactor(bt.btData, scaleFactor);
 		for(final Roi3D roi:scaleROIs)
@@ -82,7 +82,7 @@ public class RoiBGScaler extends BigTraceBGTask
     	} 
     	catch (ExecutionException e) {
     		e.getCause().printStackTrace();
-    		String msg = String.format("Unexpected problem during straightening: %s", 
+    		String msg = String.format("Unexpected problem during ROI scaling: %s", 
     				e.getCause().toString());
     		System.out.println(msg);
     	} catch (InterruptedException e) {

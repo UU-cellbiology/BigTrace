@@ -29,6 +29,7 @@ public class RoiManager3DDialogs
 		bt = bt_;
 	}
 	
+	
 	public void dialSemiAutoProperties()
 	{
 		
@@ -279,4 +280,6 @@ public class RoiManager3DDialogs
         importTask.addPropertyChangeListener(bt.btPanel);
         importTask.execute();
 	}
+	
+	
 }

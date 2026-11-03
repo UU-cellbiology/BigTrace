@@ -1,6 +1,7 @@
 package bigtrace;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,6 +15,7 @@ import bigtrace.measure.ROIsMeasureBG;
 import bigtrace.measure.RoiMeasure3D;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
+import bigtrace.rois.RoiBGScaler;
 import bigtrace.volume.StraightenCurve;
 import bvvpg.vistools.BvvStackSource;
 import ij.IJ;
@@ -42,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[17];
+		extensions = new ExtensionDescriptor[19];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -74,9 +76,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																					   MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[14] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
-		extensions[15] = ExtensionDescriptor.newDescriptor("btTest", bt);
-		extensions[16] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[14] = ExtensionDescriptor.newDescriptor("btScaleROIs", bt, MacroExtension.ARG_NUMBER, //scale X
+																							 MacroExtension.ARG_NUMBER, //scale Y
+																							 MacroExtension.ARG_NUMBER, //scale Z
+																							 MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //group name
+		extensions[15] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING);
+		extensions[16] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
+		extensions[17] = ExtensionDescriptor.newDescriptor("btTest", bt);
+		extensions[18] = ExtensionDescriptor.newDescriptor("btClose", bt);
 		
 	}
 	
@@ -260,6 +267,28 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			{
 				macroSetAlphaRangeGamma(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), dGamma[0], nCh[0]);
 			});			
+		}
+		
+		if (name.equals("btScaleROIs")) 
+		{
+			final double [] scaleFactor = new double[3];
+			for(int d = 0; d < 3; d++)
+			{
+				scaleFactor[d] = ((Double)args[d]).doubleValue();
+			}
+			final String sGroupName = (String)args[3];
+			enqueue (()-> 
+			{
+				macroScaleROIs(scaleFactor, sGroupName);
+			});
+		}
+		
+		if (name.equals("btRemoveROI")) 
+		{
+			enqueue (()-> 
+			{
+				macroRemoveROI( (String)args[0] );
+			});
 		}
 
 		if (name.equals("btOpenNext")) 
@@ -837,6 +866,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		macroSetDisplayRangeGamma(minIntensity, maxIntensity, dGamma, -1);
 	}
+	
 	public void macroSetDisplayRangeGamma(final Double minIntensity, final Double maxIntensity)
 	{
 		macroSetDisplayRangeGamma(minIntensity, maxIntensity, 1.0);
@@ -895,6 +925,129 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		macroSetAlphaRangeGamma(minAlpha, maxAlpha, dGamma, -1);
 
+	}
+	
+	/** macro function scales all ROIs (or ROIs of one group) using RoiBGScaler
+	 * @param scaleFactor
+	 * 	array of scaling factors along X, Y and Z axes
+	 **/
+	public void macroScaleROIs(final double [] scaleFactor)
+	{
+		macroScaleROIs(scaleFactor, null);
+	}
+	
+	/** macro function scales all ROIs (or ROIs of one group) using RoiBGScaler
+	 * @param scaleFactor
+	 * 	array of scaling factors along X, Y and Z axes
+	 * @param sGroupName
+	 * 	name of ROI group to scale. If null or empty, all ROIs are scaled.
+	 **/
+	public void macroScaleROIs(final double [] scaleFactor, final String sGroupName)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		bt.setLockMode(true);
+		
+		List<Roi3D> scaleROIs = bt.roiManager.rois;
+		String sTarget = "all ROIs";
+		boolean bValid = true;
+		
+		if(sGroupName != null && !sGroupName.isEmpty())
+		{
+			int nGroupInd = -1;
+			for(int i = 0; i < bt.roiManager.groups.size(); i++)
+			{
+				if(bt.roiManager.groups.get( i ).getName().equals( sGroupName ))
+				{
+					nGroupInd = i;
+					break;
+				}
+			}
+			if(nGroupInd < 0)
+			{
+				bValid = false;
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( "Error! Cannot find ROI group with the name \"" + sGroupName + "\". Scaling aborted." );
+				});
+			}
+			else
+			{
+				scaleROIs = new ArrayList<>();
+				for(final Roi3D roi : bt.roiManager.rois)
+				{
+					if(roi.getGroupInd() == nGroupInd)
+					{
+						scaleROIs.add( roi );
+					}
+				}
+				sTarget = "ROIs of group \"" + sGroupName + "\"";
+			}
+		}
+		
+		if(bValid)
+		{
+			if(scaleROIs.size() > 0)
+			{
+				final RoiBGScaler roiBGScaler = new RoiBGScaler(bt, scaleROIs, scaleFactor);
+				roiBGScaler.scaleROIs();
+				final String sOut = "BigTrace macro: scaled " + Integer.toString( scaleROIs.size() ) + " " + sTarget 
+						+ " with factors X " + Double.toString( scaleFactor[0] ) 
+						+ " Y " + Double.toString( scaleFactor[1] ) 
+						+ " Z " + Double.toString( scaleFactor[2] ) + ".";
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( sOut );
+				});
+			}
+			else
+			{
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( "Cannot find ROIs to apply scaling." );
+				});
+			}
+		}
+		
+		bt.setLockMode(false);
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function removes all ROIs with the provided name.
+	 * @param sROIName
+	 * 	exact ROI name (case sensitive), as shown in the ROI manager
+	 *  without the [group] prefix and the T time point prefix **/
+	public void macroRemoveROI(final String sROIName)
+	{
+		if(sROIName == null || sROIName.isEmpty())
+		{
+			TaskBT.runOnEDTAndWait(()->
+			{
+				IJ.log( "Error! btRemoveROI: ROI name should not be empty." );
+			});
+			return;
+		}
+		bt.bInputLock = true;
+		bMacroMode = true;
+
+		final int nRemoved = bt.roiManager.removeRoisByName( sROIName );
+
+		TaskBT.runOnEDTAndWait(()->
+		{
+			if(nRemoved == 0)
+			{
+				IJ.log( "BigTrace macro: no ROIs with the name \"" + sROIName + "\" found, nothing removed." );
+			}
+			else
+			{
+				IJ.log( "BigTrace macro: removed " + Integer.toString( nRemoved ) + " ROI(s) with the name \"" + sROIName + "\"." );
+			}
+			IJ.log( "  Total " + Integer.toString( bt.roiManager.rois.size() ) + " ROIs left." );
+		});
+		bt.repaintBVV();
+		bt.bInputLock = false;
+		bMacroMode = false;
 	}
 
 	/** macro function removes current loaded image and loads a new one to BigTrace.
