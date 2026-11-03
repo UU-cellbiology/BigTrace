@@ -31,6 +31,8 @@ public class PanelOneClickTraceOptions extends JPanel
 	
 	final JCheckBox cbTraceMask = new JCheckBox("Avoid (mask) existing ROIs");
 	
+	final JCheckBox cbDownsample = new JCheckBox("Downsample for large sigma");
+	
 	boolean bShowMaskOption = true;
 	
 	public PanelOneClickTraceOptions(final BigTrace<?> bt_, boolean bShowMaskOption_)
@@ -55,6 +57,8 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		cbTraceMask.setSelected( bt.btData.bOneClickUseMask );
 		
+		cbDownsample.setSelected( bt.btData.bOCDownsample );
+		cbDownsample.setToolTipText( "Trace on a block-averaged grid, so the kernel stays ~target SD voxels" );
 		
 		gbc.gridx = 0;		
 		gbc.gridy = 0;
@@ -65,9 +69,7 @@ public class PanelOneClickTraceOptions extends JPanel
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 2;
-		//cd.anchor=GridBagConstraints.WEST;
-		//this.add(new JLabel("Use intensity threshold"),gbc);
-		//gbc.gridx++;
+
 		this.add(cbIntensityStop,gbc);
 		gbc.gridwidth = 1;
 		
@@ -83,15 +85,20 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		this.add(new JLabel("Minimum intensity: "),gbc);
+		this.add(new JLabel("Minimum intensity: "), gbc);
 		gbc.gridx++;
 		this.add(nfIntensityThreshold,gbc);
 
 		gbc.gridx = 0;
 		gbc.gridy ++;		
-		this.add(new JLabel("Ref points placement (px, >=3): "),gbc);
+		this.add(new JLabel("Ref points placement (px, >=3): "), gbc);
 		gbc.gridx++;
 		this.add(nfPlaceVertex,gbc);
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 2;
+		this.add(cbDownsample, gbc);
 		
 		if(bShowMaskOption)
 		{
@@ -117,10 +124,14 @@ public class PanelOneClickTraceOptions extends JPanel
 			bt.btData.dOCIntensityThreshold = Math.max(0, Double.parseDouble(nfIntensityThreshold.getText()));
 			Prefs.set("BigTrace.dOCIntensityThreshold",bt.btData.dOCIntensityThreshold);		
 		}
+		
+		bt.btData.bOCDownsample = cbDownsample.isSelected();
+		Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);
+		
 		if(bShowMaskOption)
 		{
 			bt.btData.bOneClickUseMask = cbTraceMask.isSelected();
-			Prefs.get( "BigTrace.bOneClickUseMask", bt.btData.bOneClickUseMask );			
+			Prefs.set( "BigTrace.bOneClickUseMask", bt.btData.bOneClickUseMask );			
 		}
 	}
 }

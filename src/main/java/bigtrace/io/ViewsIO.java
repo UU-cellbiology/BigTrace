@@ -82,6 +82,7 @@ public class ViewsIO
 				writer.write("dDirectionalityOneClick," + df3.format(bt.btData.dDirectionalityOneClick)+"\n");
 				writer.write("bOCIntensityStop," + Integer.toString(bt.btData.bOCIntensityStop ? 1 : 0)+"\n");
 				writer.write("dOCIntensityThreshold," + df3.format(bt.btData.dOCIntensityThreshold)+"\n");
+				writer.write("bOCDownsample," + Integer.toString(bt.btData.bOCDownsample ? 1 : 0)+"\n");
 				for (int d = 0; d < 3; d++)
 				{
 					writer.write("Trace sigma,"+Integer.toString( d )+ ","+ df3.format(bt.btData.sigmaTrace[d])+"\n");					
@@ -339,6 +340,10 @@ public class ViewsIO
 					bt.btData.dOCIntensityThreshold = Double.parseDouble( line_array[1] );
 					Prefs.set("BigTrace.dOCIntensityThreshold", bt.btData.dOCIntensityThreshold);
 					break;	
+				case "bOCDownsample":
+					bt.btData.bOCDownsample = line_array[1].equals( "1" );
+					Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);
+					break;
 				case "Trace sigma":
 					int dA = Integer.parseInt( line_array[1]);
 					bt.btData.sigmaTrace[dA] = Double.parseDouble( line_array[2] ) ;

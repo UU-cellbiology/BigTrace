@@ -15,6 +15,7 @@ import bigtrace.rois.Roi3D;
 import net.imglib2.AbstractInterval;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.algorithm.convolution.kernel.Kernel1D;
@@ -135,23 +136,39 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public int nInsertROIInd = 0;
 	
-	//IntervalView<UnsignedByteType> salWeightsUB;
-	
 	ArrayImg<FloatType, FloatArray> gradFloat;
 	ArrayImg<FloatType, FloatArray> hessFloat;
+	
+	/** Tracing math (hessian, saliency, vectors, stepping) is done on the "grid".
+	 * Grid voxel g along axis d covers full resolution voxels [g*ds[d], g*ds[d]+ds[d]-1].
+	 * With ds = {1,1,1} (default, downsampling off) grid == full resolution
+	 * and tracing is identical to the original method. **/
+	final long [] ds = new long [] {1, 1, 1};
+	
+	/** true if any of ds is >1 **/
+	boolean bDownsample = false;
+	
+	/** half size of the math box in grid voxels (used only when downsampling) **/
+	final long [] boxGridHalfRange = new long[3];
+	
+	/** bounds of fullInput in grid coordinates **/
+	final long [] gridMin = new long[3];
+	final long [] gridMax = new long[3];
+	
+	/** block-averaged local box (used only when downsampling) **/
+	ArrayImg<FloatType, FloatArray> gridBox;	
 	
 	private LineTrace3D currentTracing;
 	
 	
 	@Override
 	protected Void doInBackground() throws Exception 
-	{
-		
-		runTracing ();
+	{		
+		runTracing();
 		return null;
 	}
 	
-	public void runTracing ()
+	public void runTracing()
 	{
 		currentTracing = null;
 		
@@ -231,6 +248,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					currentTracing.vertices.get(currentTracing.vertices.size()-2).localize(prevDirection);
 				}
 				LinAlgHelpers.subtract(startPoint.positionAsDoubleArray(), prevDirection, prevDirection);
+				//direction vectors live in grid space
+				for(int d = 0; d < 3; d++)
+				{
+						prevDirection[d] /= ds[d];
+				}
 				LinAlgHelpers.normalize(prevDirection);
 				final double sameDir = LinAlgHelpers.dot(prevDirection, lastDirectionVector);
 				LinAlgHelpers.scale(prevDirection, -1.0, prevDirection);
@@ -445,12 +467,40 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** initialization of parameters **/
 	@SuppressWarnings("deprecation")
 	public void init()
-	{
+	{	
 		
-		nPointPerSegment = bt.btData.nVertexPlacementPointN;
 		dAngleThreshold = bt.btData.dDirectionalityOneClick;
-		
-		//nCountReset = Math.max(Math.max(bt.btdata.sigmaTrace[0], bt.btdata.sigmaTrace[1]),bt.btdata.sigmaTrace[2]);
+	
+		//downsampling factors and sigma of the kernels on the grid
+		final double [] sigmaGrid = new double[3];
+		long dsMax = 1;
+		bDownsample = false;
+		for (int d = 0; d < 3; d++)
+		{
+			final double s = bt.btData.sigmaTrace[d];
+			ds[d] = 1;
+			sigmaGrid[d] = s;
+			if(bt.btData.bOCDownsample)
+			{
+				ds[d] = Math.max(1, Math.round(s / bt.btData.dOCDownsampleSigma));
+				if(ds[d] > 1)
+				{
+					bDownsample = true;
+					//block averaging by ds already blurs with variance (ds^2-1)/12 (full res px^2),
+					//subtract it and convert to grid units
+					sigmaGrid[d] = Math.sqrt(Math.max(0.25, s * s - (ds[d] * ds[d] - 1) / 12.0)) / ds[d];
+				}
+			}
+			dsMax = Math.max(dsMax, ds[d]);
+
+		}
+		//vertex placement is in px, each step is now up to dsMax px
+		nPointPerSegment = bt.btData.nVertexPlacementPointN;
+		if(bDownsample)
+		{
+			nPointPerSegment = (int) Math.max(3, Math.round(bt.btData.nVertexPlacementPointN / (double) dsMax));
+		}
+				
 		boxFullHalfRange = new long[3];
 		boxInnerHalfRange = new long[3];
 		final long [] boxFullRange = new long[3];
@@ -460,7 +510,17 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			boxFullHalfRange[d] = (long) (Math.ceil(rangeFullBoxDim * bt.btData.sigmaTrace[d])); 
 			boxInnerHalfRange[d] = (long) (Math.ceil(rangeInnerBoxDim * bt.btData.sigmaTrace[d])); 
-			boxFullRange[d] = (long) (Math.ceil(rangeFullBoxDim * bt.btData.sigmaTrace[d]) * 2 + 1); 		
+			boxFullRange[d] = (long) (Math.ceil(rangeFullBoxDim * bt.btData.sigmaTrace[d]) * 2 + 1); 	
+			if(bDownsample)
+			{
+				boxGridHalfRange[d] = (long) Math.ceil(rangeFullBoxDim * sigmaGrid[d]);
+				boxFullRange[d] = boxGridHalfRange[d] * 2 + 1;
+			}
+		}
+		//make downsampled box
+		if(bDownsample)
+		{
+			gridBox = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ]);
 		}
 		//IntervalView<T> input = Views.interval(fullInput, getLocalTraceBox(fullInput,boxFullHalfRange,startPoint));
 		//dim = Intervals.dimensionsAsLongArray( input );
@@ -496,7 +556,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				nDerivOrder = new int [3];
 				nDerivOrder[d1]++;
 				nDerivOrder[d2]++;
-				kernels = DerivConvolutionKernels.convolve_derive_kernel(bt.btData.sigmaTrace, nDerivOrder);
+				//kernels = DerivConvolutionKernels.convolve_derive_kernel(bt.btData.sigmaTrace, nDerivOrder);
+				kernels = DerivConvolutionKernels.convolve_derive_kernel(sigmaGrid, nDerivOrder);
 				derivKernel = Kernel1D.centralAsymmetric(kernels);
 				convObjects[count] = SeparableKernelConvolution.convolution( derivKernel );
 				convObjects[count].setExecutor(es);
@@ -596,14 +657,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			
 			for (int d = 0; d < 3; d++)
 			{
-				candPos[d] = Math.round(currpoint.getFloatPosition(d))+candidateNeighbor[d];
+				//candPos[d] = Math.round(currpoint.getFloatPosition(d))+candidateNeighbor[d];
+				candPos[d] = toGrid(currpoint.getDoublePosition(d), d) + candidateNeighbor[d];
 			}		
 		
 			//if(Intervals.contains(fullInput, new RealPoint(new float []{candPos[0],candPos[1],candPos[2]})))
 			boolean bInside = true;
 			for (int d = 0; d < 3; d++)
 			{
-				if(candPos[d] < fullInput.min( d ) || candPos[d] > fullInput.max( d ))
+				//if(candPos[d] < fullInput.min( d ) || candPos[d] > fullInput.max( d ))
+				if(candPos[d] < gridMin[d] || candPos[d] > gridMax[d])
 				{
 					bInside = false;
 					break;
@@ -615,10 +678,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				
 				if(currSal > 0)
 				{
-					candDirection = getVectorAtLocation(candPos);
+					//candDirection = getVectorAtLocation(candPos);
+					candDirection = getVectorAtGrid(candPos);
+					
+					//full resolution position for intensity and mask checks
+					final long [] candPosFull = toFullLong(candPos);
 					
 					//check directionality
-					if(Math.abs(LinAlgHelpers.dot(candDirection, lastDirectionVector))<dAngleThreshold)
+					if(Math.abs(LinAlgHelpers.dot(candDirection, lastDirectionVector)) < dAngleThreshold)
 					{
 						currSal = 0.0f;
 					}
@@ -626,7 +693,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					// intensity stop rule
 					if(bt.btData.bOCIntensityStop)
 					{
-						if(raInput.setPositionAndGet( candPos ).getRealDouble()<bt.btData.dOCIntensityThreshold)
+						//if(raInput.setPositionAndGet( candPos ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+						if(raInput.setPositionAndGet( candPosFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
 						{
 							currSal = 0.0f;
 						}
@@ -635,7 +703,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					//check if we hit the mask
 					if(bUseMask)
 					{
-						if(traceMask.isOccupied( candPos ))
+						if(traceMask.isOccupied( candPosFull ))
+						//if(traceMask.isOccupied( candPos ))
 						{
 							currSal = 0.0f;
 						}
@@ -647,7 +716,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						maxSal = currSal;
 						for (int d = 0; d < 3; d++)
 						{
-							finPos[d] = candPos[d];
+							//finPos[d] = candPos[d];
+							finPos[d] = (float) toFull(candPos[d], d);
 							newDirection[d] = candDirection[d];
 						}
 					}
@@ -658,7 +728,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		if(maxSal > 0.000001)
 		{			
 			final double dCos = LinAlgHelpers.dot(newDirection, lastDirectionVector);			
-			if(dCos>0)
+			if(dCos > 0)
 			{
 				for (int d = 0; d < 3; d++)
 				{
@@ -680,10 +750,29 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	@SuppressWarnings( "unchecked" )
 	public void getMathForCurrentPoint(final RealPoint currPoint)
 	{
+		updateGridBounds();
 		//let's figure out the volume around the point
 		IntervalView<T> currentBox = Views.interval(fullInput, getLocalTraceBox(fullInput,boxFullHalfRange,currPoint));
 		innerTraceBox = getLocalTraceBox(fullInput,boxInnerHalfRange,currPoint);
-		currentBox.min(minV);
+		//currentBox.min(minV);
+		
+		//input for convolutions (full resolution or block averaged grid)
+		final RandomAccessibleInterval<?> mathInput;
+		if(!bDownsample)
+		{
+			currentBox.min(minV);
+			mathInput = currentBox;
+		}
+		else
+		{
+			//same logic as getLocalTraceBox, in grid coordinates
+			for(int d = 0; d < 3; d++)
+			{
+				minV[d] = Math.max(gridMin[d], toGrid(currPoint.getDoublePosition(d), d) - boxGridHalfRange[d]);
+			}
+			fillGridBox(minV);
+			mathInput = Views.translate(gridBox, minV[0], minV[1], minV[2]);
+		}
 		
 		//IntervalView<FloatType> gradient = Views.translate(gradFloat, nShift);
 		IntervalView<FloatType> hessian = Views.translate(hessFloat, minV);
@@ -723,7 +812,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				IntervalView< FloatType > hs2 = Views.hyperSlice( hessian, 3, count );
 				//FinalInterval test = (FinalInterval) convObjects[count].requiredSourceInterval(hs2);
-				convObjects[count].process(Views.extendBorder(currentBox), hs2 );
+				//convObjects[count].process(Views.extendBorder(currentBox), hs2 );
+				convObjects[count].process(Views.extendBorder(mathInput), hs2 );
 				count++;
 			}
 		}
@@ -763,10 +853,21 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	RealPoint refinePointUsingSaliency(final RealPoint target_in)
 	{
 		//get an box around the target
-		final FinalInterval searchArea  = Intervals.intersect( fullInput, getLocalSearchArea(target_in, 2.0f) );		
+		final FinalInterval searchArea  = Intervals.intersect( fullInput, getLocalSearchArea(target_in, 2.0f) );
+		//convert to grid coordinates
+		final long [][] gridArea = new long[2][3];
+		for(int d = 0; d < 3; d++)
+		{
+				gridArea[0][d] = Math.floorDiv(searchArea.min(d), ds[d]);
+				gridArea[1][d] = Math.floorDiv(searchArea.max(d), ds[d]);
+		}
 		RealPoint out = new RealPoint(3);
-		//VolumeMisc.findMaxLocation(Views.interval(Views.extendZero(salWeights), maxSearchArea),out);
-		VolumeMisc.findMaxLocation(Views.interval(salWeights, searchArea), out);
+		VolumeMisc.findMaxLocation(Views.interval(salWeights, new FinalInterval(gridArea[0], gridArea[1])), out);
+		for(int d = 0; d < 3; d++)
+		{
+			out.setPosition(toFull(Math.round(out.getDoublePosition(d)), d), d);
+		}
+		
 		return out;
 		
 	}
@@ -782,24 +883,28 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		return new FinalInterval(rangeMax[0],rangeMax[1]);
 	}
-	public double[] getVectorAtLocation(long[] point)
-	{
-		RealPoint out = new RealPoint(3);
-
-		out.setPosition(point);
-		
-		return getVectorAtLocation(out);
 	
-	}
-	/** returns orientation vector at the provided location **/
+	/** returns orientation vector (in grid space) at the provided full resolution location **/
 	public double[] getVectorAtLocation(final RealPoint point)
+	{
+		final long [] gridPos = new long [3];
+		for (int d = 0; d < 3; d++)
+		{
+			gridPos[d] = toGrid(point.getDoublePosition(d), d);
+		}
+		return getVectorAtGrid(gridPos);
+	}
+	
+	/** returns orientation vector (in grid space) at the provided grid location **/
+	double[] getVectorAtGrid(final long[] gridPos)
 	{
 		final double [] currDirVector = new double[3];
 		final long [] currpos = new long [4];
 
 		for (int d = 0; d < 3; d++)
 		{
-			currpos[d] = Math.round(point.getFloatPosition(d));
+			currpos[d] = gridPos[d];
+			//currpos[d] = Math.round(point.getFloatPosition(d));
 		}
 		
 		for(int d = 0; d < 3; d++)
@@ -990,6 +1095,67 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		*/
 		
 	}
+	
+	/** full resolution coordinate -> grid voxel. For ds = 1 it is Math.round(x), as before **/
+	long toGrid(final double x, final int d)
+	{
+			return Math.floorDiv(Math.round(x), ds[d]);
+	}
+		
+	/** grid voxel -> full resolution coordinate of its center. For ds = 1 it is identity **/
+	double toFull(final long g, final int d)
+	{
+		return g * ds[d] + 0.5 * (ds[d] - 1);
+	}
+		
+	/** grid voxel -> nearest full resolution voxel (clamped to fullInput) **/
+	long [] toFullLong(final long [] g)
+	{
+		final long [] out = new long[3];
+		for(int d = 0; d < 3; d++)
+		{
+			out[d] = Math.min(fullInput.max(d), Math.max(fullInput.min(d), Math.round(toFull(g[d], d))));
+		}
+		return out;
+	}
+	/** fills gridBox (positioned at gridMinPos in grid coordinates)
+	 * with block averages of fullInput (border-extended) **/
+	void fillGridBox(final long [] gridMinPos)
+	{
+		final RandomAccess<T> raIn = Views.extendBorder(fullInput).randomAccess();
+		final RandomAccess<FloatType> raOut = gridBox.randomAccess();
+		final long [] dims = Intervals.dimensionsAsLongArray( gridBox );
+		final long [] posOut = new long[3];
+		final long [] posIn = new long[3];
+		final double norm = 1.0 / (ds[0] * ds[1] * ds[2]);
+		for(posOut[2] = 0; posOut[2] < dims[2]; posOut[2]++)
+			for(posOut[1] = 0; posOut[1] < dims[1]; posOut[1]++)
+				for(posOut[0] = 0; posOut[0] < dims[0]; posOut[0]++)
+				{
+					double sum = 0;
+					for(long k = 0; k < ds[2]; k++)
+						for(long j = 0; j < ds[1]; j++)
+							for(long i = 0; i < ds[0]; i++)
+							{
+								posIn[0] = (gridMinPos[0] + posOut[0]) * ds[0] + i;
+								posIn[1] = (gridMinPos[1] + posOut[1]) * ds[1] + j;
+								posIn[2] = (gridMinPos[2] + posOut[2]) * ds[2] + k;
+								sum += raIn.setPositionAndGet(posIn).getRealDouble();
+							}
+					raOut.setPositionAndGet(posOut).set((float)(sum * norm));
+				}
+	}
+	
+	/** bounds of fullInput in grid coordinates (for ds = 1 same as fullInput bounds) **/
+	void updateGridBounds()
+	{
+		for(int d = 0; d < 3; d++)
+		{
+			gridMin[d] = Math.floorDiv(fullInput.min(d), ds[d]);
+			gridMax[d] = Math.floorDiv(fullInput.max(d), ds[d]);
+		}
+	}
+	
     /*
      * Executed in event dispatching thread
      */

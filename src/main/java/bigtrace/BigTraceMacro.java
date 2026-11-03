@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[19];
+		extensions = new ExtensionDescriptor[20];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -61,30 +61,32 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				  																		  MacroExtension.ARG_NUMBER, 
 				  																		  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL, 
 				  																		  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);		
-		extensions[9] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
+		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickScaledTracing", bt, MacroExtension.ARG_STRING); //"true"/"false"
+		
+		extensions[10] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
 		
-		extensions[10] = ExtensionDescriptor.newDescriptor("btSetMeasurements", bt, MacroExtension.ARG_STRING);
-		extensions[11] = ExtensionDescriptor.newDescriptor("btMeasureAndSave", bt, MacroExtension.ARG_STRING);
-		extensions[12] = ExtensionDescriptor.newDescriptor("btSetDisplayRangeGamma", bt,  MacroExtension.ARG_NUMBER,
+		extensions[11] = ExtensionDescriptor.newDescriptor("btSetMeasurements", bt, MacroExtension.ARG_STRING);
+		extensions[12] = ExtensionDescriptor.newDescriptor("btMeasureAndSave", bt, MacroExtension.ARG_STRING);
+		extensions[13] = ExtensionDescriptor.newDescriptor("btSetDisplayRangeGamma", bt,  MacroExtension.ARG_NUMBER,
 																						  MacroExtension.ARG_NUMBER,
 																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[13] = ExtensionDescriptor.newDescriptor("btSetAlphaRangeGamma", bt, MacroExtension.ARG_NUMBER,
+		extensions[14] = ExtensionDescriptor.newDescriptor("btSetAlphaRangeGamma", bt, MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[14] = ExtensionDescriptor.newDescriptor("btScaleROIs", bt, MacroExtension.ARG_NUMBER, //scale X
+		extensions[15] = ExtensionDescriptor.newDescriptor("btScaleROIs", bt, MacroExtension.ARG_NUMBER, //scale X
 																							 MacroExtension.ARG_NUMBER, //scale Y
 																							 MacroExtension.ARG_NUMBER, //scale Z
 																							 MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //group name
-		extensions[15] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING, 
+		extensions[16] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING, 
 				   															  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
-		extensions[16] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
-		extensions[17] = ExtensionDescriptor.newDescriptor("btTest", bt);
-		extensions[18] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[17] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
+		extensions[18] = ExtensionDescriptor.newDescriptor("btTest", bt);
+		extensions[19] = ExtensionDescriptor.newDescriptor("btClose", bt);
 		
 	}
 	
@@ -196,6 +198,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			enqueue (()-> 
 			{
 				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
+			});
+		}
+		if (name.equals("btSetOneClickScaledTracing")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetOneClickScaledTracing((String)args[0]);
 			});
 		}
 
@@ -520,7 +529,28 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
-	
+	/** macro function sets one-click "scaled" (downsampled) tracing
+	 * @param sEnable
+	 *  string, must contain "true" or "false". If true, for large tracing sigma one-click tracing 
+	 *  runs on a block-averaged (downsampled) grid, so the kernel stays about dTargetSD pixels.
+	 *  If false, original full resolution tracing is used.
+	 *  **/
+	public void macroSetOneClickScaledTracing(final String sEnable)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bOCDownsample = sEnable.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);		
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting one-click scaled tracing:" );
+			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
 	
 	/** macro function loads ROIs. 
 	 * @param sFileName
@@ -1141,6 +1171,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
 		IJ.log( "   Use intensity threshold: " + bt.btData.bOCIntensityStop );	
 		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
+		IJ.log( "   Scaled (downsampled) tracing: " + bt.btData.bOCDownsample );
 		if(bt.btData.bOCIntensityStop)
 		{
 			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));

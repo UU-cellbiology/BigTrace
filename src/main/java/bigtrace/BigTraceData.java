@@ -302,6 +302,15 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
 	
+	/** if true, one-click tracing runs on a block-averaged (downsampled) grid
+	* when tracing sigma is large, so the kernel stays about dOCDownsampleSigma voxels.
+	* If false, the original full resolution tracing is used. **/
+	public boolean bOCDownsample;
+	
+	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
+	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
+	public double dOCDownsampleSigma = 3.0;
+	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
 
@@ -354,6 +363,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		dDirectionalityOneClick = Prefs.get("BigTrace.dDirectionalityOneClick", 0.6);
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
+		bOCDownsample = Prefs.get("BigTrace.bOCDownsample", false);
 		
 		//undefined group properties
 		undefPointSize = ( float ) Prefs.get( "BigTrace.undefPointSize", 4.0 );
