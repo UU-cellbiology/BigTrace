@@ -62,6 +62,7 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		oneClickTrace.bNewTrace = true;
 		oneClickTrace.bUnlockInTheEnd = false;
 		oneClickTrace.bUpdateProgressBar = false;
+		oneClickTrace.bLiveUpdate = false;
 		oneClickTrace.bt = this.bt;	
 		oneClickTrace.bInsertROI = false;
 		oneClickTrace.bUseMask = true;

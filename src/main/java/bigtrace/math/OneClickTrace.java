@@ -47,6 +47,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public boolean bUpdateProgressBar = true;
 	
+	/** if true (default, interactive one-click), the ROI render geometry is rebuilt 
+	 * and the viewer repainted after every segment, with a short pause to let UI update.
+	 * Set to false for batch tracing (full auto): curve geometry is built 
+	 * once at the end of each tracing direction, no pauses. **/
+	public boolean bLiveUpdate = true;
+	
 	public boolean bUnlockInTheEnd = true;
 	
 	public RealPoint currentVector;
@@ -76,12 +82,20 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	final double [][] nNeighborsVectors = new double[26][3];
 	
-	private HashMap<String, ArrayList<int[]>> neighborsMap = new HashMap<>();
+	//private HashMap<String, ArrayList<int[]>> neighborsMap = new HashMap<>();
+	
+	/** same as neighborsMap, but indexed by (d1+1)*9+(d2+1)*3+(d3+1), avoids string building **/
+	@SuppressWarnings( "unchecked" )
+	private final ArrayList<int[]>[] neighborsArr = new ArrayList[27];
 	
 	/** vector of curve direction for the last point **/
 	final double [] lastDirectionVector = new double[3];
 	
 	ArrayList<double[]> allPointsIntersection;
+	
+	/** spatial hash of allPointsIntersection: key is packed rounded voxel position,
+	 * used for fast self-intersection check **/
+	final HashMap<Long, ArrayList<double[]>> intersectionGrid = new HashMap<>();
 	
 	@SuppressWarnings( "rawtypes" )
 	Convolution [] convObjects = new Convolution[6];
@@ -194,7 +208,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			lastDirectionVector[d] = startDirectionVector[d];
 		}
 		
-		allPointsIntersection = new ArrayList<>();
+		//allPointsIntersection = new ArrayList<>();
+		resetIntersectionPoints();
 		
 		int nTotPoints = 0;
 		//we continue tracing, let's setup environment for that
@@ -227,13 +242,17 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				}				
 			}
 			//fill array of previous point
-			allPointsIntersection = currentTracing.makeJointSegmentDouble();
+			resetIntersectionPoints();
+			for(final double [] pt : currentTracing.makeJointSegmentDouble())
+			{
+				addIntersectionPoint( pt );
+			}
 			nTotPoints = allPointsIntersection.size();
 		}	
 
 		if(bNewTrace)
 		{
-			allPointsIntersection = new ArrayList<>();
+			resetIntersectionPoints();
 			//trace in one direction
 			nTotPoints = traceOneDirection(true, 0);
 			if(nTotPoints < 0)
@@ -305,7 +324,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		int nCountPoints = 0;
 		points.add(startPoint);
-		allPointsIntersection.add(startPoint.positionAsDoubleArray());
+		addIntersectionPoint(startPoint.positionAsDoubleArray());
+		
 		if(bFirstTrace)
 		{
 			//LineTrace3D newTracing;
@@ -341,9 +361,17 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			if(points.size() == nPointPerSegment)
 			{
 				RealPoint lastSegmentPoint = points.get(points.size()-1).positionAsRealPoint();
-				//bt.roiManager.addSegment(points.get(points.size()-1), points);
-				currentTracing.addPointAndSegment( points.get(points.size() - 1), points);
-				bt.repaintBVV();
+
+				if(bLiveUpdate)
+				{
+					currentTracing.addPointAndSegment( points.get(points.size() - 1), points);
+					bt.repaintBVV();
+				}
+				else
+				{
+					currentTracing.addPointAndSegmentNoUpdate( points.get(points.size() - 1), points);
+				}
+
 				points = new ArrayList<>();
 				points.add( lastSegmentPoint );
 				if(bUpdateProgressBar)
@@ -358,12 +386,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						setProgress(70);
 					}
 				}
-				try {
-					Thread.sleep(1);
-				} catch (InterruptedException ignore) {}
+				if(bLiveUpdate)
+				{
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException ignore) {}
+				}
 			}
 			points.add(new RealPoint(nextPoint));
-			allPointsIntersection.add(nextPoint.positionAsDoubleArray());
+			addIntersectionPoint(nextPoint.positionAsDoubleArray());
 			nCountPoints++;
 			//see if we are still inside reasonable 
 			//values for math box
@@ -397,8 +428,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 		//adding last part of the trace
-		//bt.roiManager.addSegment( points.get( points.size() - 1 ), points);
-		currentTracing.addPointAndSegment( points.get(points.size() - 1), points );
+		if(bLiveUpdate)
+		{
+			currentTracing.addPointAndSegment( points.get(points.size() - 1), points );
+		}
+		else
+		{
+			currentTracing.addPointAndSegmentNoUpdate( points.get(points.size() - 1), points );
+			//build render geometry once for the whole direction
+			currentTracing.updateRenderVertices();
+		}
 		bt.repaintBVV();
 		return nCountPoints;
 	}
@@ -417,11 +456,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final long [] boxFullRange = new long[3];
 
 		
-		for (int d=0;d<3;d++)
+		for (int d = 0; d < 3; d++)
 		{
-			boxFullHalfRange[d]=(long) (Math.ceil(rangeFullBoxDim*bt.btData.sigmaTrace[d])); 
-			boxInnerHalfRange[d]=(long) (Math.ceil(rangeInnerBoxDim*bt.btData.sigmaTrace[d])); 
-			boxFullRange[d] = (long) (Math.ceil(rangeFullBoxDim*bt.btData.sigmaTrace[d])*2+1); 		
+			boxFullHalfRange[d] = (long) (Math.ceil(rangeFullBoxDim * bt.btData.sigmaTrace[d])); 
+			boxInnerHalfRange[d] = (long) (Math.ceil(rangeInnerBoxDim * bt.btData.sigmaTrace[d])); 
+			boxFullRange[d] = (long) (Math.ceil(rangeFullBoxDim * bt.btData.sigmaTrace[d]) * 2 + 1); 		
 		}
 		//IntervalView<T> input = Views.interval(fullInput, getLocalTraceBox(fullInput,boxFullHalfRange,startPoint));
 		//dim = Intervals.dimensionsAsLongArray( input );
@@ -480,35 +519,53 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** checks if the point intersects already traced part of the curve**/
 	boolean checkIntersection(RealPoint currpoint)
 	{
-		double [] currPos = currpoint.positionAsDoubleArray();
-		boolean bIntersect = false;
-		for(int i = 0; i < allPointsIntersection.size() && !bIntersect; i++)
+		
+		final double [] currPos = currpoint.positionAsDoubleArray();
+		//any point closer than 0.5 has rounded coordinates within +-1 of rounded currPos,
+		//so it is enough to check 27 neighboring grid cells
+		final long [] c = new long[3];
+		for(int d = 0; d < 3; d++)
 		{
-			if(LinAlgHelpers.distance(currPos,allPointsIntersection.get(i)) < 0.5)
-			{
-				bIntersect = true;
-			}
+			c[d] = Math.round( currPos[d] );
 		}
-		return bIntersect;
+		for(long dz = -1; dz <= 1; dz++)
+			for(long dy = -1; dy <= 1; dy++)
+				for(long dx = -1; dx <= 1; dx++)
+				{
+					final ArrayList<double[]> cell = intersectionGrid.get( packKey(c[0] + dx, c[1] + dy, c[2] + dz) );
+					if(cell != null)
+					{
+						for(final double [] pt : cell)
+						{
+							if(LinAlgHelpers.distance(currPos, pt) < 0.5)
+							{
+								return true;
+							}
+						}
+					}
+				}
+		return false;
 	}
 	
+	@SuppressWarnings( "null" )
 	public RealPoint getNextPoint(RealPoint currpoint)
 	{
 		RealPoint out = null;
+		
+		final RandomAccess< T > raInput = bt.btData.bOCIntensityStop ? fullInput.randomAccess() : null;
 
 		final double [] newDirection = new double[3];
 		double [] candDirection;
 	
 		//find a pixel in the neighborhood 
 		//according to direction vector
-		final int [] currNeighbor = new int[3];
-		
-		String currNeighborHash = "";
+		int nNeighborIndex = 0;
 		
 		for (int d = 0; d < 3; d++)
 		{
-			currNeighbor[d] = (int)Math.round(lastDirectionVector[d]);
-			currNeighborHash = currNeighborHash + Integer.toString(currNeighbor[d]);
+			//currNeighbor[d] = (int)Math.round(lastDirectionVector[d]);
+			//currNeighborHash = currNeighborHash + Integer.toString(currNeighbor[d]);
+			nNeighborIndex = nNeighborIndex * 3 + ((int)Math.round(lastDirectionVector[d]) + 1);
 		}
 		
 		//get all relevant neighbors
@@ -520,7 +577,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		if(nNeighborsMethods == 0)
 		{
-			scannedPos = neighborsMap.get(currNeighborHash);
+			//scannedPos = neighborsMap.get(currNeighborHash);
+			scannedPos = neighborsArr[nNeighborIndex];
 		}
 		else
 		{
@@ -541,7 +599,17 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				candPos[d] = Math.round(currpoint.getFloatPosition(d))+candidateNeighbor[d];
 			}		
 		
-			if(Intervals.contains(fullInput, new RealPoint(new float []{candPos[0],candPos[1],candPos[2]})))
+			//if(Intervals.contains(fullInput, new RealPoint(new float []{candPos[0],candPos[1],candPos[2]})))
+			boolean bInside = true;
+			for (int d = 0; d < 3; d++)
+			{
+				if(candPos[d] < fullInput.min( d ) || candPos[d] > fullInput.max( d ))
+				{
+					bInside = false;
+					break;
+				}
+			}
+			if(bInside)
 			{
 				currSal = raW.setPositionAndGet(candPos).get();			
 				
@@ -558,7 +626,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					// intensity stop rule
 					if(bt.btData.bOCIntensityStop)
 					{
-						if(fullInput.randomAccess().setPositionAndGet( candPos ).getRealDouble()<bt.btData.dOCIntensityThreshold)
+						if(raInput.setPositionAndGet( candPos ).getRealDouble()<bt.btData.dOCIntensityThreshold)
 						{
 							currSal = 0.0f;
 						}
@@ -787,6 +855,28 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 	}
 	
+	/** clears the list (and spatial hash) of points used for intersection check **/
+	void resetIntersectionPoints()
+	{
+		allPointsIntersection = new ArrayList<>();
+		intersectionGrid.clear();
+	}
+
+	/** adds point to the list (and spatial hash) used for intersection check **/
+	void addIntersectionPoint(final double [] pt)
+	{
+		allPointsIntersection.add( pt );
+		intersectionGrid.computeIfAbsent( packKey(Math.round( pt[0] ), Math.round( pt[1] ), Math.round( pt[2] )), k -> new ArrayList<>() ).add( pt );
+	}
+
+	/** packs 3 coordinates (each within +-2^20) into one long **/
+	static long packKey(final long x, final long y, final long z)
+	{
+		final long nOff = 1L << 20;
+		final long nMask = (1L << 21) - 1;
+		return (((x + nOff) & nMask) << 42) | (((y + nOff) & nMask) << 21) | ((z + nOff) & nMask);
+	}
+	
 	/** for each voxel in the 26 neighborhood
 	 * it maps adjacent voxels
 	 */
@@ -805,7 +895,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(nType != 0)
 					{
 						//let's make a hash string
-						String sKey = Integer.toString(d1)+Integer.toString(d2)+Integer.toString(d3);
+						//String sKey = Integer.toString(d1)+Integer.toString(d2)+Integer.toString(d3);
 						ArrayList<int[]> around =new ArrayList<>();
 						//System.out.print(sKey);
 						
@@ -832,7 +922,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 										nb[1] = m2+d2;
 										nb[2] = m3+d3;								
 									}
-									//check if it belongs to the original neighborguud
+									//check if it belongs to the original neighborhood
 									
 									if(Math.abs(nb[0])<2 && Math.abs(nb[1])<2 && Math.abs(nb[2])<2)
 									{
@@ -868,7 +958,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 								}
 							}
 						}
-						neighborsMap.put(sKey, around);
+						//neighborsMap.put(sKey, around);
+						neighborsArr[(d1 + 1) * 9 + (d2 + 1) * 3 + (d3 + 1)] = around;
 						//System.out.println(" "+around.size()+" type"+Integer.toString(nType));
 					}
 				}
