@@ -190,15 +190,14 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		}
 		
 		oneClickTask.runTracing();
-		//oneClickTask.releaseMultiThread();
 
 		//get the new box
-		//currentRoi = bt.roiManager.rois.get(bt.roiManager.rois.size()-1);
-		currentRoi = bt.roiManager.getActiveRoi();
-		//found just one vertex, abort
-		if(((LineTrace3D)currentRoi).vertices.size()<2)
+		currentRoi = oneClickTask.getCurrentTracing(); 
+		
+		//nothing found or just one vertex, abort
+		if(!bt.roiManager.containsRoi( currentRoi ) || ((LineTrace3D)currentRoi).vertices.size() < 2)
 		{
-			bt.roiManager.removeRoi(bt.roiManager.rois.size()-1);
+			bt.roiManager.removeRoi( currentRoi );         
 			bTracing = false;
 			System.out.println("Very short (one voxel) ROI found, stopping tracing at frame "+ Integer.toString( nTP )+".");
 		}

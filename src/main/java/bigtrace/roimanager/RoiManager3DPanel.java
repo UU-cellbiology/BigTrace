@@ -33,6 +33,7 @@ import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.panels.PanelTitle;
+import bigtrace.rois.Roi3D;
 import ij.Prefs;
 
 public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ListSelectionListener, ActionListener 
@@ -428,41 +429,36 @@ public class RoiManager3DPanel < T extends RealType< T > & NativeType< T > > ext
 	@Override
 	public void valueChanged(ListSelectionEvent e) 
 	{		
-		if (e.getValueIsAdjusting() == false) 
-		{
-			bt.repaintBVV();
-			rm.roiMeasure.jlist.setSelectedIndex(jlist.getSelectedIndex());
-			rm.btTracksPanel.jlist.setSelectedIndex( jlist.getSelectedIndex() );
-			//No selection:
-			if (jlist.getSelectedIndex() == -1) 
-            {
-            	rm.activeRoi.set(-1);
-            //Multiple selection:disabled right now		
-            } else if (jlist.getSelectedIndices().length > 1) {
-            
-            //Single selection
-            } 
-            else 
-            {
+		if (e.getValueIsAdjusting() || rm.bSyncingList)
+			return;   // our own model/selection updates: activeRoi is already correct
 
-            	rm.activeRoi.set(jlist.getSelectedIndex());
-            	//update the timepoint
-            	if(rm.getActiveRoi().getTimePoint() != bt.bvvViewer.state().getCurrentTimepoint())
-            	{
-            		bt.btData.bDeselectROITime = false;
-            		bt.bvvViewer.setTimepoint(rm.getActiveRoi().getTimePoint());
-            	}
-            	//jlist.setSelectedIndex(activeRoi);
-            	//update the timepoint
-            	bt.repaintBVV();           
-            }
-        }
+		final int nSel = jlist.getSelectedIndex();
+		rm.roiMeasure.jlist.setSelectedIndex( nSel );
+		rm.btTracksPanel.jlist.setSelectedIndex( nSel );
+		
+		if (nSel == -1 || jlist.getSelectedIndices().length > 1)
+		{
+			if(nSel == -1)
+				rm.activeRoi.set(-1);
+		}
+		else
+		{
+			final Roi3D sel;
+			synchronized(rm.roiLock)
+			{
+				if(nSel >= rm.rois.size())   // list is temporarily ahead/behind; ignore
+					return;
+				rm.activeRoi.set( nSel );
+				sel = rm.rois.get( nSel );
+			}
+			if(sel.getTimePoint() != bt.bvvViewer.state().getCurrentTimepoint())
+			{
+				bt.btData.bDeselectROITime = false;
+				bt.bvvViewer.setTimepoint( sel.getTimePoint() );
+			}
+		}
+		bt.repaintBVV();
     }
-	 @Override
-	 public synchronized void removeAll()
-	 {
-		 rm.rois.clear();
-	 }
 	
 	//buttons
 	@Override

@@ -263,7 +263,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//could not find anything
 		if(nTotPoints == 0 && bNewTrace)
 		{
-			bt.roiManager.deleteActiveROI();
+			bt.roiManager.removeRoi( currentTracing ); 
 			if(bUseMask)
 				bStartLocationOccupied = true;
 		}
@@ -282,6 +282,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			setProgressState("trace with "+Integer.toString(nTotPoints)+" points. auto-tracing done.");
 		}
 		return ;
+	}
+	
+	/** the ROI created by the last runTracing() (may have been removed again) **/
+	public LineTrace3D getCurrentTracing()
+	{
+		return currentTracing;
 	}
 	
 	/** traces line in one direction. Returns number of current found points

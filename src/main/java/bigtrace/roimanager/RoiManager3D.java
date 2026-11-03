@@ -4,10 +4,12 @@ import java.awt.Color;
 
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JList;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import org.joml.Matrix4fc;
 import com.jogamp.opengl.GL3;
@@ -40,6 +42,10 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	public final ArrayList<Roi3D> rois = new ArrayList<>();
 	
 	public AtomicInteger activeRoi = new AtomicInteger (-1);// = -1;
+	
+	public final Object roiLock = new Object();   // not 'this', so the EDT never blocks on the monitor
+	
+	public boolean bSyncingList = false;           // EDT-only flag
 
 	public ArrayList<Roi3DGroup> groups = new ArrayList<>();
 
@@ -90,58 +96,115 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 
 	}
 	
-	 /** adds provided ROI to the end of the list **/
-	 public synchronized void addRoi(final Roi3D newRoi)
-	 {		
-		 rois.add(newRoi);		
-		 final int newIndex = rois.size() - 1;
-		 activeRoi.set( newIndex );
-		 if(!bt.btMacro.bMacroMode)
+	 /** Posts a ListModel/JList update to the EDT.
+	  *  MUST be called while holding roiLock: this keeps the EDT queue
+	  *  in the same order as the changes to rois. Always uses invokeLater
+	  *  (even on the EDT), so updates queued earlier by a worker run first. **/
+	 private void postListUpdate(final Runnable r)
+	 {
+		 if(bt.btMacro.bMacroMode)
+			 return; // the list is rebuilt once at the end of the macro command
+		 SwingUtilities.invokeLater( () ->
 		 {
-			 TaskBT.runOnEDT( ()->
+			 bSyncingList = true;
+			 try { r.run(); }
+			 finally { bSyncingList = false; }
+		 });
+	 }
+	 
+	 /** EDT-only: selects nIndex in all three lists, or clears the selection **/
+	 private void syncSelectionOnEDT(final int nIndex)
+	 {
+		 if(nIndex >= 0 && nIndex < rmPanel.listModel.getSize())
+		 {
+			 jlist.setSelectedIndex( nIndex );
+			 jlist.ensureIndexIsVisible( nIndex );
+			 if(roiMeasure != null) roiMeasure.jlist.setSelectedIndex( nIndex );
+			 if(btTracksPanel != null) btTracksPanel.jlist.setSelectedIndex( nIndex );
+		 }
+		 else
+		 {
+			 jlist.clearSelection();
+			 if(roiMeasure != null) roiMeasure.jlist.clearSelection();
+			 if(btTracksPanel != null) btTracksPanel.jlist.clearSelection();
+		 }
+	 }
+	 
+	 /** thread-safe copy of the ROI list, for drawing/iterating from other threads **/
+	 public ArrayList<Roi3D> getRoisSnapshot()
+	 {
+		 synchronized(roiLock) { return new ArrayList<>(rois); }
+	 }
+	 
+	 public boolean containsRoi(final Roi3D roi)
+	 {
+		 synchronized(roiLock) { return rois.contains( roi ); }
+	 }
+	
+	 /** adds provided ROI to the end of the list **/
+	 public int addRoi(final Roi3D newRoi)
+	 {		
+		 synchronized(roiLock)
+		 {
+			 rois.add(newRoi);
+			 final int newIndex = rois.size() - 1;
+			 activeRoi.set( newIndex );
+			 final String sName = getFullDisplayedRoiName(newRoi); // captured now, not on the EDT later
+			 postListUpdate( () ->
 			 {
-				rmPanel.listModel.addElement(getFullDisplayedRoiName(newRoi));
-				jlist.setSelectedIndex( rois.size() - 1 );
+				 rmPanel.listModel.addElement( sName );
+				 syncSelectionOnEDT( newIndex );
 			 });
+			 return newIndex;
 		 }
 	 }
 
 	 
-	 public synchronized void updateRoiListModel()
+	 public void updateRoiListModel()
 	 {
-		 activeRoi.set(rmPanel.jlist.getSelectedIndex() );
-		 rmPanel.listModel.clear();
-		 for (final Roi3D roi:rois)
+		 final ArrayList<String> names = new ArrayList<>();
+		 final int nActive;
+		 synchronized(roiLock)
 		 {
-			 rmPanel.listModel.addElement( getFullDisplayedRoiName(roi) );
+			 for (final Roi3D roi : rois)
+				 names.add( getFullDisplayedRoiName(roi) );
+			 nActive = activeRoi.get();
 		 }
-		 final int nRoiInd = activeRoi.intValue();
-		 if(nRoiInd >= 0 && nRoiInd < rois.size() )
+		 TaskBT.runOnEDT( () ->
 		 {
-			 jlist.setSelectedIndex( nRoiInd );
-		 }
+			 bSyncingList = true;
+			 try
+			 {
+				 rmPanel.listModel.clear();
+				 for(final String s : names)
+					 rmPanel.listModel.addElement( s );
+				 syncSelectionOnEDT( nActive );
+			 }
+			 finally { bSyncingList = false; }
+		 });
 	 }
 
 	 /** inserts ROI to the ROI list with the provided index **/
-	 public synchronized void insertRoi(final Roi3D newRoi, final int nInsertN)
+	 public int insertRoi(final Roi3D newRoi, final int nInsertN)
 	 {		
-		 if(nInsertN < 0 || nInsertN > (rois.size()-1))
+		 synchronized(roiLock)
 		 {
-			 System.err.println("ERROR! Index of ROI insertion is out of the roi list range.");
-			 System.err.println("Appending ROI to the end of the list.");
-			 addRoi(newRoi);
-			 return;
-		 }
-		 rois.add(nInsertN, newRoi);
-		 if(!bt.btMacro.bMacroMode)
-		 {
-			 TaskBT.runOnEDTAndWait( ()->
+			 if(nInsertN < 0 || nInsertN > (rois.size()-1))
 			 {
-				rmPanel.listModel.insertElementAt(newRoi.getName(), nInsertN);
-				rmPanel.jlist.setSelectedIndex( nInsertN );
+				 System.err.println("ERROR! Index of ROI insertion is out of the roi list range.");
+				 System.err.println("Appending ROI to the end of the list.");
+				 return addRoi(newRoi);   // reentrant lock, fine
+			 }
+			 rois.add(nInsertN, newRoi);
+			 activeRoi.set(nInsertN);
+			 final String sName = getFullDisplayedRoiName(newRoi);
+			 postListUpdate( () ->
+			 {
+				 rmPanel.listModel.insertElementAt( sName, nInsertN );
+				 syncSelectionOnEDT( nInsertN );
 			 });
+			 return nInsertN;
 		 }
-		 activeRoi.set(nInsertN);
 
 	 }
 	 
@@ -239,57 +302,88 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 
 	 public Roi3D getActiveRoi()
 	 {
-		 if(activeRoi.intValue() > -1)
+		 synchronized (roiLock) 
 		 {
-			 return rois.get(activeRoi.intValue());
+			 final int i = activeRoi.get();                          // read once
+			 return (i >= 0 && i < rois.size()) ? rois.get(i) : null;
 		 }
-		 return null;
 	 }
 	 
 	 /** removes ROI and updates ListModel
 	  * does update activeRoi index! **/
-	 public synchronized void removeRoi(int roiIndex)
+	 public void removeRoi(int roiIndex)
 	 {
-		 int nVal = activeRoi.intValue();
-		 if(roiIndex < rois.size())
+		 synchronized(roiLock)
 		 {
+			 if(roiIndex < 0 || roiIndex >= rois.size())
+				 return;
 			 rois.remove(roiIndex);
-			 if(!bt.btMacro.bMacroMode)
+			 final int nOld = activeRoi.get();
+			 final int nNew;
+			 if(roiIndex < nOld)       nNew = nOld - 1;
+			 else if(roiIndex == nOld) nNew = roiIndex - 1;   // previous one, -1 if none
+			 else                      nNew = nOld;
+			 activeRoi.set( nNew );
+			 postListUpdate( () ->
 			 {
-				 TaskBT.runOnEDT( () ->  rmPanel.listModel.remove(roiIndex));
-			 }
-			 //activeRoi = -1;
-		 }
-		 //not sure what is going on here (why activeRoi becomes -1),
-		 //but workaround for now
-		 activeRoi.set( nVal - 1 );
-		 if(activeRoi.intValue() < 0)
-		 {
-			 jlist.clearSelection();
+				 rmPanel.listModel.remove( roiIndex );
+				 syncSelectionOnEDT( nNew );
+			 });
 		 }
 	 }
 	 
-	 
-	 /** removes active ROI and updates ListModel
-	  * and activeRoi index **/
-	 public synchronized void removeActiveRoi()
-	 {		 
-		 if(activeRoi.intValue() >= 0)
+	 /** removes the given ROI (by reference); returns false if it is not in the list **/
+	 public boolean removeRoi(final Roi3D roi)
+	 {
+		 synchronized(roiLock)
 		 {
-			 rois.remove(activeRoi.intValue());
-			 rmPanel.listModel.removeElementAt(activeRoi.intValue());
-			 activeRoi.decrementAndGet();
-			 if(activeRoi.intValue() < 0)
-			 {
-				 jlist.clearSelection();
-			 }
-			 bt.repaintBVV();		 }
+			 final int nInd = rois.indexOf( roi );
+			 if(nInd < 0)
+				 return false;
+			 removeRoi( nInd );
+			 return true;
+		 }
 	 }
-
+	 
+	 /** removes all ROIs (use this instead of rois.clear() + listModel.clear()) **/
+	 public void clearRois()
+	 {
+		 synchronized(roiLock)
+		 {
+			 rois.clear();
+			 activeRoi.set(-1);
+			 postListUpdate( () ->
+			 {
+				 rmPanel.listModel.clear();
+				 syncSelectionOnEDT( -1 );
+			 });
+		 }
+	 } 
+	 
+	 /** replaces all ROIs at once (bulk import), keeping the same listModel instance **/
+	 public void replaceAllRois(final List<Roi3D> newRois)
+	 {
+		 synchronized(roiLock)
+		 {
+			 rois.clear();
+			 rois.addAll( newRois );
+			 activeRoi.set(-1);
+		 }
+		 updateRoiListModel();
+	 }
+	 
 	 
 	 /** Draw all ROIS **/
 	 public void draw(final GL3 gl, final Matrix4fc pvm,  Matrix4fc vm, final int[] screen_size, final boolean bWeightedOIT)
 	 {
+		 
+		   final ArrayList<Roi3D> roisSnap;
+	       final int nActive;
+	       synchronized(roiLock)
+	       {
+	    	   roisSnap = new ArrayList<>(rois);
+	    	   nActive = activeRoi.get();
+	       }
 	       Roi3D roi;
 	       Color savePointColor = null;
 	       Color saveLineColor = null;
@@ -305,9 +399,9 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		       nMaxF = 0;
 	       }
 	       
-	       for (i = 0; i < rois.size(); i++) 
+	       for (i = 0; i < roisSnap.size(); i++) 
 	       {
-	    	   roi = rois.get(i);
+	    	   roi = roisSnap.get(i);
 	    	   
 	    	   nShift = roi.getTimePoint() - bt.btData.nCurrTimepoint;
 	    	   
@@ -322,7 +416,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		    		   continue;
 		    	   
 		    	   //save colors in case ROI is active
-		    	   if(i == activeRoi.intValue())
+		    	   if(i == nActive)
 		    	   {
 		    		   savePointColor = roi.getPointColor();
 		    		   saveLineColor = roi.getLineColor();
@@ -345,7 +439,7 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		    		   else
 		    		   {
 		    			   //still draw active ROI
-			    		   if(i == activeRoi.intValue())
+			    		   if(i == nActive)
 			    		   {
 			    			   roi.draw(gl, pvm, vm, screen_size, bWeightedOIT);
 			    		   }	    			   
@@ -353,14 +447,14 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		    	   }
 		    	   else
 		    	   {
-		    		   if(i == activeRoi.intValue())
+		    		   if(i == nActive)
 		    		   {
 		    			   roi.draw(gl, pvm, vm, screen_size, bWeightedOIT);
 		    		   }
 		    	   }
 		    	  
 		    	   //restore colors in case ROI is active
-		    	   if(i == activeRoi.intValue())
+		    	   if(i == nActive)
 		    	   {
 		    		   roi.setPointColor(savePointColor);
 		    		   roi.setLineColor(saveLineColor);
@@ -475,77 +569,74 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	  *  if it is a last point, removes ROI object
 	  *  and activates previous Roi in the list (if any of the same type) 
 	  * **/
-	 public synchronized void removePointLinePlane()
+	 public void removePointLinePlane()
 	 {
-		 boolean bPointRemoved = false;
 		 
-		 if(jlist.getSelectedIndex() < 0)
+		 final Roi3D activeR = getActiveRoi();
+		 if(activeR == null)
 			 return;
-		 final int nRoiType = getActiveRoi().getType();
 		 
-		 //active ROI is not a line or none ROI selected
-		 //if(nRoiType==Roi3D.POLYLINE || nRoiType==Roi3D.PLANE)
+		 final int nRoiType = activeR.getType();
+		 boolean bPointRemoved = false;	 
+
+		 switch (nRoiType)
 		 {
-			 switch (nRoiType)
+		 case Roi3D.POLYLINE:
+			 bPointRemoved = ((PolyLine3D) activeR).removeEndPoint();
+			 break;
+		 case Roi3D.PLANE:
+			 bPointRemoved = ((CrossSection3D) activeR).removePoint();
+			 break;
+		 case Roi3D.LINE_TRACE:
+			 bPointRemoved = ((LineTrace3D) activeR).removeLastSegment();
+			 break;
+		 }
+
+		 if(!bPointRemoved)
+		 {
+			 synchronized(roiLock)
 			 {
-			 case Roi3D.POLYLINE:
-				 bPointRemoved = ((PolyLine3D) getActiveRoi()).removeEndPoint();
-				 break;
-			 case Roi3D.PLANE:
-				 bPointRemoved = ((CrossSection3D) getActiveRoi()).removePoint();
-				 break;
-			 case Roi3D.LINE_TRACE:
-				 bPointRemoved = ((LineTrace3D) getActiveRoi()).removeLastSegment();
-				 break;
-			 }
-			
-			 if(!bPointRemoved)
-			 {
-				 removeRoi(activeRoi.intValue());
-				 if(activeRoi.intValue() >= 0)
+				 removeRoi( activeR );
+				 final Roi3D prev = getActiveRoi();
+				 // only keep the previous ROI active if it is the same type
+				 if(prev != null && prev.getType() != nRoiType)
 				 {
-					 if(getActiveRoi().getType() != nRoiType)
-					 {
-						 activeRoi.set(-1);
-						 jlist.clearSelection();
-					 }
-					 else
-					 {
-						 jlist.setSelectedIndex(activeRoi.intValue());
-					 }
+					 activeRoi.set(-1);
+					 postListUpdate( () -> syncSelectionOnEDT( -1 ) );
 				 }
 			 }
-			 bt.repaintBVV();
 		 }
+		 bt.repaintBVV();
+		 
 	 }
 
-	 public synchronized void unselect()
+	 public void unselect()
 	 {
-		 activeRoi.set(-1);
-		 jlist.clearSelection();
-		 roiMeasure.jlist.clearSelection();
-		 btTracksPanel.jlist.clearSelection();
+		 synchronized(roiLock)
+		 {
+			 activeRoi.set(-1);
+			 postListUpdate( () -> syncSelectionOnEDT( -1 ) );
+		 }
 		 bt.repaintBVV();
 	 }
 
-	 public synchronized void deleteActiveROI()
+	 public void deleteActiveROI()
 	 {
-		 if(activeRoi.intValue() < 0)
-			 return;
-		 removeRoi(activeRoi.intValue());
-		 if(activeRoi.intValue() >= 0)
+		 synchronized(roiLock)
 		 {
-			 jlist.setSelectedIndex(activeRoi.intValue());
-		 }
-		 else
-		 {
-			 jlist.clearSelection();
+			 final int nInd = activeRoi.get();
+			 if(nInd < 0)
+				 return;
+			 removeRoi( nInd );   // also posts the selection update
 		 }
 		 bt.repaintBVV();	 
 	 }
 	 
 	 public void dialRenameActiveROI()
 	 {
+		 final Roi3D currROI = getActiveRoi();
+		 if(currROI == null)
+			 return;
 			String s = (String)JOptionPane.showInputDialog(
 					this.rmPanel,
 					"New name:",
@@ -553,16 +644,22 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 					JOptionPane.PLAIN_MESSAGE,
 					null,
 					null,
-					getActiveRoi().getName());
+					currROI.getName());
 
 			//If a string was returned, rename
-			if ((s != null) && (s.length() > 0)) 
-			{
-				final Roi3D currROI = getActiveRoi();
-				currROI.setName(s);
-				rmPanel.listModel.set(activeRoi.intValue(), getFullDisplayedRoiName(currROI));
-				return;
-			}
+			 if ((s != null) && (s.length() > 0))
+			 {
+				 currROI.setName(s);
+				 synchronized(roiLock)
+				 {
+					 final int nInd = rois.indexOf( currROI );
+					 if(nInd >= 0)
+					 {
+						 final String sName = getFullDisplayedRoiName( currROI );
+						 postListUpdate( () -> rmPanel.listModel.set( nInd, sName ) );
+					 }
+				 }
+			 }
 	 }
 	
 	
@@ -613,17 +710,17 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		int dInd = -1;
 		double dCurrDist = 0.0;
 	    
-		final int nMinF = Math.min(0,bt.btData.timeFade);
-	    final int nMaxF = Math.max(0,bt.btData.timeFade);
+		final int nMinF = Math.min(0, bt.btData.timeFade);
+	    final int nMaxF = Math.max(0, bt.btData.timeFade);
 		int nShift;
-		
-		for (int i = 0; i < rois.size(); i++)
+		final ArrayList< Roi3D > roiSnap = getRoisSnapshot();
+		for (int i = 0; i < roiSnap.size(); i++)
 		{
 			//if ROI is visible at the current time frame
-			nShift =  rois.get(i).getTimePoint() - bt.btData.nCurrTimepoint;
+			nShift =  roiSnap.get(i).getTimePoint() - bt.btData.nCurrTimepoint;
 			if(nShift >= nMinF && nShift <= nMaxF)
 			{
-				dCurrDist = rois.get(i).getMinDist(clickLine);
+				dCurrDist = roiSnap.get(i).getMinDist(clickLine);
 				if(dCurrDist < dDistMin)
 				{
 					dDistMin = dCurrDist;
@@ -631,10 +728,10 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 				}
 			}
 		}
+		
 		if(Math.abs(dDistMin - Double.MAX_VALUE) > 0.1)
 		{
 			jlist.setSelectedIndex(dInd);
-			activeRoi.set( dInd );
 			bt.repaintBVV();
 		}
 
@@ -707,15 +804,12 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 	/** deletes ROIs of specific group **/
 	public void deleteROIsBelongingToGroup(int nGroupN)
 	{
-		for (int i = (rois.size() - 1); i >= 0; i--)
+		synchronized(roiLock)
 		{
-			if(rois.get(i).getGroupInd()==nGroupN)
-			{
-				 rois.remove(i);
-				 rmPanel.listModel.removeElementAt(i);
-			}
+			rois.removeIf( roi -> roi.getGroupInd() == nGroupN );
+			activeRoi.set(-1);
 		}
-		jlist.clearSelection();
+		updateRoiListModel();
 	}
 	
 

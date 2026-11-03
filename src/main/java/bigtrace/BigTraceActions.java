@@ -271,11 +271,10 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 				if(!bt.roiManager.removeSegment())
 				{
 					bt.btData.nPointsInTraceBox--;
-					bt.roiManager.removeActiveRoi();
-					bt.roiManager.activeRoi.set(-1);
+					bt.roiManager.deleteActiveROI();
+					bt.roiManager.unselect();
 					bt.setTraceBoxMode(false);						
-					bt.removeTraceBox();
-					
+					bt.removeTraceBox();		
 				}
 				//not the last point, see if we need to move trace box back
 				else

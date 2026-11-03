@@ -110,21 +110,20 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 					mask.markLocation(newMax.getB());
 					if(!oneClickTrace.bStartLocationOccupied)
 					{
-						mask.markROI( bt.roiManager.getActiveRoi() );
-						nCount++;
-					}
-					if( bt.roiManager.getActiveRoi() instanceof LineTrace3D )
-					{
-						final LineTrace3D newtrace = (LineTrace3D)bt.roiManager.getActiveRoi();
+						final LineTrace3D newTrace = oneClickTrace.getCurrentTracing();
+						mask.markROI( newTrace );
 						boolean bRemoveROI;
 						if(bMinCurveLengthInUnits)
-							bRemoveROI = newtrace.getLength() < dAutoMinCurveLength;
+							bRemoveROI = newTrace.getLength() < dAutoMinCurveLength;
 						else
-							bRemoveROI = newtrace.getNumberOfPointsInJointSegment() < dAutoMinCurveLength;
+							bRemoveROI = newTrace.getNumberOfPointsInJointSegment() < dAutoMinCurveLength;
 						if(bRemoveROI)
 						{
-							bt.roiManager.deleteActiveROI();
-							nCount--;
+							bt.roiManager.removeRoi( newTrace );
+						}
+						else
+						{
+							nCount++;
 						}
 					}
 					if( bt.btMacro.bMacroMode )

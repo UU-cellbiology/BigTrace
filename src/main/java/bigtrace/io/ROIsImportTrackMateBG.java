@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 
-import javax.swing.DefaultListModel;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamReader;
 
@@ -117,14 +116,8 @@ public class ROIsImportTrackMateBG extends BigTraceBGTask
 			bt.roiManager.rois.add( roi );
 		}		
 		
-		DefaultListModel<String> listModelin = new  DefaultListModel<>();
-		for (int i = 0; i < allRois.size(); i++)
-		{
-			listModelin.addElement(allRois.get(i).getName());
-		}
-		bt.roiManager.rmPanel.listModel = listModelin;
-		bt.roiManager.jlist.setModel(bt.roiManager.rmPanel.listModel);
-		sFinalOut="importing TrackMate tracks done.";
+		bt.roiManager.replaceAllRois( allRois );
+		sFinalOut = "importing TrackMate tracks done.";
 		setProgressState(sFinalOut);
 		IJ.log("Imported " + Integer.toString(nTotTracks)+ " tracks, created "+Long.toString(nTotParticles)+" point ROIs."); 
 		

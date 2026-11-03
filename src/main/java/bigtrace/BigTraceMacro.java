@@ -912,7 +912,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			bt.bvv_sources.get( i ).removeFromBdv();
 		}
 		bt.bvv_sources.clear();
-		bt.roiManager.rois.clear();
+		bt.roiManager.clearRois();
 		TaskBT.runOnEDTAndWait(()->
 		{
 			bt.roiManager.updateRoiListModel();

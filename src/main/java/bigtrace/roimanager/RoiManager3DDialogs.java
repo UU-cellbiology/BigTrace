@@ -267,8 +267,7 @@ public class RoiManager3DDialogs
         
         Prefs.set("BigTrace.ImportTMColorMode", nImportColor);		
 
-       	bt.roiManager.rois.clear();
-        bt.roiManager.rmPanel.listModel.clear();
+        bt.roiManager.clearRois();
         
         bt.bInputLock = true;
         bt.setLockMode(true);
