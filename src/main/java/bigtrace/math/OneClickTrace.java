@@ -82,8 +82,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	final int [][] nNeighborsIndexes = new int[26][3];
 	
 	final double [][] nNeighborsVectors = new double[26][3];
-	
-	//private HashMap<String, ArrayList<int[]>> neighborsMap = new HashMap<>();
+
 	
 	/** same as neighborsMap, but indexed by (d1+1)*9+(d2+1)*3+(d3+1), avoids string building **/
 	@SuppressWarnings( "unchecked" )
@@ -91,6 +90,48 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	/** vector of curve direction for the last point **/
 	final double [] lastDirectionVector = new double[3];
+	
+	/** crossing-aware stepping (momentum direction + geometric scoring) **/
+	boolean bMomentum = false;
+	
+	/** smoothed (momentum) direction of the traced path, grid space, unit length.
+	 * Built mostly from actual step vectors, so a few bad Hessian eigenvectors
+	 * at a crossing cannot flip it **/
+	final double [] memDirectionVector = new double[3];
+	
+	/** path stiffness s (0-1), a single "summary" parameter, 
+	* the four below are derived from it in setStiffness() **/
+	double dStiffness = 0.0;
+	
+	/** memory of momentum direction (0 = no memory, 1 = never changes) **/
+	double dMomentumAlpha = 0.6;
+	
+	/** share of the eigenvector (vs step vector) in momentum update **/
+	double dMomentumEigenShare = 0.25;
+	
+	/** power of |cos| between candidate eigenvector and momentum in score **/
+	double dScorePowEig = 2.0;
+	
+	/** power of cos between candidate step and momentum in score **/
+	double dScorePowStep = 2.0;
+	
+	/** maximum number of hill-climbing steps (grid voxels) in recenterOnRidge,
+	 * about the filament radius = max tracing sigma in grid units **/
+	int nRecenterMaxSteps = 1;
+	
+	/** true while passing through a junction (crossing): 
+	 * no re-centering, momentum is frozen, angle gate is relaxed **/
+	boolean bCoasting = false;
+	
+	/** number of steps done in the current coasting **/
+	int nCoastSteps = 0;
+		
+	/** maximum coasting steps, about the junction width (2 sigma in grid units) **/
+	int nCoastMaxSteps = 3;
+		
+	/** a cross-section ring voxel with saliency above this fraction of the center saliency
+	 * and orientation across the path marks a junction **/
+	final double dJunctionSalRatio = 0.3;
 	
 	ArrayList<double[]> allPointsIntersection;
 	
@@ -345,7 +386,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		RealPoint nextPoint;
 		
 		int nCountPoints = 0;
+		//momentum starts from the (already oriented) direction
+		for (int d = 0; d < 3; d++)
+		{
+			memDirectionVector[d] = lastDirectionVector[d];
+		}
 		points.add(startPoint);
+		
+		bCoasting = false;
+		nCoastSteps = 0;
+		
 		addIntersectionPoint(startPoint.positionAsDoubleArray());
 		
 		if(bFirstTrace)
@@ -435,13 +485,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(!bUseMask)
 						System.out.println("one-click tracing stopped, self intersection found.");
 				}
-//				double [] nextPointD = nextPoint.positifillArrayOfTracedPointsonAsDoubleArray();
-//				double [] prevPointD = points.get(points.size()-1).positionAsDoubleArray();
-//				LinAlgHelpers.subtract(nextPointD, prevPointD, nextPointD);
-//				LinAlgHelpers.scale(nextPointD, 1.0/LinAlgHelpers.length(nextPointD), nextPointD);				
-//				System.out.println(LinAlgHelpers.length(saveVector)+" "+LinAlgHelpers.length(nextPointD)+" "+LinAlgHelpers.dot(saveVector, nextPointD));
-//				System.out.println(LinAlgHelpers.dot(saveVector, nextPointD));
-//				System.out.println(nCountPoints+" "+LinAlgHelpers.dot(saveVector, nextPointD));
 			}
 
 			if(isCancelled())
@@ -469,8 +512,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	public void init()
 	{	
 		
-		dAngleThreshold = bt.btData.dDirectionalityOneClick;
-	
+		setStiffness(bt.btData.dOCStiffness);
+
+		dAngleThreshold = bt.btData.dDirectionalityOneClick;		
+		
 		//downsampling factors and sigma of the kernels on the grid
 		final double [] sigmaGrid = new double[3];
 		long dsMax = 1;
@@ -494,6 +539,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			dsMax = Math.max(dsMax, ds[d]);
 
 		}
+		//re-centering can climb about one filament radius sideways
+		double dMaxSigmaGrid = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dMaxSigmaGrid = Math.max(dMaxSigmaGrid, sigmaGrid[d]);
+		}
+		nRecenterMaxSteps = Math.max(1, (int) Math.ceil(dMaxSigmaGrid));
+		nCoastMaxSteps = Math.max(2, (int) Math.ceil(2.0 * dMaxSigmaGrid));
+		
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
 		if(bDownsample)
@@ -617,33 +671,39 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 
 		final double [] newDirection = new double[3];
 		double [] candDirection;
-	
+		
+		/** reference direction: momentum (smoothed path) or last eigenvector (original) **/
+		final double [] refDirection = bMomentum ? memDirectionVector : lastDirectionVector;
+				
+		/** normalized step vector of the current and of the best candidate **/
+		final double [] candStep = new double[3];
+		final double [] bestStep = new double[3];
+		/** grid position of the best candidate **/
+		final long [] bestGrid = new long[3];
+		
 		//find a pixel in the neighborhood 
 		//according to direction vector
 		int nNeighborIndex = 0;
 		
 		for (int d = 0; d < 3; d++)
 		{
-			//currNeighbor[d] = (int)Math.round(lastDirectionVector[d]);
-			//currNeighborHash = currNeighborHash + Integer.toString(currNeighbor[d]);
-			nNeighborIndex = nNeighborIndex * 3 + ((int)Math.round(lastDirectionVector[d]) + 1);
+			nNeighborIndex = nNeighborIndex * 3 + ((int)Math.round(refDirection[d]) + 1);
 		}
 		
 		//get all relevant neighbors
-		float maxSal = (-1) * Float.MAX_VALUE;
-		
+		//float maxSal = (-1) * Float.MAX_VALUE;
+		double maxScore = (-1) * Double.MAX_VALUE;
 		float currSal = (-1) * Float.MAX_VALUE;
 		
 		ArrayList<int[]> scannedPos;
 		
 		if(nNeighborsMethods == 0)
 		{
-			//scannedPos = neighborsMap.get(currNeighborHash);
 			scannedPos = neighborsArr[nNeighborIndex];
 		}
 		else
 		{
-			scannedPos = getNeighborPixels(lastDirectionVector);
+			scannedPos = getNeighborPixels(refDirection);
 		}
 		int [] candidateNeighbor; 
 
@@ -657,15 +717,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			
 			for (int d = 0; d < 3; d++)
 			{
-				//candPos[d] = Math.round(currpoint.getFloatPosition(d))+candidateNeighbor[d];
 				candPos[d] = toGrid(currpoint.getDoublePosition(d), d) + candidateNeighbor[d];
 			}		
 		
-			//if(Intervals.contains(fullInput, new RealPoint(new float []{candPos[0],candPos[1],candPos[2]})))
 			boolean bInside = true;
+			
 			for (int d = 0; d < 3; d++)
 			{
-				//if(candPos[d] < fullInput.min( d ) || candPos[d] > fullInput.max( d ))
 				if(candPos[d] < gridMin[d] || candPos[d] > gridMax[d])
 				{
 					bInside = false;
@@ -678,14 +736,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				
 				if(currSal > 0)
 				{
-					//candDirection = getVectorAtLocation(candPos);
 					candDirection = getVectorAtGrid(candPos);
 					
 					//full resolution position for intensity and mask checks
 					final long [] candPosFull = toFullLong(candPos);
-					
+					final double cosEig = Math.abs(LinAlgHelpers.dot(candDirection, refDirection));
 					//check directionality
-					if(Math.abs(LinAlgHelpers.dot(candDirection, lastDirectionVector)) < dAngleThreshold)
+					//(inside a junction eigenvectors are unreliable, gate is relaxed)
+					if(cosEig < dAngleThreshold && !(bMomentum && bCoasting))
+					//if(cosEig < dAngleThreshold)
 					{
 						currSal = 0.0f;
 					}
@@ -693,7 +752,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					// intensity stop rule
 					if(bt.btData.bOCIntensityStop)
 					{
-						//if(raInput.setPositionAndGet( candPos ).getRealDouble() < bt.btData.dOCIntensityThreshold)
 						if(raInput.setPositionAndGet( candPosFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
 						{
 							currSal = 0.0f;
@@ -704,40 +762,106 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(bUseMask)
 					{
 						if(traceMask.isOccupied( candPosFull ))
-						//if(traceMask.isOccupied( candPos ))
 						{
 							currSal = 0.0f;
 						}
 					}
-					//currSal *= Math.abs(LinAlgHelpers.dot(candDirection, lastDirectionVector));
-					//see if we pass
-					if(currSal > maxSal)
+					double currScore = currSal;
+					if(bMomentum)
 					{
-						maxSal = currSal;
+						//direction of the step itself (grid space)
 						for (int d = 0; d < 3; d++)
 						{
-							//finPos[d] = candPos[d];
+							candStep[d] = candidateNeighbor[d];
+						}
+						LinAlgHelpers.normalize(candStep);
+						final double cosStep = Math.max(0.0, LinAlgHelpers.dot(candStep, refDirection));
+						//prefer candidates aligned with the path and stepping forward,
+						//penalizes sideways jumps onto a crossing filament
+
+						if(!bCoasting)
+						{
+							currScore = currSal * Math.pow(cosEig, dScorePowEig) * Math.pow(cosStep, dScorePowStep);
+						}
+						else
+						{
+							//in a junction: ignore orientation, go forward
+							currScore = currSal * Math.pow(cosStep, Math.max(2.0, dScorePowStep));
+						}
+					}
+					
+					//see if we pass
+					if(currScore > maxScore)
+					{
+						maxScore = currScore;
+						for (int d = 0; d < 3; d++)
+						{
 							finPos[d] = (float) toFull(candPos[d], d);
 							newDirection[d] = candDirection[d];
+							bestStep[d] = candStep[d];
+							bestGrid[d] = candPos[d];
 						}
 					}
 				}
 			}
 		}
-		//System.out.println(maxSal);
-		if(maxSal > 0.000001)
+		
+		if(maxScore > 0.000001)
 		{			
-			final double dCos = LinAlgHelpers.dot(newDirection, lastDirectionVector);			
-			if(dCos > 0)
+			//orient the eigenvector along the reference direction
+			if(LinAlgHelpers.dot(newDirection, refDirection) < 0)
 			{
-				for (int d = 0; d < 3; d++)
+				LinAlgHelpers.scale(newDirection, -1.0, newDirection);
+			}
+			for (int d = 0; d < 3; d++)
+			{
+				lastDirectionVector[d] = newDirection[d];
+			}
+			if(bMomentum)
+			{
+				final boolean bJunction = isJunction(bestGrid);
+				if(bCoasting)
 				{
-					lastDirectionVector[d] = newDirection[d];
+					nCoastSteps++;
+					//leave the junction when the point is line-like again 
+					//and its orientation agrees with the (frozen) heading
+					final boolean bAligned = Math.abs(LinAlgHelpers.dot(newDirection, memDirectionVector)) >= dAngleThreshold;
+					if((!bJunction && bAligned) || nCoastSteps >= nCoastMaxSteps)
+					{
+						System.out.println(nCoastSteps );
+						bCoasting = false;
+					}
+				}
+				else if(bJunction)
+				{
+					bCoasting = true;
+					nCoastSteps = 0;
 				}
 			}
-			else
+			//inside a junction: keep straight, no re-centering, momentum frozen
+			if(bMomentum && !bCoasting)
 			{
-				LinAlgHelpers.scale(newDirection,-1.0,lastDirectionVector);
+				//position is snapped back to the ridge
+				if(recenterOnRidge(currpoint, bestGrid, raInput))
+				{
+					for (int d = 0; d < 3; d++)
+					{
+						finPos[d] = (float) toFull(bestGrid[d], d);
+					}
+				}
+				//momentum update: mostly from the actual displacement (after re-centering,
+				//so heading errors get corrected), partly from the local orientation 
+				for (int d = 0; d < 3; d++)
+				{
+					bestStep[d] = bestGrid[d] - toGrid(currpoint.getDoublePosition(d), d);
+				}
+				LinAlgHelpers.normalize(bestStep);
+				for (int d = 0; d < 3; d++)
+				{
+					memDirectionVector[d] = dMomentumAlpha * memDirectionVector[d] 
+							+ (1.0 - dMomentumAlpha) * ((1.0 - dMomentumEigenShare) * bestStep[d] + dMomentumEigenShare * newDirection[d]);
+				}
+				LinAlgHelpers.normalize(memDirectionVector);
 			}
 			out = new RealPoint(finPos);
 		}
@@ -982,6 +1106,27 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return (((x + nOff) & nMask) << 42) | (((y + nOff) & nMask) << 21) | ((z + nOff) & nMask);
 	}
 	
+	
+	/** orthonormal basis (u,v) of the plane perpendicular to the momentum direction **/
+	void getCrossSectionBasis(final double [] u, final double [] v)
+	{
+		//pick the axis least aligned with momentum
+		int nMinAxis = 0;
+		for (int d = 1; d < 3; d++)
+		{
+			if(Math.abs(memDirectionVector[d]) < Math.abs(memDirectionVector[nMinAxis]))
+			{
+				nMinAxis = d;
+			}
+		}
+		final double [] axis = new double[3];
+		axis[nMinAxis] = 1.0;
+		LinAlgHelpers.cross(memDirectionVector, axis, u);
+		LinAlgHelpers.normalize(u);
+		LinAlgHelpers.cross(memDirectionVector, u, v);
+		LinAlgHelpers.normalize(v);
+	}
+		
 	/** for each voxel in the 26 neighborhood
 	 * it maps adjacent voxels
 	 */
@@ -1156,7 +1301,157 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 	}
 	
-    /*
+	/** Momentum stepping prefers going straight, so it does not re-center by itself.
+	 * This hill-climbs saliency in the cross-section perpendicular to the momentum direction:
+	 * at each iteration it checks the 3x3 neighbors (in the cross-section plane) 
+	 * of the current best position and moves to the highest one 
+	 * (same gating as candidates: orientation, intensity, mask).
+	 * Stops at the nearest local maximum or after nRecenterMaxSteps, 
+	 * so it does not jump across a valley onto a neighboring filament.
+	 * The new position must still be in front of currpoint. 
+	 * Returns true if gridPos was changed. **/
+	boolean recenterOnRidge(final RealPoint currpoint, final long [] gridPos, final RandomAccess< T > raInput)
+	{
+		//orthonormal basis (u,v) perpendicular to momentum
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		getCrossSectionBasis(u, v);
+
+		final long [] currGrid = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			currGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
+		}
+
+		final long [] testPos = new long[3];
+		final long [] bestPos = gridPos.clone();
+		double bestSal = getGatedSaliency(gridPos, raInput);
+
+		final long [] centerPos = new long[3];
+		for (int nIter = 0; nIter < nRecenterMaxSteps; nIter++)
+		{
+			System.arraycopy(bestPos, 0, centerPos, 0, 3);
+			for (int a = -1; a <= 1; a++)
+			{
+				for (int b = -1; b <= 1; b++)
+				{
+					if(a == 0 && b == 0)
+						continue;
+					double dForward = 0;
+					boolean bInside = true;
+					for (int d = 0; d < 3; d++)
+					{
+						testPos[d] = centerPos[d] + Math.round(a * u[d] + b * v[d]);
+						//stay inside the dataset and inside the current math (saliency/vector) box
+						if(testPos[d] < gridMin[d] || testPos[d] > gridMax[d]
+								|| testPos[d] < salWeights.min(d) || testPos[d] > salWeights.max(d))
+						{
+							bInside = false;
+						}
+						dForward += (testPos[d] - currGrid[d]) * memDirectionVector[d];
+					}
+					//must stay inside and keep moving forward 
+					//(otherwise self-intersection check would stop tracing)
+					if(!bInside || dForward < 0.5)
+						continue;
+					final double testSal = getGatedSaliency(testPos, raInput);
+					if(testSal > bestSal)
+					{
+						bestSal = testSal;
+						System.arraycopy(testPos, 0, bestPos, 0, 3);
+					}
+					
+				}
+			}
+			//local maximum reached
+			if(bestPos[0] == centerPos[0] && bestPos[1] == centerPos[1] && bestPos[2] == centerPos[2])
+				break;
+		}
+		boolean bChanged = false;
+		for (int d = 0; d < 3; d++)
+		{
+			if(bestPos[d] != gridPos[d])
+				bChanged = true;
+			gridPos[d] = bestPos[d];
+		}
+		return bChanged;
+	}
+	/** sets all momentum parameters from one "path stiffness" value s (0-1).
+	 * s = 0 switches crossing-aware stepping off (original tracing),
+	 * s = 0.5 gives alpha 0.6, eigen share 0.25, powers 2 **/
+	public void setStiffness(final double s_)
+	{
+		final double s = Math.min(1.0, Math.max(0.0, s_));
+		dStiffness = s;
+		bMomentum = s > 0;
+		dMomentumAlpha = 1.0 - 1.0 / (1.0 + 3.0 * s);
+		dMomentumEigenShare = (1.0 - s) * (1.0 - s);
+		dScorePowEig = 4.0 * s;
+		dScorePowStep = 4.0 * s;
+	}
+
+	/** saliency at grid position, set to 0 if orientation does not agree with momentum,
+	 * intensity is below threshold or position is masked **/
+	double getGatedSaliency(final long [] gridPos, final RandomAccess< T > raInput)
+	{
+		final float sal = raW.setPositionAndGet(gridPos).get();
+		if(sal <= 0)
+			return 0;
+		if(Math.abs(LinAlgHelpers.dot(getVectorAtGrid(gridPos), memDirectionVector)) < dAngleThreshold)
+			return 0;
+		if(bt.btData.bOCIntensityStop || bUseMask)
+		{
+			final long [] posFull = toFullLong(gridPos);
+			if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+				return 0;
+			if(bUseMask && traceMask.isOccupied( posFull ))
+				return 0;
+		}
+		return sal;
+	}
+	
+	/** Cheap junction (crossing) detector. Samples 8 directions of a ring with radius ~sigma 
+	 * in the cross-section around gridPos. On a single filament the ring lies on the dim flanks.
+	 * At a crossing some ring voxels lie on the other filament: bright, but oriented across the path. **/
+	boolean isJunction(final long [] gridPos)
+	{
+		final float centerSal = raW.setPositionAndGet(gridPos).get();
+		if(centerSal <= 0)
+			return false;
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		getCrossSectionBasis(u, v);
+		final double r = nRecenterMaxSteps;
+		final long [] testPos = new long[3];
+		for (int nA = 0; nA < 8; nA++)
+		{
+			final double ca = Math.cos(nA * Math.PI * 0.25);
+			final double sa = Math.sin(nA * Math.PI * 0.25);
+			boolean bInside = true;
+			for (int d = 0; d < 3; d++)
+			{
+				testPos[d] = gridPos[d] + Math.round(r * (ca * u[d] + sa * v[d]));
+				if(testPos[d] < salWeights.min(d) || testPos[d] > salWeights.max(d))
+				{
+					bInside = false;
+					break;
+				}
+			}
+			if(!bInside)
+				continue;
+			final float sal = raW.setPositionAndGet(testPos).get();
+			if(sal > dJunctionSalRatio * centerSal)
+			{
+				if(Math.abs(LinAlgHelpers.dot(getVectorAtGrid(testPos), memDirectionVector)) < dAngleThreshold)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+    
+	/*
      * Executed in event dispatching thread
      */
     @Override

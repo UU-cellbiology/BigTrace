@@ -311,6 +311,13 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
 	public double dOCDownsampleSigma = 3.0;
 	
+	
+	/** one-click "path stiffness" (0-1). If >0, tracing keeps a smoothed (momentum) direction
+	* of the path and scores candidate voxels by saliency, orientation agreement and step direction,
+	* which makes it more robust at filament crossings. Higher = straighter, stiffer path.
+	* 0 = original tracing **/
+	public double dOCStiffness;
+	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
 
@@ -364,6 +371,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
 		bOCDownsample = Prefs.get("BigTrace.bOCDownsample", false);
+		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.5);
+
 		
 		//undefined group properties
 		undefPointSize = ( float ) Prefs.get( "BigTrace.undefPointSize", 4.0 );

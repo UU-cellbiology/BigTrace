@@ -76,7 +76,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		nfMaxIntFullTraceStart.setIntegersOnly( false );
 		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt", 128.0)) );
 		nfAutoMinCurveLength.setIntegersOnly( false );
-		nfAutoMinCurveLength.setText( df3.format(Prefs.get("BigTrace.nAutoMinPointsCurve", 3)) );
+		nfAutoMinCurveLength.setText( df3.format(Prefs.get("BigTrace.dAutoMinCurveLength", 3)) );
 
 		final JCheckBox cbMinLengthInUnits = new JCheckBox();
 		cbMinLengthInUnits.setSelected( Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
@@ -178,8 +178,8 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			final double dAutoMinStartTrace = Double.parseDouble(nfMaxIntFullTraceStart.getText());
 			Prefs.set("BigTrace.dAutoMinStartTraceInt", dAutoMinStartTrace );
 			
-			final int nAutoMinPointsCurve = Integer.parseInt(nfAutoMinCurveLength.getText());
-			Prefs.set("BigTrace.nAutoMinPointsCurve", nAutoMinPointsCurve );
+			final double dAutoMinCurveLength = Double.parseDouble(nfAutoMinCurveLength.getText());
+			Prefs.set("BigTrace.dAutoMinCurveLength", dAutoMinCurveLength );
 
 			final boolean bMinCurveLengthInUnits = cbMinLengthInUnits.isSelected();
 			Prefs.set("BigTrace.bMinCurveLengthInUnits", bMinCurveLengthInUnits );
@@ -203,7 +203,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 					nLastTP = timeRange.getMax();
 				}
 			}
-			launchFullAutoTrace(dAutoMinStartTrace, nAutoMinPointsCurve, nFirstTP, nLastTP);
+			launchFullAutoTrace(dAutoMinStartTrace, dAutoMinCurveLength, nFirstTP, nLastTP);
 		}
 
 	}
