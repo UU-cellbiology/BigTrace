@@ -4,6 +4,7 @@ import java.awt.Color;
 
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -345,21 +346,32 @@ public class RoiManager3D < T extends RealType< T > & NativeType< T > >
 		 }
 	 }
 	 
-	 /** removes all ROIs with the exact name sName (case sensitive, as returned by getName(),
-	  *  without group/time prefix). Keeps the active ROI if it was not removed.
+	 /** removes ROIs with the exact name sName (case sensitive, as returned by getName(),
+	  *  without group/time prefix).
+	  *  @param bFirstOnly if true, removes only the first match (lowest index in the list),
+	  *                    otherwise all matches.
+	  *  Keeps the active ROI if it was not removed.
 	  *  Returns the number of removed ROIs. **/
-	 public int removeRoisByName(final String sName)
+	 public int removeRoisByName(final String sName, final boolean bFirstOnly)
 	 {
-		 final int nRemoved;
+		 int nRemoved = 0;
 		 synchronized(roiLock)
 		 {
 			 final Roi3D activeR = getActiveRoi();
-			 final int nBefore = rois.size();
-			 rois.removeIf( roi -> sName.equals( roi.getName() ) );
-			 nRemoved = nBefore - rois.size();
+			 final Iterator<Roi3D> it = rois.iterator();
+			 while(it.hasNext())
+			 {
+				 if(sName.equals( it.next().getName() ))
+				 {
+					 it.remove();
+					 nRemoved++;
+					 if(bFirstOnly)
+						 break;
+				 }
+			 }
 			 if(nRemoved == 0)
 				 return 0;
-			 // reference-based, so the shifted index is correct
+			 // reference-based, so the shifted index is correct (-1 if the active one was removed)
 			 activeRoi.set( activeR == null ? -1 : rois.indexOf( activeR ) );
 		 }
 		 updateRoiListModel();

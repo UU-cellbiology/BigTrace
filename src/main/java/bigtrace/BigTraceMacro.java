@@ -80,7 +80,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																							 MacroExtension.ARG_NUMBER, //scale Y
 																							 MacroExtension.ARG_NUMBER, //scale Z
 																							 MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //group name
-		extensions[15] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING);
+		extensions[15] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING, 
+				   															  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[16] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
 		extensions[17] = ExtensionDescriptor.newDescriptor("btTest", bt);
 		extensions[18] = ExtensionDescriptor.newDescriptor("btClose", bt);
@@ -287,7 +288,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		{
 			enqueue (()-> 
 			{
-				macroRemoveROI( (String)args[0] );
+				if(args[1] == null)
+				{
+					macroRemoveROI( (String)args[0], "All" );
+				}
+				else
+				{
+					macroRemoveROI( (String)args[0], (String)args[1] );
+				}
 			});
 		}
 
@@ -1014,12 +1022,31 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bMacroMode = false;
 	}
 	
-	/** macro function removes all ROIs with the provided name.
+	/** macro function removes ROIs with the provided name.
 	 * @param sROIName
 	 * 	exact ROI name (case sensitive), as shown in the ROI manager
-	 *  without the [group] prefix and the T time point prefix **/
-	public void macroRemoveROI(final String sROIName)
+	 *  without the [group] prefix and the T time point prefix
+	 * @param sMode
+	 * 	"First" removes only the first ROI with this name (top of the list),
+	 *  "All" removes all ROIs with this name (default) **/
+	public void macroRemoveROI(final String sROIName, final String sMode)
 	{
+		final boolean bFirstOnly;
+		switch ( sMode )
+		{
+		case "First":
+			bFirstOnly = true;
+			break;
+		case "All":
+			bFirstOnly = false;
+			break;
+		default:
+			TaskBT.runOnEDTAndWait(()->
+			{
+				IJ.log( "Error! btRemoveROI: second parameter should be either First or All." );
+			});
+			return;
+		}
 		if(sROIName == null || sROIName.isEmpty())
 		{
 			TaskBT.runOnEDTAndWait(()->
@@ -1031,7 +1058,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = true;
 		bMacroMode = true;
 
-		final int nRemoved = bt.roiManager.removeRoisByName( sROIName );
+		final int nRemoved = bt.roiManager.removeRoisByName( sROIName, bFirstOnly );
 
 		TaskBT.runOnEDTAndWait(()->
 		{
@@ -1041,7 +1068,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			}
 			else
 			{
-				IJ.log( "BigTrace macro: removed " + Integer.toString( nRemoved ) + " ROI(s) with the name \"" + sROIName + "\"." );
+				IJ.log( "BigTrace macro: removed " + Integer.toString( nRemoved ) + " ROI(s) with the name \"" + sROIName + "\" (mode " + sMode + ")." );
 			}
 			IJ.log( "  Total " + Integer.toString( bt.roiManager.rois.size() ) + " ROIs left." );
 		});
