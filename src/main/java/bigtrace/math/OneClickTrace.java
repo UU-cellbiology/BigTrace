@@ -136,11 +136,25 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** coherence above this value marks leaving a junction (hysteresis) **/
 	final double dJunctionCoherenceOut = 0.9;
 	
-	/** while coasting, the trace follows the straight line coastLineOrigin + t*coastLineDir
-	 * (last centered point before the junction and the frozen heading), grid coordinates **/
-	final double [] coastLineOrigin = new double[3];
+	/** heading when entering the junction (grid space, unit) **/
 	final double [] coastLineDir = new double[3];
-
+	/** current coasting direction (grid space, unit), refined with the steerable line filter **/
+	final double [] coastDir = new double[3];
+		
+	/** tilt (radians) of the test directions around coastDir at each coasting step **/
+	final double dCoastTilt = Math.toRadians(10.0);
+		
+	/** coasting direction must stay within this cos from the entry heading (~15 deg) **/
+	final double dCoastMaxTiltCos = Math.cos(Math.toRadians(15.0));
+		
+	/** current direction is kept unless a tilted one is better by more than this ratio (avoids jitter) **/
+	final double dCoastKeepRatio = 0.95;
+		
+	/** length (grid voxels) of the ray used to evaluate the line filter ahead **/
+	int nCoastRayLength = 2;
+		
+	/** random access to the hessian (6 components) of the current math box **/
+	RandomAccess<FloatType> raH;
 	
 	ArrayList<double[]> allPointsIntersection;
 	
@@ -556,7 +570,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		nRecenterMaxSteps = Math.max(1, (int) Math.ceil(dMaxSigmaGrid));
 		nCoastMaxSteps = Math.max(2, (int) Math.ceil(5.0 * dMaxSigmaGrid));
-		//nCoastMaxSteps = Math.max(1, (int) Math.ceil(1.0 * dMaxSigmaGrid));
+		nCoastRayLength = Math.max(2, (int) Math.ceil(dMaxSigmaGrid));
 				
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
@@ -680,10 +694,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final RandomAccess< T > raInput = bt.btData.bOCIntensityStop ? fullInput.randomAccess() : null;
 
 		//inside a junction saliency and eigenvectors are unreliable, 
-		//step along the line extrapolated from before the junction
+		//follow the steerable (oriented) line filter instead
 		if(bMomentum && bCoasting)
 		{
-			return coastAlongLine(currpoint, raInput);
+			final RealPoint coastPoint = coastSteerable(currpoint, raInput);
+			if(coastPoint != null)
+			{
+				return coastPoint;
+			}
+			//coasting could not continue (wall/limits), 
+			//coasting is switched off, continue with normal stepping
 		}
 		final double [] newDirection = new double[3];
 		double [] candDirection;
@@ -840,14 +860,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			if(bMomentum)
 			{
 
-				if(getPathCoherence(bestGrid) < dJunctionCoherenceIn)
+				if(getPathCoherence(bestGrid, memDirectionVector) < dJunctionCoherenceIn)
  				{
 					bCoasting = true;
-					//the previous point was still re-centered, use it and the heading as the line
 					for (int d = 0; d < 3; d++)
 					{
-						coastLineOrigin[d] = toGridDouble(currpoint.getDoublePosition(d), d);
 						coastLineDir[d] = memDirectionVector[d];
+						coastDir[d] = memDirectionVector[d];
 					}
 					nCoastSteps = 0;
 				}
@@ -967,6 +986,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		mEV.computeVWRAI(hessian, directionVectors, salWeights, nThreads, es);
 		raV = directionVectors.randomAccess();
 		raW = salWeights.randomAccess();
+		raH = hessian.randomAccess();
 		//calculate inner box
 		
 		
@@ -1123,23 +1143,23 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	}
 	
 	
-	/** orthonormal basis (u,v) of the plane perpendicular to the momentum direction **/
-	void getCrossSectionBasis(final double [] u, final double [] v)
-	{
-		//pick the axis least aligned with momentum
+		/** orthonormal basis (u,v) of the plane perpendicular to the (unit) direction dir **/
+		static void getCrossSectionBasis(final double [] dir, final double [] u, final double [] v)
+	 	{
+			//pick the axis least aligned with dir
 		int nMinAxis = 0;
 		for (int d = 1; d < 3; d++)
 		{
-			if(Math.abs(memDirectionVector[d]) < Math.abs(memDirectionVector[nMinAxis]))
+			if(Math.abs(dir[d]) < Math.abs(dir[nMinAxis]))
 			{
 				nMinAxis = d;
 			}
 		}
 		final double [] axis = new double[3];
 		axis[nMinAxis] = 1.0;
-		LinAlgHelpers.cross(memDirectionVector, axis, u);
+		LinAlgHelpers.cross(dir, axis, u);
 		LinAlgHelpers.normalize(u);
-		LinAlgHelpers.cross(memDirectionVector, u, v);
+		LinAlgHelpers.cross(dir, u, v);
 		LinAlgHelpers.normalize(v);
 	}
 		
@@ -1337,7 +1357,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//orthonormal basis (u,v) perpendicular to momentum
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		getCrossSectionBasis(u, v);
+		getCrossSectionBasis(memDirectionVector, u, v);
 
 		final long [] currGrid = new long[3];
 		for (int d = 0; d < 3; d++)
@@ -1434,13 +1454,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	}
 
 	/** Junction (crossing) detector using directionVectors.
-	 * Returns saliency weighted orientation coherence along the current heading m
+	* Returns saliency weighted orientation coherence along the heading m
 	 * in a ball of radius ~sigma around gridPos:
 	 *   C = sum( w * (v.m)^2 ) / sum( w ), w = saliency, v = local eigenvector.
 	 * (same as m'Tm/tr(T) of the local orientation tensor T, sign of v does not matter).
 	 * Single filament along m: C ~ 0.9-1, crossing at 45 deg: ~0.75, at 90 deg: ~0.5.
 	 * Unlike a cross-section test it also sees oblique crossings. **/
-	double getPathCoherence(final long [] gridPos)
+	double getPathCoherence(final long [] gridPos, final double [] m)
 	{
 		final int nR = nRecenterMaxSteps;
 		//sparse sampling for large sigma
@@ -1472,7 +1492,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					final float w = raW.setPositionAndGet(pos).get();
 					if(w <= 0)
 						continue;
-					final double c = LinAlgHelpers.dot(getVectorAtGrid(pos), memDirectionVector);
+					final double c =  LinAlgHelpers.dot(getVectorAtGrid(pos), m);
 					sumW += w;
 					sumWC += w * c * c;
 				}
@@ -1483,82 +1503,232 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			return 1.0;
 		return sumWC / sumW;
 	}
-	
-	/** One step through a junction: projects the current point onto the coasting line
-	 * and moves one grid voxel along it (sub-voxel position, so the trace stays exactly 
-	 * on the line). Saliency is not required (it can be zero at the center of an X), 
-	 * intensity threshold and mask still apply. Momentum stays frozen.
-	 * Leaves coasting when orientation coherence is high again and the local eigenvector 
-	 * agrees with the heading, or after nCoastMaxSteps.
-	 * Returns null if the step leaves the data or hits intensity/mask stop. **/
-	RealPoint coastAlongLine(final RealPoint currpoint, final RandomAccess< T > raInput)
+
+	/** One step through a junction using a steerable line filter built from the hessian 
+	 * of the math box (no extra convolutions, second derivatives are steerable):
+	 *   R(e) = -0.5*(tr(H) - e'He) - |e'He|
+	 * (curvature across e minus penalty for curvature along e). For a bright line along e 
+	 * R = lambda, for a line crossing at 45 deg R = 0.25 lambda, at 90 deg R = -0.5 lambda,
+	 * at the center of an X along e R = 0.5 lambda, so it keeps following the right filament.
+	 * 1) direction: coastDir and 6 directions tilted around it are compared by the sum of R 
+	 *    along a short ray ahead, the best is taken (within dCoastMaxTiltCos of the entry heading),
+	 *    so the trace can follow a filament that bends at the crossing;
+	 * 2) position: one grid voxel along coastDir, then sub-voxel parabolic refinement 
+	 *    of R in the cross-section.
+	 * Intensity threshold and mask still apply. Momentum stays frozen until exit.
+	 * Returns null if coasting can not continue (no positive response ahead, leaving data, 
+	 * intensity/mask stop); coasting is then switched off. **/
+	RealPoint coastSteerable(final RealPoint currpoint, final RandomAccess< T > raInput)
 	{
-		final double [] next = new double[3];
-		double t = 0;
+		final double [] p = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
-			t += (toGridDouble(currpoint.getDoublePosition(d), d) - coastLineOrigin[d]) * coastLineDir[d];
+			p[d] = toGridDouble(currpoint.getDoublePosition(d), d);
 		}
-		//foot of the perpendicular + one grid voxel forward
-		t += 1.0;
+
+		//1) refine direction
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		getCrossSectionBasis(coastDir, u, v);
+		final double [] testDir = new double[3];
+		final double [] bestDir = coastDir.clone();
+		final double dCurrScore = getRayLineResponse(p, coastDir);
+		double dBestScore = dCurrScore;
+		final double ct = Math.cos(dCoastTilt);
+		final double st = Math.sin(dCoastTilt);
+		for (int nA = 0; nA < 6; nA++)
+		{
+			final double ca = Math.cos(nA * Math.PI / 3.0);
+			final double sa = Math.sin(nA * Math.PI / 3.0);
+			for (int d = 0; d < 3; d++)
+			{
+				testDir[d] = ct * coastDir[d] + st * (ca * u[d] + sa * v[d]);
+			}
+			LinAlgHelpers.normalize(testDir);
+			if(LinAlgHelpers.dot(testDir, coastLineDir) < dCoastMaxTiltCos)
+				continue;
+			final double dScore = getRayLineResponse(p, testDir);
+			if(dScore > dBestScore)
+			{
+				dBestScore = dScore;
+				System.arraycopy(testDir, 0, bestDir, 0, 3);
+			}
+		}
+		//no line ahead: "wall"
+		if(!(dBestScore > 0))
+		{
+			stopCoasting();
+			return null;
+		}
+		//keep current direction unless clearly worse
+		if(!(dCurrScore > 0 && dCurrScore >= dCoastKeepRatio * dBestScore))
+		{
+			System.arraycopy(bestDir, 0, coastDir, 0, 3);
+		}
+
+		//2) step one grid voxel and re-center in the cross-section (sub-voxel)
+		getCrossSectionBasis(coastDir, u, v);
+		final double [] q = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			q[d] = p[d] + coastDir[d];
+		}
+		final double r0 = getLineResponse(q, coastDir);
+		if(!(r0 > 0))
+		{
+			stopCoasting();
+			return null;
+		}
+		final double ou = getParabolicOffset(q, u, r0);
+		final double ov = getParabolicOffset(q, v, r0);
 		final long [] gridPos = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
-			next[d] = coastLineOrigin[d] + t * coastLineDir[d];
-			gridPos[d] = Math.round(next[d]);
-			if(gridPos[d] < gridMin[d] || gridPos[d] > gridMax[d])
+			q[d] += ou * u[d] + ov * v[d];
+			gridPos[d] = Math.round(q[d]);
+			if(gridPos[d] < gridMin[d] || gridPos[d] > gridMax[d] 
+					|| gridPos[d] < salWeights.min(d) || gridPos[d] > salWeights.max(d))
 			{
+				stopCoasting();
 				return null;
 			}
 		}
 		final long [] posFull = toFullLong(gridPos);
-		if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+		if((bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+				|| (bUseMask && traceMask.isOccupied( posFull )))
 		{
-			return null;
-		}
-		if(bUseMask && traceMask.isOccupied( posFull ))
-		{
+			stopCoasting();
 			return null;
 		}
 
+		System.arraycopy(coastDir, 0, lastDirectionVector, 0, 3);
 		nCoastSteps++;
-		boolean bInsideBox = true;
-		for (int d = 0; d < 3; d++)
+
+		//3) leave the junction when local orientations agree with the coasting direction again
+		final double [] eigDir = getVectorAtGrid(gridPos);
+		final boolean bAligned = Math.abs(LinAlgHelpers.dot(eigDir, coastDir)) >= dAngleThreshold;
+		if((bAligned && getPathCoherence(gridPos, coastDir) > dJunctionCoherenceOut) || nCoastSteps >= nCoastMaxSteps)
 		{
-			if(gridPos[d] < salWeights.min(d) || gridPos[d] > salWeights.max(d))
-			{
-				bInsideBox = false;
-			}
-		}
-		if(bInsideBox)
-		{
-			final double [] eigDir = getVectorAtGrid(gridPos);
-			if(LinAlgHelpers.dot(eigDir, memDirectionVector) < 0)
-			{
-				LinAlgHelpers.scale(eigDir, -1.0, eigDir);
-			}
-			System.arraycopy(eigDir, 0, lastDirectionVector, 0, 3);
-			//leave the junction when local orientations agree with the (frozen) heading again
-			final boolean bAligned = LinAlgHelpers.dot(eigDir, memDirectionVector) >= dAngleThreshold;
-			if(bAligned && getPathCoherence(gridPos) > dJunctionCoherenceOut)
-			{
-				bCoasting = false;
-			}
-		}
-		if(nCoastSteps >= nCoastMaxSteps)
-		{
-			bCoasting = false;
+			stopCoasting();
 		}
 
 		final double [] outPos = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
 			//continuous grid -> full resolution (same as toFull for integer grid positions)
-			outPos[d] = next[d] * ds[d] + 0.5 * (ds[d] - 1);
+			outPos[d] = q[d] * ds[d] + 0.5 * (ds[d] - 1);
 		}
 		return new RealPoint(outPos);
 	}
-	
+
+	/** leaves the junction mode, momentum continues along the (refined) coasting direction **/
+	void stopCoasting()
+	{
+		bCoasting = false;
+		System.arraycopy(coastDir, 0, memDirectionVector, 0, 3);
+		System.arraycopy(coastDir, 0, lastDirectionVector, 0, 3);
+	}
+
+	/** sum of the line filter response R(e) along a short ray ahead of p (grid coordinates).
+	 * Returns NaN if nothing of the ray is inside the math box **/
+	double getRayLineResponse(final double [] p, final double [] e)
+	{
+		final double [] x = new double[3];
+		double sum = 0;
+		int nCount = 0;
+		for (int s = 1; s <= nCoastRayLength; s++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				x[d] = p[d] + s * e[d];
+			}
+			final double r = getLineResponse(x, e);
+			if(Double.isNaN(r))
+				break;
+			sum += r;
+			nCount++;
+		}
+		return nCount > 0 ? sum : Double.NaN;
+	}
+
+	/** sub-voxel offset (in [-1,1]) of the maximum of the line response R(e = coastDir)
+	 * along unit vector w through q, parabolic fit of R(q-w), R(q), R(q+w) **/
+	double getParabolicOffset(final double [] q, final double [] w, final double r0)
+	{
+		final double [] x = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			x[d] = q[d] - w[d];
+		}
+		final double rm = getLineResponse(x, coastDir);
+		for (int d = 0; d < 3; d++)
+		{
+			x[d] = q[d] + w[d];
+		}
+		final double rp = getLineResponse(x, coastDir);
+		if(Double.isNaN(rm) || Double.isNaN(rp))
+			return 0.0;
+		final double denom = rm - 2.0 * r0 + rp;
+		//not a maximum (on a flank): move half a voxel uphill
+		if(denom >= 0)
+		{
+			return rp > rm ? 0.5 : (rp < rm ? -0.5 : 0.0);
+		}
+		return Math.max(-1.0, Math.min(1.0, 0.5 * (rm - rp) / denom));
+	}
+
+	/** steerable line filter at continuous grid position x for unit direction e,
+	 * from trilinearly interpolated hessian of the math box:
+	 * R(e) = -0.5*(tr(H) - e'He) - |e'He|. Returns NaN outside of the math box. **/
+	double getLineResponse(final double [] x, final double [] e)
+	{
+		final double [] h = new double[6];
+		if(!getHessianInterpolated(x, h))
+			return Double.NaN;
+		//component order: xx, xy, xz, yy, yz, zz
+		final double eHe = h[0] * e[0] * e[0] + h[3] * e[1] * e[1] + h[5] * e[2] * e[2]
+				+ 2.0 * (h[1] * e[0] * e[1] + h[2] * e[0] * e[2] + h[4] * e[1] * e[2]);
+		final double tr = h[0] + h[3] + h[5];
+		return -0.5 * (tr - eHe) - Math.abs(eHe);
+	}
+
+	/** trilinear interpolation of the 6 hessian components at continuous grid position x.
+	 * Returns false if x is outside of the math box **/
+	boolean getHessianInterpolated(final double [] x, final double [] h)
+	{
+		final long [] x0 = new long[3];
+		final double [] f = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			if(x[d] < salWeights.min(d) || x[d] > salWeights.max(d))
+				return false;
+			x0[d] = (long) Math.floor(x[d]);
+			f[d] = x[d] - x0[d];
+		}
+		for (int c = 0; c < 6; c++)
+		{
+			h[c] = 0;
+		}
+		final long [] pos = new long[4];
+		for (int corner = 0; corner < 8; corner++)
+		{
+			double w = 1.0;
+			for (int d = 0; d < 3; d++)
+			{
+				final int bit = (corner >> d) & 1;
+				w *= (bit == 1) ? f[d] : (1.0 - f[d]);
+				pos[d] = Math.min(salWeights.max(d), x0[d] + bit);
+			}
+			if(w == 0)
+				continue;
+			for (int c = 0; c < 6; c++)
+			{
+				pos[3] = c;
+				h[c] += w * raH.setPositionAndGet(pos).getRealDouble();
+			}
+		}
+		return true;
+	}
 	/*
      * Executed in event dispatching thread
      */
