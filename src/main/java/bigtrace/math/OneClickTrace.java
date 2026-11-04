@@ -23,6 +23,7 @@ import net.imglib2.algorithm.convolution.kernel.SeparableKernelConvolution;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -141,17 +142,68 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** current coasting direction (grid space, unit), refined with the steerable line filter **/
 	final double [] coastDir = new double[3];
 		
-	/** tilt (radians) of the test directions around coastDir at each coasting step **/
-	final double dCoastTilt = Math.toRadians(10.0);
-		
-	/** coasting direction must stay within this cos from the entry heading (~15 deg) **/
-	final double dCoastMaxTiltCos = Math.cos(Math.toRadians(15.0));
-		
-	/** current direction is kept unless a tilted one is better by more than this ratio (avoids jitter) **/
-	final double dCoastKeepRatio = 0.95;
-		
-	/** length (grid voxels) of the ray used to evaluate the line filter ahead **/
-	int nCoastRayLength = 2;
+	/** length (SD) of the elongated line filter along the coasting direction,
+	 * in units of tracing sigma (long enough to resolve ~15-20 deg crossings) **/
+	final double dCoastAlongSigmaFactor = 2.5;
+	
+	/** junction detection is armed again only after coherence ahead rose above 
+	 * dJunctionCoherenceOut (hysteresis), so leaving a junction does not trigger a new one **/
+	boolean bJunctionArmed = true;
+	
+	/** voxels with saliency below this fraction of the maximum in the ball 
+	 * are ignored in the coherence (background noise has random orientations) **/
+	final double dCoherenceMinSalFraction = 0.3;
+	
+	/** maximum sideways hill-climbing steps (grid voxels) of re-centering per tracing step.
+	 * 1 = offsets are corrected gradually (larger values make visible jumps and can pull 
+	 * the trace onto a neighboring bright structure, tested on ExM microtubule data) **/
+	int nRecenterHillSteps = 1;
+	
+	/** re-centering on plain filaments may only move to voxels oriented within ~25 deg 
+	 * of the momentum (same filament, not onto a crossing one) **/
+	final double dRecenterAngleCos = 0.9;
+	
+	/** coasting goes this distance (in units of tracing sigma) along e through the junction box,
+	 * so the crossing filament is far enough when normal stepping takes over **/
+	final double dCoastDistanceFactor = 6.0;
+	
+	/** coasting distance along e (grid voxels) **/
+	double dCoastDistance = 12.0;
+	
+	/** half size of the junction box in units of tracing sigma **/
+	final double dJunctionBoxFactor = 6.0;
+	
+	/** max tracing sigma in grid units **/
+	double dMaxSigmaGridJ = 1.0;
+	
+	/** half size (grid voxels) of the junction box **/
+	int nJunctionBoxHalf = 6;
+	
+	/** min corner (grid coordinates) of the junction box **/
+	final long [] junctionMin = new long[3];
+	
+	/** hessian of the junction box (separate full convolution, 6 components) **/
+	ArrayImg<FloatType, FloatArray> junctionHessImg;
+	
+	/** block averaged input of the junction box (only used with downsampling) **/
+	ArrayImg<FloatType, FloatArray> junctionGridImg;
+	
+	/** if true, the junction map is shown in ImageJ when entering a junction 
+	 * (interactive one-click only, not in batch/auto tracing) **/
+	public boolean bShowJunctionMap = true;
+	
+	/** length (SD, grid voxels) of the elongated line filter along the coasting direction **/
+	double dCoastAlongSigma = 2.0;
+	
+	/** first point of the current coasting (grid coordinates), for the coasting direction (chord) **/
+	final double [] coastStartPos = new double[3];
+	
+	/** steered line filter R_e for the coasting direction at each voxel of the junction box **/
+	ArrayImg<FloatType, FloatArray> coastLineImg;
+	
+	/** elongated line filter map: R_e smoothed along e (Gaussian, dCoastAlongSigma), 
+	 * over the junction box **/
+	ArrayImg<FloatType, FloatArray> coastMapImg;
 		
 	/** random access to the hessian (6 components) of the current math box **/
 	RandomAccess<FloatType> raH;
@@ -418,6 +470,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		bCoasting = false;
 		nCoastSteps = 0;
+		bJunctionArmed = true;
 		
 		addIntersectionPoint(startPoint.positionAsDoubleArray());
 		
@@ -570,7 +623,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		nRecenterMaxSteps = Math.max(1, (int) Math.ceil(dMaxSigmaGrid));
 		nCoastMaxSteps = Math.max(2, (int) Math.ceil(5.0 * dMaxSigmaGrid));
-		nCoastRayLength = Math.max(2, (int) Math.ceil(dMaxSigmaGrid));
+		dCoastAlongSigma = dCoastAlongSigmaFactor * dMaxSigmaGrid;
+		dMaxSigmaGridJ = dMaxSigmaGrid;
+		dCoastDistance = dCoastDistanceFactor * dMaxSigmaGrid;
+		//safety limit, coasting normally ends by distance
+		nCoastMaxSteps = Math.max(nCoastMaxSteps, (int) Math.ceil(1.5 * dCoastDistance));
+		nJunctionBoxHalf = Math.max(3, (int) Math.ceil(dJunctionBoxFactor * dMaxSigmaGrid));
 				
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
@@ -614,6 +672,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		hessFloat = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ], 6 );
 		dV = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ], 3 );
 		sW = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ]);
+		//junction box
+		final long nJDim = 2 * nJunctionBoxHalf + 1;
+		coastLineImg = ArrayImgs.floats( nJDim, nJDim, nJDim );
+		coastMapImg = ArrayImgs.floats( nJDim, nJDim, nJDim );
+		junctionHessImg = ArrayImgs.floats( nJDim, nJDim, nJDim, 6 );
+		if(bDownsample)
+		{
+			junctionGridImg = ArrayImgs.floats( nJDim, nJDim, nJDim );
+		}
 
 		
 		initNeighborsHashMap();
@@ -704,6 +771,30 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 			//coasting could not continue (wall/limits), 
 			//coasting is switched off, continue with normal stepping
+		}
+		//junction ahead? checked before the normal step, so coasting starts 
+		//from the current (still centered) point, before normal stepping can be 
+		//pulled to the crossing filament.
+		//Hysteresis: after a junction, detection is armed again only when 
+		//coherence ahead is high (> dJunctionCoherenceOut)
+		else if(bMomentum)
+		{
+			final double dCoherenceAhead = getCoherenceAhead(currpoint);
+			if(!bJunctionArmed)
+			{
+				if(dCoherenceAhead > dJunctionCoherenceOut)
+				{
+					bJunctionArmed = true;
+				}
+			}
+			else if(dCoherenceAhead < dJunctionCoherenceIn)
+			{
+				final RealPoint coastPoint = enterJunction(currpoint, raInput);
+				if(coastPoint != null)
+				{
+					return coastPoint;
+				}
+			}
 		}
 		final double [] newDirection = new double[3];
 		double [] candDirection;
@@ -843,21 +934,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				lastDirectionVector[d] = newDirection[d];
 			}
-			if(bMomentum)
-			{
-
-				if(getPathCoherence(bestGrid, memDirectionVector) < dJunctionCoherenceIn)
- 				{
-					bCoasting = true;
-					for (int d = 0; d < 3; d++)
-					{
-						coastLineDir[d] = memDirectionVector[d];
-						coastDir[d] = memDirectionVector[d];
-					}
-					nCoastSteps = 0;
-				}
-			}
-			//inside a junction: keep straight, no re-centering, momentum frozen
+			//normal stepping: re-centering and momentum update
 			if(bMomentum && !bCoasting)
 			{
 				//position is snapped back to the ridge
@@ -915,7 +992,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				minV[d] = Math.max(gridMin[d], toGrid(currPoint.getDoublePosition(d), d) - boxGridHalfRange[d]);
 			}
-			fillGridBox(minV);
+			fillGridBox(gridBox, minV);
 			mathInput = Views.translate(gridBox, minV[0], minV[1], minV[2]);
 		}
 		
@@ -1293,11 +1370,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	}
 	/** fills gridBox (positioned at gridMinPos in grid coordinates)
 	 * with block averages of fullInput (border-extended) **/
-	void fillGridBox(final long [] gridMinPos)
+	void fillGridBox(final ArrayImg<FloatType, FloatArray> target, final long [] gridMinPos)
 	{
 		final RandomAccess<T> raIn = Views.extendBorder(fullInput).randomAccess();
-		final RandomAccess<FloatType> raOut = gridBox.randomAccess();
-		final long [] dims = Intervals.dimensionsAsLongArray( gridBox );
+		final RandomAccess<FloatType> raOut = target.randomAccess();
+		final long [] dims = Intervals.dimensionsAsLongArray( target );
 		final long [] posOut = new long[3];
 		final long [] posIn = new long[3];
 		final double norm = 1.0 / (ds[0] * ds[1] * ds[2]);
@@ -1356,7 +1433,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		double bestSal = getGatedSaliency(gridPos, raInput);
 
 		final long [] centerPos = new long[3];
-		for (int nIter = 0; nIter < nRecenterMaxSteps; nIter++)
+		for (int nIter = 0; nIter < nRecenterHillSteps; nIter++)
 		{
 			System.arraycopy(bestPos, 0, centerPos, 0, 3);
 			for (int a = -1; a <= 1; a++)
@@ -1426,7 +1503,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final float sal = raW.setPositionAndGet(gridPos).get();
 		if(sal <= 0)
 			return 0;
-		if(Math.abs(LinAlgHelpers.dot(getVectorAtGrid(gridPos), memDirectionVector)) < dAngleThreshold)
+		if(Math.abs(LinAlgHelpers.dot(getVectorAtGrid(gridPos), memDirectionVector)) < Math.max(dAngleThreshold, dRecenterAngleCos))
 			return 0;
 		if(bt.btData.bOCIntensityStop || bUseMask)
 		{
@@ -1460,6 +1537,28 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		final long nR2 = (long) nR * nR;
 		final long [] pos = new long[3];
+		//maximum saliency in the ball: weaker voxels (background noise with random
+		//orientations) are ignored, otherwise faint filaments look like junctions
+		float wMax = 0;
+		for (pos[2] = minB[2]; pos[2] <= maxB[2]; pos[2] += nStride)
+		{
+			for (pos[1] = minB[1]; pos[1] <= maxB[1]; pos[1] += nStride)
+			{
+				for (pos[0] = minB[0]; pos[0] <= maxB[0]; pos[0] += nStride)
+				{
+					long dist2 = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						dist2 += (pos[d] - gridPos[d]) * (pos[d] - gridPos[d]);
+					}
+					if(dist2 <= nR2)
+					{
+						wMax = Math.max(wMax, raW.setPositionAndGet(pos).get());
+					}
+				}
+			}
+		}
+		final double wMin = Math.max(0.0, dCoherenceMinSalFraction * wMax);
 		double sumW = 0;
 		double sumWC = 0;
 		for (pos[2] = minB[2]; pos[2] <= maxB[2]; pos[2] += nStride)
@@ -1476,7 +1575,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(dist2 > nR2)
 						continue;
 					final float w = raW.setPositionAndGet(pos).get();
-					if(w <= 0)
+					if(w <= 0 || w < wMin)
 						continue;
 					final double c =  LinAlgHelpers.dot(getVectorAtGrid(pos), m);
 					sumW += w;
@@ -1490,20 +1589,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return sumWC / sumW;
 	}
 
-	/** One step through a junction using a steerable line filter built from the hessian 
-	 * of the math box (no extra convolutions, second derivatives are steerable):
-	 *   R(e) = -0.5*(tr(H) - e'He) - |e'He|
-	 * (curvature across e minus penalty for curvature along e). For a bright line along e 
-	 * R = lambda, for a line crossing at 45 deg R = 0.25 lambda, at 90 deg R = -0.5 lambda,
-	 * at the center of an X along e R = 0.5 lambda, so it keeps following the right filament.
-	 * 1) direction: coastDir and 6 directions tilted around it are compared by the sum of R 
-	 *    along a short ray ahead, the best is taken (within dCoastMaxTiltCos of the entry heading),
-	 *    so the trace can follow a filament that bends at the crossing;
-	 * 2) position: one grid voxel along coastDir, then sub-voxel parabolic refinement 
-	 *    of R in the cross-section.
-	 * Intensity threshold and mask still apply. Momentum stays frozen until exit.
-	 * Returns null if coasting can not continue (no positive response ahead, leaving data, 
-	 * intensity/mask stop); coasting is then switched off. **/
+	/** One step through a junction along the elongated steerable line filter map 
+	 * (see computeJunctionMap), built for the entry direction e over the junction box.
+	 * Position: one grid voxel along e, then sub-voxel parabolic refinement of the map
+	 * in the cross-section (this also follows a filament that bends slightly).
+	 * Coasting continues for dCoastDistance along e (through the junction), 
+	 * intensity threshold and mask still apply. Momentum stays frozen until exit.
+	 * Returns null if coasting can not continue (no positive response ahead, leaving data
+	 * or junction box, intensity/mask stop); coasting is then switched off. **/
 	RealPoint coastSteerable(final RealPoint currpoint, final RandomAccess< T > raInput)
 	{
 		final double [] p = new double[3];
@@ -1511,62 +1604,41 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			p[d] = toGridDouble(currpoint.getDoublePosition(d), d);
 		}
-
-		//1) refine direction
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		getCrossSectionBasis(coastDir, u, v);
-		final double [] testDir = new double[3];
-		final double [] bestDir = coastDir.clone();
-		final double dCurrScore = getRayLineResponse(p, coastDir);
-		double dBestScore = dCurrScore;
-		final double ct = Math.cos(dCoastTilt);
-		final double st = Math.sin(dCoastTilt);
-		for (int nA = 0; nA < 6; nA++)
-		{
-			final double ca = Math.cos(nA * Math.PI / 3.0);
-			final double sa = Math.sin(nA * Math.PI / 3.0);
-			for (int d = 0; d < 3; d++)
-			{
-				testDir[d] = ct * coastDir[d] + st * (ca * u[d] + sa * v[d]);
-			}
-			LinAlgHelpers.normalize(testDir);
-			if(LinAlgHelpers.dot(testDir, coastLineDir) < dCoastMaxTiltCos)
-				continue;
-			final double dScore = getRayLineResponse(p, testDir);
-			if(dScore > dBestScore)
-			{
-				dBestScore = dScore;
-				System.arraycopy(testDir, 0, bestDir, 0, 3);
-			}
-		}
-		//no line ahead: "wall"
-		if(!(dBestScore > 0))
-		{
-			stopCoasting();
-			return null;
-		}
-		//keep current direction unless clearly worse
-		if(!(dCurrScore > 0 && dCurrScore >= dCoastKeepRatio * dBestScore))
-		{
-			System.arraycopy(bestDir, 0, coastDir, 0, 3);
-		}
-
-		//2) step one grid voxel and re-center in the cross-section (sub-voxel)
-		getCrossSectionBasis(coastDir, u, v);
+		getCrossSectionBasis(coastLineDir, u, v);
+		//step one grid voxel along e and re-center in the cross-section (sub-voxel)
 		final double [] q = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
-			q[d] = p[d] + coastDir[d];
+			q[d] = p[d] + coastLineDir[d];
 		}
-		final double r0 = getLineResponse(q, coastDir);
-		if(!(r0 > 0))
+		double m0 = getCoastMapValue(q);
+		if(nCoastSteps == 0)
+		{
+			//fallback only: the start is off the ridge of the map (no response ahead),
+			//climb to the nearest map maximum in the cross-section (up to ~sigma);
+			//the map is specific to the entry direction, so it leads back onto the same filament.
+			//Otherwise the offset is corrected gradually (no jump to the side)
+			if(!(m0 > 0))
+			{
+				snapToCoastMapRidge(p, u, v);
+				for (int d = 0; d < 3; d++)
+				{
+					q[d] = p[d] + coastLineDir[d];
+				}
+				m0 = getCoastMapValue(q);
+			}
+			System.arraycopy(p, 0, coastStartPos, 0, 3);
+		}
+		//no line ahead: "wall"
+		if(!(m0 > 0))
 		{
 			stopCoasting();
 			return null;
 		}
-		final double ou = getParabolicOffset(q, u, r0);
-		final double ov = getParabolicOffset(q, v, r0);
+		final double ou = getCoastMapParabolicOffset(q, u, m0);
+		final double ov = getCoastMapParabolicOffset(q, v, m0);
 		final long [] gridPos = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
@@ -1586,14 +1658,35 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			stopCoasting();
 			return null;
 		}
-
+		
+		//coasting direction: chord from the coasting start (follows slight bends,
+		//single re-centering offsets are averaged out), entry direction while too short
+		double dLen = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			coastDir[d] = q[d] - coastStartPos[d];
+			dLen += coastDir[d] * coastDir[d];
+		}
+		if(dLen >= 4.0)
+		{
+			LinAlgHelpers.normalize(coastDir);
+		}
+		else
+		{
+			System.arraycopy(coastLineDir, 0, coastDir, 0, 3);
+		}
 		System.arraycopy(coastDir, 0, lastDirectionVector, 0, 3);
 		nCoastSteps++;
 
-		//3) leave the junction when local orientations agree with the coasting direction again
-		final double [] eigDir = getVectorAtGrid(gridPos);
-		final boolean bAligned = Math.abs(LinAlgHelpers.dot(eigDir, coastDir)) >= dAngleThreshold;
-		if((bAligned && getPathCoherence(gridPos, coastDir) > dJunctionCoherenceOut) || nCoastSteps >= nCoastMaxSteps)
+		//leave the junction after a fixed distance along e (the map is valid for the whole 
+		//junction box, local eigenvectors/coherence are not: near a junction, especially a shallow
+		//one, they look "aligned" while the crossing filament is still within reach of normal stepping)
+		double dAlong = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dAlong += (q[d] - coastStartPos[d]) * coastLineDir[d];
+		}
+		if(dAlong >= dCoastDistance || nCoastSteps >= nCoastMaxSteps)
 		{
 			stopCoasting();
 		}
@@ -1607,114 +1700,261 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return new RealPoint(outPos);
 	}
 
-	/** leaves the junction mode, momentum continues along the (refined) coasting direction **/
+	/** starts coasting at the current point: heading = momentum, junction map, first coasting step.
+	 * Returns null if coasting could not start (coasting is then switched off) **/
+	RealPoint enterJunction(final RealPoint currpoint, final RandomAccess< T > raInput)
+	{
+		bCoasting = true;
+		nCoastSteps = 0;
+		System.arraycopy(memDirectionVector, 0, coastLineDir, 0, 3);
+		System.arraycopy(memDirectionVector, 0, coastDir, 0, 3);
+		final long [] entryGrid = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			entryGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
+		}
+		computeJunctionMap(entryGrid);
+		return coastSteerable(currpoint, raInput);
+	}
+	
+	/** orientation coherence along the momentum in the ball centered ~sigma ahead 
+	 * of the current point (junction detection) **/
+	double getCoherenceAhead(final RealPoint currpoint)
+	{
+		final long [] ahead = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			ahead[d] = Math.round(toGridDouble(currpoint.getDoublePosition(d), d) + nRecenterMaxSteps * memDirectionVector[d]);
+		}
+		return getPathCoherence(ahead, memDirectionVector);
+	}
+	
+	/** leaves the junction mode, momentum continues along the coasting direction **/
 	void stopCoasting()
 	{
 		bCoasting = false;
+		bJunctionArmed = false;
 		System.arraycopy(coastDir, 0, memDirectionVector, 0, 3);
 		System.arraycopy(coastDir, 0, lastDirectionVector, 0, 3);
 	}
-
-	/** sum of the line filter response R(e) along a short ray ahead of p (grid coordinates).
-	 * Returns NaN if nothing of the ray is inside the math box **/
-	double getRayLineResponse(final double [] p, final double [] e)
+	
+	/** Junction map: elongated steerable line filter for the coasting (entry) direction e,
+	 * computed in a separate junction box (+-dJunctionBoxFactor*sigma, shifted ~2 sigma ahead
+	 * along e from the entry point), larger than the math box, so the filter can be long enough.
+	 * 1) hessian of the junction box by full (separable Gaussian derivative) convolution;
+	 * 2) steered line filter at each voxel (second derivatives are steerable):
+	 *    R_e = -0.5*(tr(H) - e'He) - |e'He| (curvature across e minus penalty for curvature along e);
+	 * 3) smoothing of R_e along e with a Gaussian of SD dCoastAlongSigma (~3 sigma).
+	 * The result is a line filter long along e and narrow across it: it integrates along 
+	 * the filament and averages out the crossing one (and the bright junction blob).
+	 * If bShowJunctionMap, the map is shown in ImageJ (interactive tracing only). **/
+	@SuppressWarnings( "unchecked" )
+	void computeJunctionMap(final long [] entryGrid)
 	{
-		final double [] x = new double[3];
-		double sum = 0;
-		int nCount = 0;
-		for (int s = 1; s <= nCoastRayLength; s++)
+		final double [] e = coastLineDir;
+		final int nJ = 2 * nJunctionBoxHalf + 1;
+		for (int d = 0; d < 3; d++)
 		{
-			for (int d = 0; d < 3; d++)
-			{
-				x[d] = p[d] + s * e[d];
-			}
-			final double r = getLineResponse(x, e);
-			if(Double.isNaN(r))
-				break;
-			sum += r;
-			nCount++;
+			final long center = Math.round(entryGrid[d] + 2.0 * dMaxSigmaGridJ * e[d]);
+			junctionMin[d] = center - nJunctionBoxHalf;
 		}
-		return nCount > 0 ? sum : Double.NaN;
+		
+		//1) hessian by full convolution
+		final RandomAccessibleInterval<?> jInput;
+		if(!bDownsample)
+		{
+			jInput = fullInput;
+		}
+		else
+		{
+			fillGridBox(junctionGridImg, junctionMin);
+			jInput = Views.translate(junctionGridImg, junctionMin[0], junctionMin[1], junctionMin[2]);
+		}
+		final IntervalView<FloatType> jHess = Views.translate(junctionHessImg, junctionMin[0], junctionMin[1], junctionMin[2], 0);
+		for (int count = 0; count < 6; count++)
+		{
+			convObjects[count].process(Views.extendBorder(jInput), Views.hyperSlice( jHess, 3, count ));
+		}
+		
+		//2) steered line filter at voxels
+		final float [] hess = junctionHessImg.update( null ).getCurrentStorageArray();
+		final float [] line = coastLineImg.update( null ).getCurrentStorageArray();
+		final float [] map = coastMapImg.update( null ).getCurrentStorageArray();
+		final int nVol = nJ * nJ * nJ;
+		final double [] h = new double[6];
+		for (int i = 0; i < nVol; i++)
+		{
+			for (int c = 0; c < 6; c++)
+			{
+				h[c] = hess[i + c * nVol];
+			}
+			//component order: xx, xy, xz, yy, yz, zz
+			final double eHe = h[0] * e[0] * e[0] + h[3] * e[1] * e[1] + h[5] * e[2] * e[2]
+					+ 2.0 * (h[1] * e[0] * e[1] + h[2] * e[0] * e[2] + h[4] * e[1] * e[2]);
+			line[i] = (float) (-0.5 * (h[0] + h[3] + h[5] - eHe) - Math.abs(eHe));
+		}
+		
+		//3) smoothing along e
+		final int [] dims = new int [] {nJ, nJ, nJ};
+		final int nK = Math.max(1, (int) Math.ceil(2.0 * dCoastAlongSigma));
+		final double [] gauss = new double[2 * nK + 1];
+		for (int k = -nK; k <= nK; k++)
+		{
+			gauss[k + nK] = Math.exp(-0.5 * k * k / (dCoastAlongSigma * dCoastAlongSigma));
+		}
+		final double [] xs = new double[3];
+		int nIndex = 0;
+		for (int z = 0; z < nJ; z++)
+		{
+			for (int y = 0; y < nJ; y++)
+			{
+				for (int x = 0; x < nJ; x++)
+				{
+					double sum = 0;
+					double wsum = 0;
+					for (int k = -nK; k <= nK; k++)
+					{
+						xs[0] = x + k * e[0];
+						xs[1] = y + k * e[1];
+						xs[2] = z + k * e[2];
+						final double val = interpolateLocal(line, dims, xs);
+						if(!Double.isNaN(val))
+						{
+							sum += gauss[k + nK] * val;
+							wsum += gauss[k + nK];
+						}
+					}
+					map[nIndex++] = (float) (wsum > 0 ? sum / wsum : 0.0);
+				}
+			}
+		}
+		
+		if(bShowJunctionMap && bLiveUpdate)
+		{
+			ImageJFunctions.show( coastMapImg.copy(), "junction map at " + Long.toString(entryGrid[0]) 
+					+ "," + Long.toString(entryGrid[1]) + "," + Long.toString(entryGrid[2])
+					+ (bDownsample ? " (grid)" : "") );
+		}
 	}
-
-	/** sub-voxel offset (in [-1,1]) of the maximum of the line response R(e = coastDir)
-	 * along unit vector w through q, parabolic fit of R(q-w), R(q), R(q+w) **/
-	double getParabolicOffset(final double [] q, final double [] w, final double r0)
+	
+	/** moves p (grid coordinates) in the cross-section plane (u,v) to the nearest local maximum
+	 * of the coasting map: hill climbing with half voxel steps, up to nRecenterMaxSteps away **/
+	void snapToCoastMapRidge(final double [] p, final double [] u, final double [] v)
+	{
+		final double [] test = new double[3];
+		final double [] start = p.clone();
+		double dBest = getCoastMapValue(p);
+		if(Double.isNaN(dBest))
+			return;
+		final int nMaxIter = 4 * nRecenterMaxSteps;
+		for (int nIter = 0; nIter < nMaxIter; nIter++)
+		{
+			final double [] center = p.clone();
+			boolean bMoved = false;
+			for (int a = -1; a <= 1; a++)
+			{
+				for (int b = -1; b <= 1; b++)
+				{
+					if(a == 0 && b == 0)
+						continue;
+					double dist2 = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						test[d] = center[d] + 0.5 * (a * u[d] + b * v[d]);
+						dist2 += (test[d] - start[d]) * (test[d] - start[d]);
+					}
+					if(dist2 > nRecenterMaxSteps * nRecenterMaxSteps)
+						continue;
+					final double val = getCoastMapValue(test);
+					if(val > dBest)
+					{
+						dBest = val;
+						System.arraycopy(test, 0, p, 0, 3);
+						bMoved = true;
+					}
+				}
+			}
+			if(!bMoved)
+				break;
+		}
+	}
+	
+	/** value of the elongated line filter map at continuous grid position x,
+	 * NaN outside of the math box **/
+	double getCoastMapValue(final double [] x)
+	{
+		final int [] dims = new int[3];
+		final double [] xl = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			dims[d] = (int) coastMapImg.dimension(d);
+			xl[d] = x[d] - junctionMin[d];
+		}
+		return interpolateLocal(coastMapImg.update( null ).getCurrentStorageArray(), dims, xl);
+	}
+	
+	/** sub-voxel offset of the maximum of the coasting map along unit vector w 
+	 * through q, parabolic fit of M(q-w), M(q), M(q+w). Limited to [-0.5,0.5] per step,
+	 * so an offset is corrected over a few steps instead of a visible jump to the side **/
+	double getCoastMapParabolicOffset(final double [] q, final double [] w, final double m0)
 	{
 		final double [] x = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
 			x[d] = q[d] - w[d];
 		}
-		final double rm = getLineResponse(x, coastDir);
+		final double mm = getCoastMapValue(x);
 		for (int d = 0; d < 3; d++)
 		{
 			x[d] = q[d] + w[d];
 		}
-		final double rp = getLineResponse(x, coastDir);
-		if(Double.isNaN(rm) || Double.isNaN(rp))
+		final double mp = getCoastMapValue(x);
+		if(Double.isNaN(mm) || Double.isNaN(mp))
 			return 0.0;
-		final double denom = rm - 2.0 * r0 + rp;
+		final double denom = mm - 2.0 * m0 + mp;
 		//not a maximum (on a flank): move half a voxel uphill
 		if(denom >= 0)
 		{
-			return rp > rm ? 0.5 : (rp < rm ? -0.5 : 0.0);
+			return mp > mm ? 0.5 : (mp < mm ? -0.5 : 0.0);
 		}
-		return Math.max(-1.0, Math.min(1.0, 0.5 * (rm - rp) / denom));
+		return Math.max(-0.5, Math.min(0.5, 0.5 * (mm - mp) / denom));
 	}
-
-	/** steerable line filter at continuous grid position x for unit direction e,
-	 * from trilinearly interpolated hessian of the math box:
-	 * R(e) = -0.5*(tr(H) - e'He) - |e'He|. Returns NaN outside of the math box. **/
-	double getLineResponse(final double [] x, final double [] e)
+	
+	/** trilinear interpolation in a 3D float array (x fastest) at local continuous position xl,
+	 * NaN outside of [0, dims-1] **/
+	static double interpolateLocal(final float [] data, final int [] dims, final double [] xl)
 	{
-		final double [] h = new double[6];
-		if(!getHessianInterpolated(x, h))
-			return Double.NaN;
-		//component order: xx, xy, xz, yy, yz, zz
-		final double eHe = h[0] * e[0] * e[0] + h[3] * e[1] * e[1] + h[5] * e[2] * e[2]
-				+ 2.0 * (h[1] * e[0] * e[1] + h[2] * e[0] * e[2] + h[4] * e[1] * e[2]);
-		final double tr = h[0] + h[3] + h[5];
-		return -0.5 * (tr - eHe) - Math.abs(eHe);
-	}
-
-	/** trilinear interpolation of the 6 hessian components at continuous grid position x.
-	 * Returns false if x is outside of the math box **/
-	boolean getHessianInterpolated(final double [] x, final double [] h)
-	{
-		final long [] x0 = new long[3];
+		final int [] x0 = new int[3];
 		final double [] f = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
-			if(x[d] < salWeights.min(d) || x[d] > salWeights.max(d))
-				return false;
-			x0[d] = (long) Math.floor(x[d]);
-			f[d] = x[d] - x0[d];
+			if(xl[d] < 0 || xl[d] > dims[d] - 1)
+				return Double.NaN;
+			x0[d] = Math.min((int) Math.floor(xl[d]), dims[d] - 2 < 0 ? 0 : dims[d] - 2);
+			f[d] = xl[d] - x0[d];
 		}
-		for (int c = 0; c < 6; c++)
-		{
-			h[c] = 0;
-		}
-		final long [] pos = new long[4];
+		final int sy = dims[0];
+		final int sz = dims[0] * dims[1];
+		double val = 0;
 		for (int corner = 0; corner < 8; corner++)
 		{
 			double w = 1.0;
+			int nIndex = 0;
 			for (int d = 0; d < 3; d++)
 			{
 				final int bit = (corner >> d) & 1;
 				w *= (bit == 1) ? f[d] : (1.0 - f[d]);
-				pos[d] = Math.min(salWeights.max(d), x0[d] + bit);
+				final int c = Math.min(dims[d] - 1, x0[d] + bit);
+				nIndex += c * (d == 0 ? 1 : (d == 1 ? sy : sz));
 			}
-			if(w == 0)
-				continue;
-			for (int c = 0; c < 6; c++)
+			if(w != 0)
 			{
-				pos[3] = c;
-				h[c] += w * raH.setPositionAndGet(pos).getRealDouble();
+				val += w * data[nIndex];
 			}
 		}
-		return true;
+		return val;
 	}
+	
 	/*
      * Executed in event dispatching thread
      */
