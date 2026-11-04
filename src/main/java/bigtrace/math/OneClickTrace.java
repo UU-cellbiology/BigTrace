@@ -812,22 +812,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						}
 						LinAlgHelpers.normalize(candStep);
 						final double cosStep = Math.max(0.0, LinAlgHelpers.dot(candStep, refDirection));
-						//prefer candidates aligned with the path and stepping forward,
-						//penalizes sideways jumps onto a crossing filament
 
-//						if(!bCoasting)
-//						{
-							currScore = currSal * Math.pow(cosEig, dScorePowEig) * Math.pow(cosStep, dScorePowStep);
-//						}
-//						else
-//						{
-//							//stay in a corridor around the line extrapolated from before the junction
-//							final double dist2 = distance2ToCoastLine(candPos);
-//							currScore = currSal *  cosStep *  cosStep 
-//															* Math.exp(-0.5 * dist2 / (dCoastLineSigma * dCoastLineSigma));
-//
-//
-//						}
+						currScore = currSal * Math.pow(cosEig, dScorePowEig) * Math.pow(cosStep, dScorePowStep);
 					}
 					
 					//see if we pass
