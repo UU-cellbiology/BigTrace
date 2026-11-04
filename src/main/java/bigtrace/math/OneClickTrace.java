@@ -140,9 +140,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * (last centered point before the junction and the frozen heading), grid coordinates **/
 	final double [] coastLineOrigin = new double[3];
 	final double [] coastLineDir = new double[3];
-		
-	/** width (SD, grid voxels) of the corridor around the coasting line **/
-	double dCoastLineSigma = 1.0;
+
 	
 	ArrayList<double[]> allPointsIntersection;
 	
@@ -558,7 +556,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		nRecenterMaxSteps = Math.max(1, (int) Math.ceil(dMaxSigmaGrid));
 		nCoastMaxSteps = Math.max(2, (int) Math.ceil(5.0 * dMaxSigmaGrid));
-		dCoastLineSigma =  Math.max(0.75, 0.5 * dMaxSigmaGrid);
+		//nCoastMaxSteps = Math.max(1, (int) Math.ceil(1.0 * dMaxSigmaGrid));
 				
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
@@ -681,6 +679,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		final RandomAccess< T > raInput = bt.btData.bOCIntensityStop ? fullInput.randomAccess() : null;
 
+		//inside a junction saliency and eigenvectors are unreliable, 
+		//step along the line extrapolated from before the junction
+		if(bMomentum && bCoasting)
+		{
+			return coastAlongLine(currpoint, raInput);
+		}
 		final double [] newDirection = new double[3];
 		double [] candDirection;
 		
@@ -755,8 +759,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					final double cosEig = Math.abs(LinAlgHelpers.dot(candDirection, refDirection));
 					//check directionality
 					//(inside a junction eigenvectors are unreliable, gate is relaxed)
-					if(cosEig < dAngleThreshold && !(bMomentum && bCoasting))
-					//if(cosEig < dAngleThreshold)
+					//if(cosEig < dAngleThreshold && !(bMomentum && bCoasting))
+					if(cosEig < dAngleThreshold)
 					{
 						currSal = 0.0f;
 					}
@@ -791,19 +795,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						//prefer candidates aligned with the path and stepping forward,
 						//penalizes sideways jumps onto a crossing filament
 
-						if(!bCoasting)
-						{
+//						if(!bCoasting)
+//						{
 							currScore = currSal * Math.pow(cosEig, dScorePowEig) * Math.pow(cosStep, dScorePowStep);
-						}
-						else
-						{
-							//stay in a corridor around the line extrapolated from before the junction
-							final double dist2 = distance2ToCoastLine(candPos);
-							currScore = currSal *  cosStep *  cosStep 
-															* Math.exp(-0.5 * dist2 / (dCoastLineSigma * dCoastLineSigma));
-
-
-						}
+//						}
+//						else
+//						{
+//							//stay in a corridor around the line extrapolated from before the junction
+//							final double dist2 = distance2ToCoastLine(candPos);
+//							currScore = currSal *  cosStep *  cosStep 
+//															* Math.exp(-0.5 * dist2 / (dCoastLineSigma * dCoastLineSigma));
+//
+//
+//						}
 					}
 					
 					//see if we pass
@@ -835,21 +839,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 			if(bMomentum)
 			{
-				final double dCoherence = getPathCoherence(bestGrid);
-				System.out.println(dCoherence);
-				if(bCoasting)
-				{
-					nCoastSteps++;
-					//leave the junction when local orientations agree with the (frozen) heading again
-					final boolean bAligned = Math.abs(LinAlgHelpers.dot(newDirection, memDirectionVector)) >= dAngleThreshold;
-					if((dCoherence > dJunctionCoherenceOut && bAligned) || nCoastSteps >= nCoastMaxSteps)
-					{
-						//System.out.println(nCoastSteps );
-						bCoasting = false;
-					}
-				}
-				else if(dCoherence < dJunctionCoherenceIn)
-				{
+
+				if(getPathCoherence(bestGrid) < dJunctionCoherenceIn)
+ 				{
 					bCoasting = true;
 					//the previous point was still re-centered, use it and the heading as the line
 					for (int d = 0; d < 3; d++)
@@ -1492,18 +1484,79 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return sumWC / sumW;
 	}
 	
-	/** squared distance (grid voxels) from the grid position to the coasting line **/
-	double distance2ToCoastLine(final long [] gridPos)
+	/** One step through a junction: projects the current point onto the coasting line
+	 * and moves one grid voxel along it (sub-voxel position, so the trace stays exactly 
+	 * on the line). Saliency is not required (it can be zero at the center of an X), 
+	 * intensity threshold and mask still apply. Momentum stays frozen.
+	 * Leaves coasting when orientation coherence is high again and the local eigenvector 
+	 * agrees with the heading, or after nCoastMaxSteps.
+	 * Returns null if the step leaves the data or hits intensity/mask stop. **/
+	RealPoint coastAlongLine(final RealPoint currpoint, final RandomAccess< T > raInput)
 	{
-		double len2 = 0;
-		double proj = 0;
+		final double [] next = new double[3];
+		double t = 0;
 		for (int d = 0; d < 3; d++)
 		{
-			final double w = gridPos[d] - coastLineOrigin[d];
-			len2 += w * w;
-			proj += w * coastLineDir[d];
+			t += (toGridDouble(currpoint.getDoublePosition(d), d) - coastLineOrigin[d]) * coastLineDir[d];
 		}
-		return Math.max(0.0, len2 - proj * proj);
+		//foot of the perpendicular + one grid voxel forward
+		t += 1.0;
+		final long [] gridPos = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			next[d] = coastLineOrigin[d] + t * coastLineDir[d];
+			gridPos[d] = Math.round(next[d]);
+			if(gridPos[d] < gridMin[d] || gridPos[d] > gridMax[d])
+			{
+				return null;
+			}
+		}
+		final long [] posFull = toFullLong(gridPos);
+		if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+		{
+			return null;
+		}
+		if(bUseMask && traceMask.isOccupied( posFull ))
+		{
+			return null;
+		}
+
+		nCoastSteps++;
+		boolean bInsideBox = true;
+		for (int d = 0; d < 3; d++)
+		{
+			if(gridPos[d] < salWeights.min(d) || gridPos[d] > salWeights.max(d))
+			{
+				bInsideBox = false;
+			}
+		}
+		if(bInsideBox)
+		{
+			final double [] eigDir = getVectorAtGrid(gridPos);
+			if(LinAlgHelpers.dot(eigDir, memDirectionVector) < 0)
+			{
+				LinAlgHelpers.scale(eigDir, -1.0, eigDir);
+			}
+			System.arraycopy(eigDir, 0, lastDirectionVector, 0, 3);
+			//leave the junction when local orientations agree with the (frozen) heading again
+			final boolean bAligned = LinAlgHelpers.dot(eigDir, memDirectionVector) >= dAngleThreshold;
+			if(bAligned && getPathCoherence(gridPos) > dJunctionCoherenceOut)
+			{
+				bCoasting = false;
+			}
+		}
+		if(nCoastSteps >= nCoastMaxSteps)
+		{
+			bCoasting = false;
+		}
+
+		final double [] outPos = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			//continuous grid -> full resolution (same as toFull for integer grid positions)
+			outPos[d] = next[d] * ds[d] + 0.5 * (ds[d] - 1);
+		}
+		return new RealPoint(outPos);
 	}
 	
 	/*
