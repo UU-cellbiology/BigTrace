@@ -309,9 +309,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
-	public double dOCDownsampleSigma = 3.0;
-	
-	
+	public double dOCDownsampleSigma = 4.0;
+		
 	/** one-click "path stiffness" (0-1). If >0, tracing keeps a smoothed (momentum) direction
 	* of the path and scores candidate voxels by saliency, orientation agreement and step direction,
 	* which makes it more robust at filament crossings. Higher = straighter, stiffer path.
