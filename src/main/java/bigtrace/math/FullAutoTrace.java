@@ -66,6 +66,11 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		oneClickTrace.bt = this.bt;	
 		oneClickTrace.bInsertROI = false;
 		oneClickTrace.bUseMask = true;
+		//a trace passing a junction onto the end of an existing trace 
+		//(continuing in the same direction) is merged with it
+		oneClickTrace.bMergeTraceEnds = true;
+		//seeds (brightest voxels) are often at junctions: start out along an arm
+		oneClickTrace.bRelocateJunctionStart = true;
 		
 		oneClickTrace.bInit = false;
 		oneClickTrace.init();

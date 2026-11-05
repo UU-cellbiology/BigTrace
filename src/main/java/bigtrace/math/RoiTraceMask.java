@@ -1,6 +1,7 @@
 package bigtrace.math;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
@@ -59,6 +60,17 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     boolean [] blockDirty;
     
     
+    /** if true, initTraceMask also creates the junction mask (crossing handling in one-click is on).
+     * It records where traces passed junctions (crossed existing ROIs or crossing filaments),
+     * e.g. for visualization. Tracing does not depend on it: crossing an existing ROI 
+     * is decided by OneClickTrace.planPassage **/
+    public boolean bJunctionMask = false;
+    
+    /** junction mask: regions of the traced ROIs where a junction was passed by coasting **/
+    IntervalView< NativeBoolType > junctionMask = null;
+    
+    OutOfBounds< NativeBoolType > raJunctionExtended = null;
+    
     /** masks larger than this (in bytes) are disk-cached, smaller ones are kept in memory **/
     static final long MAX_IN_MEMORY_MASK_BYTES = 512L * 1024L * 1024L;
     
@@ -89,6 +101,14 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	final Img<NativeBoolType> maskArr = createMaskImg( dim );
         	
     	traceMask = Views.translate(maskArr, traceInterval.minAsLongArray());
+    	if(bJunctionMask)
+    	{
+    		junctionMask = Views.translate(createMaskImg( dim ), traceInterval.minAsLongArray());
+    	}
+    	else
+    	{
+    		junctionMask = null;
+    	}
     	if(maxSearchInterval_ == null)
     	{
 	    	maxSearchInterval = traceInterval;
@@ -118,7 +138,12 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
         	}
     	}
     	bMaskInit = true;
-    	for (final Roi3D roi : rois) 
+	    final ArrayList<Roi3D> roisSnap;
+	    synchronized(bt.roiManager.roiLock)
+	    {
+	    	   roisSnap = new ArrayList<>(rois);
+	    }
+    	for (final Roi3D roi : roisSnap) 
     	{
     		 if (roi.getTimePoint() == bt.btData.nCurrTimepoint)
     		 {
@@ -132,6 +157,7 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     	}
 		
     	raExtended = Views.extendValue( traceMask, true ).randomAccess();
+    	raJunctionExtended = (junctionMask == null) ? null : Views.extendValue( junctionMask, false ).randomAccess();
     	raMask = traceMask.randomAccess();
     	initBlockCache();
     	if(bReportProgress)
@@ -399,6 +425,74 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     
     /** creates mask image: an in-memory CellImg if it is not larger than
      * MAX_IN_MEMORY_MASK_BYTES, otherwise a disk-cached one **/
+    /** true if the position is inside a marked junction 
+     * (false if there is no junction mask or outside of it) **/
+    public boolean isJunction(final long[] posLong)
+    {
+    	if(raJunctionExtended == null)
+    		return false;
+    	raJunctionExtended.setPosition( posLong );
+    	return raJunctionExtended.get().get();
+    }
+    
+    /** marks in the junction mask all voxels within radius (voxels) 
+     * of the polyline pts (full resolution voxel coordinates) **/
+    public void markJunctionPath(final List<double[]> pts, final double radius)
+    {
+    	if(junctionMask == null || pts == null || pts.isEmpty())
+    		return;
+    	final RandomAccess< NativeBoolType > ra = junctionMask.randomAccess();
+    	final double r2 = radius * radius;
+    	final long [] bmin = new long[3];
+    	final long [] bmax = new long[3];
+    	final long [] pos = new long[3];
+    	final double [] ab = new double[3];
+    	for(int i = 0; i < pts.size(); i++)
+    	{
+    		final double [] a = pts.get( i );
+    		final double [] b = pts.get( Math.min( i + 1, pts.size() - 1 ) );
+    		double ab2 = 0;
+    		for(int d = 0; d < 3; d++)
+    		{
+    			ab[d] = b[d] - a[d];
+    			ab2 += ab[d] * ab[d];
+    			bmin[d] = Math.max( junctionMask.min( d ), (long) Math.floor( Math.min( a[d], b[d] ) - radius ) );
+    			bmax[d] = Math.min( junctionMask.max( d ), (long) Math.ceil( Math.max( a[d], b[d] ) + radius ) );
+    		}
+    		for(pos[2] = bmin[2]; pos[2] <= bmax[2]; pos[2]++)
+    			for(pos[1] = bmin[1]; pos[1] <= bmax[1]; pos[1]++)
+    				for(pos[0] = bmin[0]; pos[0] <= bmax[0]; pos[0]++)
+    				{
+    					//distance to segment a-b
+    					double t = 0;
+    					if(ab2 > 0)
+    					{
+    						for(int d = 0; d < 3; d++)
+    						{
+    							t += (pos[d] - a[d]) * ab[d];
+    						}
+    						t = Math.max( 0.0, Math.min( 1.0, t / ab2 ) );
+    					}
+    					double dist2 = 0;
+    					for(int d = 0; d < 3; d++)
+    					{
+    						final double diff = pos[d] - (a[d] + t * ab[d]);
+    						dist2 += diff * diff;
+    					}
+    					if(dist2 <= r2)
+    					{
+    						ra.setPositionAndGet( pos ).set( true );
+    					}
+    				}
+    	}
+    }
+    
+    /** junction mask (null if not created), e.g. for visualization **/
+    public IntervalView< NativeBoolType > getJunctionMask()
+    {
+    	return junctionMask;
+    }
+    
     static Img<NativeBoolType> createMaskImg(final long [] dim)
     {
     	//NativeBoolType is stored as one byte per voxel
