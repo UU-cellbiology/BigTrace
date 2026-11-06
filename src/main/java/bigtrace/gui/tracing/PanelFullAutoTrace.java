@@ -72,11 +72,15 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		
 		final NumberField nfMaxIntFullTraceStart = new NumberField(5);
 		final NumberField nfAutoMinCurveLength = new NumberField(5);
+		final NumberField nfAutoMaxTraces = new NumberField(5);
 		
 		nfMaxIntFullTraceStart.setIntegersOnly( false );
 		nfMaxIntFullTraceStart.setText( df3.format(Prefs.get("BigTrace.dAutoMinStartTraceInt", 128.0)) );
 		nfAutoMinCurveLength.setIntegersOnly( false );
 		nfAutoMinCurveLength.setText( df3.format(Prefs.get("BigTrace.dAutoMinCurveLength", 3)) );
+		nfAutoMaxTraces.setIntegersOnly( true );
+		nfAutoMaxTraces.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMaxTraces", 0)) );
+		nfAutoMaxTraces.setToolTipText( "0 = no limit" );
 
 		final JCheckBox cbMinLengthInUnits = new JCheckBox();
 		cbMinLengthInUnits.setSelected( Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
@@ -103,6 +107,12 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		dialogFullAutoSettings.add(new JLabel("Min length is in units:"), gbc);
 		gbc.gridx++;
 		dialogFullAutoSettings.add(cbMinLengthInUnits, gbc);
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		dialogFullAutoSettings.add(new JLabel("Stop when added N traces (0 = all):"), gbc);
+		gbc.gridx++;
+		dialogFullAutoSettings.add(nfAutoMaxTraces, gbc);
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
@@ -181,6 +191,9 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 			final double dAutoMinCurveLength = Double.parseDouble(nfAutoMinCurveLength.getText());
 			Prefs.set("BigTrace.dAutoMinCurveLength", dAutoMinCurveLength );
 
+			final int nAutoMaxTraces = Math.max(0, Integer.parseInt(nfAutoMaxTraces.getText()));
+			Prefs.set("BigTrace.nAutoMaxTraces", nAutoMaxTraces );
+			
 			final boolean bMinCurveLengthInUnits = cbMinLengthInUnits.isSelected();
 			Prefs.set("BigTrace.bMinCurveLengthInUnits", bMinCurveLengthInUnits );
 			
@@ -203,14 +216,23 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 					nLastTP = timeRange.getMax();
 				}
 			}
-			launchFullAutoTrace(dAutoMinStartTrace, dAutoMinCurveLength, nFirstTP, nLastTP);
+			launchFullAutoTrace(dAutoMinStartTrace, dAutoMinCurveLength, nFirstTP, nLastTP, nAutoMaxTraces);
 		}
 
 	}
 	
+	/** no limit on the number of traces (e.g. macros) **/
 	public void launchFullAutoTrace(final double dAutoMinStartTrace, final double dAutoMinCurveLength, final int nFirstTP, final int nLastTP)
 	{
+		launchFullAutoTrace(dAutoMinStartTrace, dAutoMinCurveLength, nFirstTP, nLastTP, 0);
+	}
+	
+	/** nAutoMaxTraces: stop after this number of added traces, 0 = no limit **/
+	public void launchFullAutoTrace(final double dAutoMinStartTrace, final double dAutoMinCurveLength, final int nFirstTP, final int nLastTP, final int nAutoMaxTraces)
+	{
 		fullAutoTrace = new FullAutoTrace<>(bt);
+		
+		fullAutoTrace.nAutoMaxTraces = nAutoMaxTraces;
 		
 		fullAutoTrace.nFirstTP = nFirstTP;
 		fullAutoTrace.nLastTP = nLastTP;

@@ -29,6 +29,10 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public double dAutoMinCurveLength = 0;
 	
+	/** stop after this number of new traces were added (in total, over all timepoints);
+	 * 0 = no limit, trace until no start above the intensity threshold is left **/
+	public int nAutoMaxTraces = 0;
+	
 	boolean bMinCurveLengthInUnits = Prefs.get("BigTrace.bMinCurveLengthInUnits", false );
 	
 	final OneClickTrace<T> oneClickTrace = new OneClickTrace<>();
@@ -77,7 +81,8 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		setProgress(0);
 		int nCurrRoiN = nCount;
-		for(int nTP = nFirstTP; nTP <= nLastTP; nTP++)
+		boolean bMaxTracesReached = false;
+		for(int nTP = nFirstTP; nTP <= nLastTP && !bMaxTracesReached; nTP++)
 		{
 			final int tp = nTP;
 			bt.btData.nCurrTimepoint = tp;
@@ -130,6 +135,12 @@ public class FullAutoTrace < T extends RealType< T > & NativeType< T > > extends
 						else
 						{
 							nCount++;
+							//limit of added traces
+							if(nAutoMaxTraces > 0 && nCount >= nAutoMaxTraces)
+							{
+								bMaxTracesReached = true;
+								bKeepTracing = false;
+							}
 						}
 					}
 					if( bt.btMacro.bMacroMode )

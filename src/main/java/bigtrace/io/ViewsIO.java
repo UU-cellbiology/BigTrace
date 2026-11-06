@@ -97,6 +97,7 @@ public class ViewsIO
 
 				writer.write("dAutoMinStartTraceInt," + Integer.toString( (int)Prefs.get("BigTrace.dAutoMinStartTraceInt",128.0) )+"\n");
 				writer.write("dAutoMinCurveLength," + df3.format(Prefs.get("BigTrace.dAutoMinCurveLength", 3) )+"\n");
+				writer.write("nAutoMaxTraces," + Integer.toString( (int)Prefs.get("BigTrace.nAutoMaxTraces", 0) )+"\n");
 				
 				writer.write("Scene, current\n");
 				bt.getCurrentScene().save( writer );
@@ -381,6 +382,9 @@ public class ViewsIO
 				case "dAutoMinCurveLength":
 					final double dAutoMinCurveLength = Double.parseDouble( line_array[1] );
 					Prefs.set("BigTrace.dAutoMinCurveLength", dAutoMinCurveLength);
+					break;
+				case "nAutoMaxTraces":
+					Prefs.set("BigTrace.nAutoMaxTraces", Integer.parseInt( line_array[1] ));
 					break;		
 					
 					
