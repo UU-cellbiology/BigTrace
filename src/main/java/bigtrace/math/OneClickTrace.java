@@ -140,7 +140,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	/** if true, the junction map is shown in ImageJ when entering a junction 
 	 * (interactive one-click only, not in batch/auto tracing) **/
-	public boolean bShowJunctionMap = true;
+	public boolean bShowJunctionMap = false;
 	
 	ArrayList<double[]> allPointsIntersection;
 	
