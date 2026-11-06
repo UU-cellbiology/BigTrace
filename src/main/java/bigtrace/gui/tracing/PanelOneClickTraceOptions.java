@@ -102,16 +102,17 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		gbc.gridwidth = 2;
-		this.add(cbDownsample, gbc);
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
 		gbc.gridwidth = 1;
-		this.add(new JLabel("Path stiffness at crossings (0-1): "), gbc);
+		this.add(new JLabel("Detect crossings, use stiffness (0-1): "), gbc);
 		gbc.gridx++;
 		this.add(nfStiffness, gbc);
 		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 2;
+		this.add(cbDownsample, gbc);
+		
+	
 		if(bShowMaskOption)
 		{
 			gbc.gridx = 0;

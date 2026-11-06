@@ -1267,8 +1267,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		return out;
 	}
-	/** fills gridBox (positioned at gridMinPos in grid coordinates)
-	 * with block averages of fullInput (border-extended) **/
+
 	/** input (grid coordinates) for the hessian convolution of a junction box:
 	 * the full dataset, or with downsampling its block averages filled in the box **/
 	RandomAccessibleInterval<?> getJunctionInput(final JunctionBox box)
@@ -1281,6 +1280,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return Views.translate(box.gridImg, box.boxMin[0], box.boxMin[1], box.boxMin[2]);
 	}
 	
+	/** fills gridBox (positioned at gridMinPos in grid coordinates)
+	 * with block averages of fullInput (border-extended) **/
 	void fillGridBox(final ArrayImg<FloatType, FloatArray> target, final long [] gridMinPos)
 	{
 		final RandomAccess<T> raIn = Views.extendBorder(fullInput).randomAccess();
