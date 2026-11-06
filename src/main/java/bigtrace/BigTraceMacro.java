@@ -61,7 +61,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				  																		  MacroExtension.ARG_NUMBER, 
 				  																		  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL, 
 				  																		  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);		
-		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickScaledTracing", bt, MacroExtension.ARG_STRING); //"true"/"false"
+		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickAlgorithms", bt, MacroExtension.ARG_STRING, //scaled tracing "true"/"false"
+																						MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL); //stiffness 0..1
 		
 		extensions[10] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER,
@@ -200,11 +201,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
 			});
 		}
-		if (name.equals("btSetOneClickScaledTracing")) 
+		if (name.equals("btSetOneClickAlgorithms")) 
 		{
 			enqueue (()-> 
 			{
-				macroSetOneClickScaledTracing((String)args[0]);
+				//stiffness is optional, negative = keep the current value
+				final double dStiffness = (args[1] == null) ? -1.0 : ((Double)args[1]).doubleValue();
+				macroSetOneClickAlgorithms((String)args[0], dStiffness);
 			});
 		}
 
@@ -529,23 +532,33 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
-	/** macro function sets one-click "scaled" (downsampled) tracing
-	 * @param sEnable
+	/** macro function sets one-click tracing algorithms
+	 * @param sScaled
 	 *  string, must contain "true" or "false". If true, for large tracing sigma one-click tracing 
 	 *  runs on a block-averaged (downsampled) grid, so the kernel stays about dTargetSD pixels.
 	 *  If false, original full resolution tracing is used.
+	 * @param dStiffness
+	 *  stiffness of tracing (momentum and crossing handling), clamped to [0..1];
+	 *  0 = original tracing without crossing handling. 
+	 *  Negative value (or the argument omitted in the macro) keeps the current stiffness.
 	 *  **/
-	public void macroSetOneClickScaledTracing(final String sEnable)
+	public void macroSetOneClickAlgorithms(final String sScaled, final double dStiffness)
 	{
 		bt.bInputLock = true;
 		bMacroMode = true;
 		
-		bt.btData.bOCDownsample = sEnable.toLowerCase().equals( "true" );
+		bt.btData.bOCDownsample = sScaled.toLowerCase().equals( "true" );
 		Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);		
+		
+		if(dStiffness >= 0)
+		{
+			bt.btData.dOCStiffness = Math.min(1.0, dStiffness);
+			Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+		}
 		
 		TaskBT.runOnEDTAndWait(()->
 		{
-			IJ.log( "Setting one-click scaled tracing:" );
+			IJ.log( "Setting one-click tracing algorithms:" );
 			printOneClickParams();
 		});
 		bt.bInputLock = false;
@@ -1172,6 +1185,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Use intensity threshold: " + bt.btData.bOCIntensityStop );	
 		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
 		IJ.log( "   Scaled (downsampled) tracing: " + bt.btData.bOCDownsample );
+		IJ.log( "   Stiffness: " + bt.btData.dOCStiffness );
 		if(bt.btData.bOCIntensityStop)
 		{
 			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));
