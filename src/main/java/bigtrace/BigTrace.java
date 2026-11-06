@@ -482,10 +482,9 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			final RoiTraceMask<T> mask = new RoiTraceMask<>(this);
 			mask.traceInterval = traceIV;
 			mask.addPropertyChangeListener( btPanel );
+			//it will run OneClick once the mask is initialized
 			mask.oneclick = oneClickTrace;
 			mask.execute();
-
-			//oneClickTrace.traceMask = mask;
 		}
 		else
 		{
@@ -1550,6 +1549,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		//testI.run("");
 		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
+		//testI.run("/home/eugene/Desktop/projects/BigTrace/junctions/ExM_MT.tif_crop.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP-3d.tif");
 
