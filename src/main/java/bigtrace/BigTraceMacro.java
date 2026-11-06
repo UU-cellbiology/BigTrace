@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[20];
+		extensions = new ExtensionDescriptor[21];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -88,6 +88,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		extensions[17] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
 		extensions[18] = ExtensionDescriptor.newDescriptor("btTest", bt);
 		extensions[19] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[20] = ExtensionDescriptor.newDescriptor("btSetFullAutoTraceParameters", bt, MacroExtension.ARG_STRING, //min length in units "true"/"false"
+																								MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL, //stop when added N traces, 0 = no limit
+																								MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //start only inside clip "true"/"false"
 		
 	}
 	
@@ -327,8 +330,51 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			});
 		}
 		
+		if (name.equals("btSetFullAutoTraceParameters")) 
+		{
+			enqueue (()-> 
+			{
+				//optional arguments: negative N / null keep the current value
+				final int nMaxTraces = (args[1] == null) ? -1 : (int)Math.round(((Double)args[1]).doubleValue());
+				macroSetFullAutoTraceParameters((String)args[0], nMaxTraces, (String)args[2]);
+			});
+		}
+		
 		return null;
 	}
+	/** macro function sets parameters of full auto tracing (stored in Prefs, the same as in the full auto trace dialog)
+	 * @param sMinLengthInUnits
+	 *  "true" or "false": min curve length of btRunFullAutoTrace is in physical units (true) or in voxels (false)
+	 * @param nMaxTraces
+	 *  stop full auto tracing when N traces were added (in total, over all time points), 0 = no limit.
+	 *  Negative value (or the argument omitted in the macro) keeps the current value.
+	 * @param sStartOnlyInsideClip
+	 *  "true" or "false": start tracing only inside the clipped volume.
+	 *  null (the argument omitted in the macro) keeps the current value.
+	 **/
+	public void macroSetFullAutoTraceParameters(final String sMinLengthInUnits, final int nMaxTraces, final String sStartOnlyInsideClip)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		Prefs.set("BigTrace.bMinCurveLengthInUnits", sMinLengthInUnits.toLowerCase().equals( "true" ));
+		if(nMaxTraces >= 0)
+		{
+			Prefs.set("BigTrace.nAutoMaxTraces", nMaxTraces);
+		}
+		if(sStartOnlyInsideClip != null)
+		{
+			Prefs.set("BigTrace.bStartOnlyInsideClip", sStartOnlyInsideClip.toLowerCase().equals( "true" ));
+		}
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting full auto tracing parameters:" );
+			printFullAutoTraceParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
 	/** macro function runs full auto on all time points 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
@@ -379,11 +425,13 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log( "   Min curve length: " + Double.toString( dMinCurveLength ) + sUnits) ;
 			IJ.log( "   First time frame: " + Integer.toString( nFirstFrame ));
 			IJ.log( "   Last time frame: " + Integer.toString( nLastFrame ));
+			printFullAutoTraceParams();
 			printShapeInterpolation();
 			IJ.log( "One-click tracing parameters" );
 			printOneClickParams();
 		});
-		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, dMinCurveLength, nFirstFrame, nLastFrame );
+		final int nAutoMaxTraces = Math.max(0, (int)Prefs.get("BigTrace.nAutoMaxTraces", 0));
+		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, dMinCurveLength, nFirstFrame, nLastFrame, nAutoMaxTraces );
 		bMacroMode = false;
 	}
 	
@@ -1172,6 +1220,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	}
 	
 	//LOGGING HELPERS
+	
+	void printFullAutoTraceParams()
+	{
+		IJ.log( "   Min curve length in units: " + Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
+		final int nMax = (int)Prefs.get("BigTrace.nAutoMaxTraces", 0);
+		IJ.log( "   Stop when added N traces: " + (nMax > 0 ? Integer.toString( nMax ) : "0 (no limit)") );
+		IJ.log( "   Start tracing only inside clip: " + Prefs.get("BigTrace.bStartOnlyInsideClip", false) );
+	}
 	
 	void printOneClickParams()
 	{
