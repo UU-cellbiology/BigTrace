@@ -9,6 +9,8 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.panels.NumberField;
@@ -23,6 +25,11 @@ public class PanelTracingOptions extends JPanel
 	final NumberField nfSigmaX = new NumberField(4);
 	final NumberField nfSigmaY = new NumberField(4);
 	final NumberField nfSigmaZ = new NumberField(4);
+	
+	/** SD of each axis in physical units (pixel size globCal), updated while typing **/
+	final JLabel [] lSigmaUnits = new JLabel [] {new JLabel(), new JLabel(), new JLabel()};
+	
+	final DecimalFormat dfUnits;
 	
 	final JCheckBox cbTraceOnlyClipped = new JCheckBox("Trace only clipped volume");
 	final String [] sEstimateMode = new String [] {"MAX", "AVG", "MIN"};
@@ -41,6 +48,7 @@ public class PanelTracingOptions extends JPanel
 		decimalFormatSymbols.setDecimalSeparator('.');
 		DecimalFormat df = new DecimalFormat("0.00", decimalFormatSymbols);
 		DecimalFormat df2 = new DecimalFormat("0.0", decimalFormatSymbols);
+		dfUnits = new DecimalFormat("0.###", decimalFormatSymbols);
 	
 		nfSigmaX.setText(df.format(bt.btData.sigmaTrace[0]));
 		nfSigmaY.setText(df.format(bt.btData.sigmaTrace[1]));
@@ -51,23 +59,32 @@ public class PanelTracingOptions extends JPanel
 		cbEstimateThickness.setSelected(bt.btData.bEstimateROIThicknessFromParams);		
 		cbTraceOnlyClipped.setSelected(bt.btData.bTraceOnlyClipped);
 		
-		gbc.gridx = 0;
-		gbc.gridy = 0;
-		this.add(new JLabel("Curve thickness X axis (SD, px): "),gbc);
-		gbc.gridx++;
-		this.add(nfSigmaX,gbc);
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
-		this.add(new JLabel("Curve thickness Y axis (SD, px): "),gbc);
-		gbc.gridx++;
-		this.add(nfSigmaY,gbc);
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
-		this.add(new JLabel("Curve thickness Z axis (SD, px): "),gbc);
-		gbc.gridx++;
-		this.add(nfSigmaZ,gbc);
+		final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
+		final String [] sAxes = new String [] {"X", "Y", "Z"};
+		for(int d = 0; d < 3; d++)
+		{
+			gbc.gridx = 0;
+			gbc.gridy = d;
+			this.add(new JLabel("Curve thickness " + sAxes[d] + " axis (SD, px): "),gbc);
+			gbc.gridx++;
+			this.add(nfSigmas[d],gbc);
+			gbc.gridx++;
+			gbc.anchor = GridBagConstraints.WEST;
+			this.add(lSigmaUnits[d],gbc);
+			gbc.anchor = GridBagConstraints.CENTER;
+			
+			final int dim = d;
+			updateSigmaUnits(dim, nfSigmas[dim].getText());
+			nfSigmas[d].addDocumentListener( new DocumentListener()
+			{
+				@Override
+				public void insertUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+				@Override
+				public void removeUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+				@Override
+				public void changedUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+			});
+		}
 		
 		JPanel panEstimate = new JPanel(new GridBagLayout());
 		GridBagConstraints gbc2 = new GridBagConstraints();
@@ -85,7 +102,7 @@ public class PanelTracingOptions extends JPanel
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		gbc.gridwidth = 2;
+		gbc.gridwidth = 3;
 		//this.add(new JLabel("Estimate ROI thickness from params: "),gbc);
 		//gbc.gridx++;
 		//this.add(cbEstimateThickness,gbc);
@@ -96,6 +113,22 @@ public class PanelTracingOptions extends JPanel
 		gbc.gridy++;
 		gbc.anchor = GridBagConstraints.WEST;
 		this.add(cbTraceOnlyClipped,gbc);
+	}
+	
+	/** shows SD along axis d (text in pixels) in physical units **/
+	void updateSigmaUnits(final int d, final String sPixels)
+	{
+		String sOut;
+		try
+		{
+			final double dSD = Double.parseDouble( sPixels ) * bt.btData.globCal[d];
+			sOut = " = " + dfUnits.format( dSD ) + " " + bt.btData.sVoxelUnit;
+		}
+		catch(NumberFormatException e)
+		{
+			sOut = " = ? " + bt.btData.sVoxelUnit;
+		}
+		lSigmaUnits[d].setText( sOut );
 	}
 	
 	public void getSetOptions()
