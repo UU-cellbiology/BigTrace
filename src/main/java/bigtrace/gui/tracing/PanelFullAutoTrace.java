@@ -80,7 +80,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		nfAutoMinCurveLength.setText( df3.format(Prefs.get("BigTrace.dAutoMinCurveLength", 3)) );
 		nfAutoMaxTraces.setIntegersOnly( true );
 		nfAutoMaxTraces.setText( Integer.toString((int)Prefs.get("BigTrace.nAutoMaxTraces", 0)) );
-		nfAutoMaxTraces.setToolTipText( "0 = no limit" );
+		nfAutoMaxTraces.setToolTipText( "Per timepoint (timelapse), 0 = no limit" );
 
 		final JCheckBox cbMinLengthInUnits = new JCheckBox();
 		cbMinLengthInUnits.setSelected( Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
@@ -227,7 +227,7 @@ public class PanelFullAutoTrace < T extends RealType< T > & NativeType< T > > im
 		launchFullAutoTrace(dAutoMinStartTrace, dAutoMinCurveLength, nFirstTP, nLastTP, 0);
 	}
 	
-	/** nAutoMaxTraces: stop after this number of added traces, 0 = no limit **/
+	/** nAutoMaxTraces: stop after this number of added traces per timepoint, 0 = no limit **/
 	public void launchFullAutoTrace(final double dAutoMinStartTrace, final double dAutoMinCurveLength, final int nFirstTP, final int nLastTP, final int nAutoMaxTraces)
 	{
 		fullAutoTrace = new FullAutoTrace<>(bt);

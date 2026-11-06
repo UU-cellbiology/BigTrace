@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[21];
+		extensions = new ExtensionDescriptor[22];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -89,8 +89,11 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		extensions[18] = ExtensionDescriptor.newDescriptor("btTest", bt);
 		extensions[19] = ExtensionDescriptor.newDescriptor("btClose", bt);
 		extensions[20] = ExtensionDescriptor.newDescriptor("btSetFullAutoTraceParameters", bt, MacroExtension.ARG_STRING, //min length in units "true"/"false"
-																								MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL, //stop when added N traces, 0 = no limit
+																								MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL, //stop when added N traces (per timepoint), 0 = no limit
 																								MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //start only inside clip "true"/"false"
+		extensions[21] = ExtensionDescriptor.newDescriptor("btSetClippingLimit", bt, MacroExtension.ARG_NUMBER, //axis 0 - X, 1 - Y, 2 - Z
+																					  MacroExtension.ARG_NUMBER, //min
+																					  MacroExtension.ARG_NUMBER); //max
 		
 	}
 	
@@ -330,6 +333,16 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			});
 		}
 		
+		if (name.equals("btSetClippingLimit")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetClippingLimit((int)Math.round(((Double)args[0]).doubleValue()),
+									  (int)Math.round(((Double)args[1]).doubleValue()),
+									  (int)Math.round(((Double)args[2]).doubleValue()));
+			});
+		}
+		
 		if (name.equals("btSetFullAutoTraceParameters")) 
 		{
 			enqueue (()-> 
@@ -342,11 +355,58 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		
 		return null;
 	}
+	/** macro function sets the clipping (view and tracing volume) limits along one axis
+	 * @param nClippingAxis
+	 *  0 - X, 1 - Y, 2 - Z
+	 * @param nMin
+	 *  minimum (first voxel) of the clipped volume along the axis (pixels, numbering from 0)
+	 * @param nMax
+	 *  maximum (last voxel) of the clipped volume along the axis (pixels).
+	 *  Values are limited to the volume, nMin and nMax are swapped if nMin > nMax. 
+	 *  To reset the clipping along an axis, use a large range, e.g. (axis, 0, 100000).
+	 **/
+	public void macroSetClippingLimit(final int nClippingAxis, final int nMin, final int nMax)
+	{
+		if(nClippingAxis < 0 || nClippingAxis > 2)
+		{
+			IJ.log( "BigTrace macro error: clipping axis should be 0 (X), 1 (Y) or 2 (Z), provided value " + Integer.toString( nClippingAxis ) + "." );
+			return;
+		}
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		final long nLow = bt.btData.nDimIni[0][nClippingAxis];
+		final long nHigh = bt.btData.nDimIni[1][nClippingAxis];
+		final long [][] box = new long [2][3];
+		for(int d = 0; d < 3; d++)
+		{
+			box[0][d] = bt.btData.nDimCurr[0][d];
+			box[1][d] = bt.btData.nDimCurr[1][d];
+		}
+		box[0][nClippingAxis] = Math.max(nLow, Math.min(nHigh, Math.min(nMin, nMax)));
+		box[1][nClippingAxis] = Math.max(nLow, Math.min(nHigh, Math.max(nMin, nMax)));
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			//update the sliders of the clipping panel (it also updates the view)
+			bt.btPanel.clipPanel.setBoundingBox( box );
+			//make sure the clipping is applied (no change if it is already the case)
+			bt.btPanel.bbChanged( box );
+			final String [] sAxes = new String [] {"X", "Y", "Z"};
+			IJ.log( "BigTrace macro: clipping along " + sAxes[nClippingAxis] + " set to [" 
+					+ Long.toString( bt.btData.nDimCurr[0][nClippingAxis] ) + ", " 
+					+ Long.toString( bt.btData.nDimCurr[1][nClippingAxis] ) + "]" );
+		});
+		bt.repaintBVV();
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
 	/** macro function sets parameters of full auto tracing (stored in Prefs, the same as in the full auto trace dialog)
 	 * @param sMinLengthInUnits
 	 *  "true" or "false": min curve length of btRunFullAutoTrace is in physical units (true) or in voxels (false)
 	 * @param nMaxTraces
-	 *  stop full auto tracing when N traces were added (in total, over all time points), 0 = no limit.
+	 *  stop full auto tracing at a time point when N traces were added there (per time point), 0 = no limit.
 	 *  Negative value (or the argument omitted in the macro) keeps the current value.
 	 * @param sStartOnlyInsideClip
 	 *  "true" or "false": start tracing only inside the clipped volume.
@@ -1225,7 +1285,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		IJ.log( "   Min curve length in units: " + Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
 		final int nMax = (int)Prefs.get("BigTrace.nAutoMaxTraces", 0);
-		IJ.log( "   Stop when added N traces: " + (nMax > 0 ? Integer.toString( nMax ) : "0 (no limit)") );
+		IJ.log( "   Stop when added N traces (per timepoint): " + (nMax > 0 ? Integer.toString( nMax ) : "0 (no limit)") );
 		IJ.log( "   Start tracing only inside clip: " + Prefs.get("BigTrace.bStartOnlyInsideClip", false) );
 	}
 	
