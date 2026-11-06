@@ -44,7 +44,12 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	 * from existing ROIs (traced mask), otherwise normal stepping runs along their edge **/
 	final double dPassageClearFactor = 1.0;
 
-	/** arms of the elongated line filter (start relocation): number of tested directions,
+	/** a passage along which the map drops below this fraction of its value at the first step
+	 * is rejected: it runs into the void (e.g. straight on at a kink of the filament).
+	 * Tested: overshoots at kinks dropped to 0.05-0.12, real crossings stayed >= 0.2 **/
+	final double dPassageFadeFraction = 0.15;
+	
+	/** arms of the elongated line filter (start relocation, kinks): number of tested directions,
 	 * minimum response (fraction of the strongest) and minimum angle between arms **/
 	final int nArmDirections = 128;
 	final double dArmFraction = 0.35;
@@ -104,6 +109,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 
 	/** first point of the current coasting **/
 	final double [] coastStartPos = new double[3];
+	
+	/** map value at the first coasting step and the lowest ratio to it along the passage **/
+	double dMapFirst = 1.0;
+	double dMapMinRatio = 1.0;
 
 	/** points of an accepted junction passage, returned one by one by step() **/
 	final ArrayDeque<RealPoint> passageQueue = new ArrayDeque<>();
@@ -302,6 +311,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	{
 		passageQueue.clear();
 		final ArrayList<RealPoint> path = new ArrayList<>();
+		//heading before the junction (restored if there is no passage)
+		final double [] memBefore = oc.memDirectionVector.clone();
+		final double [] lastBefore = oc.lastDirectionVector.clone();
+		dMapMinRatio = 1.0;
 		RealPoint pt = enterJunction(currpoint, raInput);
 		while(pt != null)
 		{
@@ -316,10 +329,13 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		}
 		if(path.isEmpty())
 		{
+			noPassageHeading(currpoint, memBefore, lastBefore);
 			return PASSAGE_NONE;
 		}
 		final double [] lastGrid = toGrid(path.get(path.size() - 1));
-		if(bCoastEndedByDistance && !isNearTraced(lastGrid))
+		//safeguard: the map faded along the passage, it runs into the void
+		final boolean bFaded = dMapMinRatio < dPassageFadeFraction;
+		if(bCoastEndedByDistance && !bFaded && !isNearTraced(lastGrid))
 		{
 			passageQueue.addAll(path);
 			return PASSAGE_OK;
@@ -351,7 +367,53 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			}
 			return PASSAGE_MERGE;
 		}
+		noPassageHeading(currpoint, memBefore, lastBefore);
 		return PASSAGE_NONE;
+	}
+	
+	/** No passage (e.g. a kink of the filament detected as a junction): the heading from before
+	 * the junction is restored and turned to the outgoing arm of the elongated line filter 
+	 * at the detection point (~sigma ahead): the arm closest to the heading, other than the incoming one.
+	 * Otherwise a stiff momentum keeps pointing straight on and normal stepping stops at the kink. **/
+	void noPassageHeading(final RealPoint currpoint, final double [] memBefore, final double [] lastBefore)
+	{
+		System.arraycopy(memBefore, 0, oc.memDirectionVector, 0, 3);
+		System.arraycopy(lastBefore, 0, oc.lastDirectionVector, 0, 3);
+		if(box.hessBox == null)
+			return;
+		final double [] pAhead = toGrid(currpoint);
+		for (int d = 0; d < 3; d++)
+		{
+			pAhead[d] += nJunctionRadius * memBefore[d];
+		}
+		final ArrayList<double[]> arms = box.hessBox.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
+		if(arms.size() < 2)
+			return;
+		//incoming arm: pointing back along the heading
+		int nIncoming = 0;
+		for (int i = 1; i < arms.size(); i++)
+		{
+			if(SteerableLineFilter.dot(arms.get(i), memBefore) < SteerableLineFilter.dot(arms.get(nIncoming), memBefore))
+				nIncoming = i;
+		}
+		double [] outArm = null;
+		double dBest = 0.0;
+		for (int i = 0; i < arms.size(); i++)
+		{
+			if(i == nIncoming)
+				continue;
+			final double c = SteerableLineFilter.dot(arms.get(i), memBefore);
+			if(c > dBest)
+			{
+				dBest = c;
+				outArm = arms.get(i);
+			}
+		}
+		if(outArm != null)
+		{
+			System.arraycopy(outArm, 0, oc.memDirectionVector, 0, 3);
+			System.arraycopy(outArm, 0, oc.lastDirectionVector, 0, 3);
+		}
 	}
 
 	/** starts coasting at the current point: heading = momentum, junction map, first coasting step **/
@@ -438,6 +500,16 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		{
 			stopCoasting();
 			return null;
+		}
+		//fading of the map along the passage
+		if(nCoastSteps == 0)
+		{
+			dMapFirst = m0;
+			dMapMinRatio = 1.0;
+		}
+		else
+		{
+			dMapMinRatio = Math.min(dMapMinRatio, m0 / dMapFirst);
 		}
 		final double ou = getMapParabolicOffset(q, u, m0);
 		final double ov = getMapParabolicOffset(q, v, m0);
