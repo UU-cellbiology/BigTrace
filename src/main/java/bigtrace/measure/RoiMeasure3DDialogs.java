@@ -110,7 +110,7 @@ public class RoiMeasure3DDialogs < T extends RealType< T > & NativeType< T > >
 		gbc.gridx = 0;	
 		extractROISettings.add(new JLabel("Output:"),gbc);
 		gbc.gridx++;
-		String[] sExtractBoxOutput = { "show in ImageJ", "save as TIF" };
+		String[] sExtractBoxOutput = { "show in ImageJ", "save as TIF", "save as BDV XML/HDF5" };
 		JComboBox<String> extractBoxOutputList = new JComboBox<>(sExtractBoxOutput);
 		extractBoxOutputList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractBoxOutput", 0));
 		extractROISettings.add(extractBoxOutputList,gbc);
@@ -159,7 +159,7 @@ public class RoiMeasure3DDialogs < T extends RealType< T > & NativeType< T > >
 			String sSaveDir = "";
 			if(nExtractBoxOutput > 0)
 			{
-				sSaveDir = GetFolderDialog.getSelectedFolder( bt, "Save box ROI TIF to folder..." );
+				sSaveDir = GetFolderDialog.getSelectedFolder( bt, (nExtractBoxOutput == 1) ? "Save box ROI TIF to folder..." : "Save box ROI XML/HDF5 to folder..." );
 				if(sSaveDir == null)
 				{
 					bt.btPanel.progressBar.setString("curve straightening aborted.");

@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceBGTask;
+import bigtrace.io.BoxHDF5Saver;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -23,9 +24,13 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends B
 	
 	Calibration cal;
 	
+	/** 0 - show in ImageJ, 1 - save as TIFF, 2 - save as BDV XML/HDF5 **/
 	int nOutput;
 	
 	public int nMinTimePoint, nMaxTimePoint;
+	
+	/** output path and file name without extension (BDV XML/HDF5 output) **/
+	String sFullPathNoExt = null;
 
 	public ExtractClip( final BigTrace<T> bt_, final int nTimePointMin_, final int nTimePointMax_, final int nOutput_)
 	{
@@ -36,6 +41,12 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends B
 		nMaxTimePoint = nTimePointMax_;
 		nOutput = nOutput_;
 		cal = new Calibration();
+	}
+	
+	/** for BDV XML/HDF5 output: path and file name without extension (.xml/.h5 are added) **/
+	public void setOutputPath(final String sFullPathNoExt_)
+	{
+		sFullPathNoExt = sFullPathNoExt_;
 	}
 	@Override
 	protected Void doInBackground() throws Exception {
@@ -69,16 +80,28 @@ public class ExtractClip < T extends RealType< T > & NativeType< T > > extends B
 		cal.pixelHeight = bt.btData.globCal[1];
 		cal.pixelDepth = bt.btData.globCal[2];
 		
-		Path p = Paths.get(bt.btData.sFileNameFullImg);
-		String filename = p.getFileName().toString();
-		ImagePlus ip = VolumeMisc.wrapImgImagePlusCal(Views.interval(full_RAI, cropInt), filename + "_crop", cal, bt.btData.nNumTimepoints);
-		if(nOutput == 0)
+		if(nOutput == 2)
 		{
-			ip.show();
+			//BDV XML/HDF5, placed at the clipped position in the original volume
+			if(sFullPathNoExt != null)
+			{
+				setProgressState("saving clipped volume as HDF5 (see log)...");
+				new BoxHDF5Saver<>(bt, Views.interval(full_RAI, cropInt), cropMin, sFullPathNoExt).export();
+			}
 		}
 		else
 		{
-			IJ.saveAsTiff(ip, null);
+			Path p = Paths.get(bt.btData.sFileNameFullImg);
+			String filename = p.getFileName().toString();
+			ImagePlus ip = VolumeMisc.wrapImgImagePlusCal(Views.interval(full_RAI, cropInt), filename + "_crop", cal, bt.btData.nNumTimepoints);
+			if(nOutput == 0)
+			{
+				ip.show();
+			}
+			else
+			{
+				IJ.saveAsTiff(ip, null);
+			}
 		}
 		
 		try {

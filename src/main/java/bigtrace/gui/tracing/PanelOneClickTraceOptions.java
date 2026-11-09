@@ -36,8 +36,6 @@ public class PanelOneClickTraceOptions extends JPanel
 	
 	final JCheckBox cbTraceMask = new JCheckBox("Avoid (mask) existing ROIs");
 	
-	final JCheckBox cbDownsample = new JCheckBox("Downsample for large sigma");
-	
 	final NumberField nfStiffness = new NumberField(4);
 	
 	boolean bShowMaskOption = true;
@@ -63,9 +61,6 @@ public class PanelOneClickTraceOptions extends JPanel
 		nfIntensityThreshold.setTFEnabled( bt.btData.bOCIntensityStop);
 		
 		cbTraceMask.setSelected( bt.btData.bOneClickUseMask );
-		
-		cbDownsample.setSelected( bt.btData.bOCDownsample );
-		cbDownsample.setToolTipText( "Trace on a block-averaged grid, so the kernel stays ~target SD voxels" );
 		
 		nfStiffness.setText(df.format(bt.btData.dOCStiffness));
 		nfStiffness.setToolTipText( "Higher = straighter path, more robust at crossings. 0 = off (original tracing)" );
@@ -122,11 +117,6 @@ public class PanelOneClickTraceOptions extends JPanel
 		gbc.gridwidth = 1;
 		
 		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 3;
-		this.add(cbDownsample, gbc);
-		
-		gbc.gridx = 0;
 		gbc.gridy ++;		
 		this.add(new JLabel("Ref points placement (px, >=3): "), gbc);
 		gbc.gridx++;
@@ -175,9 +165,6 @@ public class PanelOneClickTraceOptions extends JPanel
 			bt.btData.dOCIntensityThreshold = Math.max(0, Double.parseDouble(nfIntensityThreshold.getText()));
 			Prefs.set("BigTrace.dOCIntensityThreshold",bt.btData.dOCIntensityThreshold);		
 		}
-		
-		bt.btData.bOCDownsample = cbDownsample.isSelected();
-		Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);
 		
 		bt.btData.dOCStiffness = Math.min(1.0, Math.max(0, Double.parseDouble(nfStiffness.getText())));
 		Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);

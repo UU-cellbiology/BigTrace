@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[22];
+		extensions = new ExtensionDescriptor[23];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -61,8 +61,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				  																		  MacroExtension.ARG_NUMBER, 
 				  																		  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL, 
 				  																		  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);		
-		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickAlgorithms", bt, MacroExtension.ARG_STRING, //scaled tracing "true"/"false"
-																						MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL); //stiffness 0..1
+		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickStiffness", bt, MacroExtension.ARG_NUMBER); //stiffness 0..1
 		
 		extensions[10] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER,
@@ -94,6 +93,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		extensions[21] = ExtensionDescriptor.newDescriptor("btSetClippingLimit", bt, MacroExtension.ARG_NUMBER, //axis 0 - X, 1 - Y, 2 - Z
 																					  MacroExtension.ARG_NUMBER, //min
 																					  MacroExtension.ARG_NUMBER); //max
+		extensions[22] = ExtensionDescriptor.newDescriptor("btSetTracingParams", bt, MacroExtension.ARG_STRING, //downsample for large sigma "true"/"false"
+																				   MacroExtension.ARG_STRING); //trace only clipped volume "true"/"false"
 		
 	}
 	
@@ -207,13 +208,19 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
 			});
 		}
-		if (name.equals("btSetOneClickAlgorithms")) 
+		if (name.equals("btSetOneClickStiffness")) 
 		{
 			enqueue (()-> 
 			{
-				//stiffness is optional, negative = keep the current value
-				final double dStiffness = (args[1] == null) ? -1.0 : ((Double)args[1]).doubleValue();
-				macroSetOneClickAlgorithms((String)args[0], dStiffness);
+				macroSetOneClickStiffness(((Double)args[0]).doubleValue());
+			});
+		}
+		
+		if (name.equals("btSetTracingParams")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetTracingParams((String)args[0], (String)args[1]);
 			});
 		}
 
@@ -640,34 +647,52 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
-	/** macro function sets one-click tracing algorithms
-	 * @param sScaled
-	 *  string, must contain "true" or "false". If true, for large tracing sigma one-click tracing 
-	 *  runs on a block-averaged (downsampled) grid, so the kernel stays about dTargetSD pixels.
-	 *  If false, original full resolution tracing is used.
+	/** macro function sets stiffness of one-click tracing
 	 * @param dStiffness
 	 *  stiffness of tracing (momentum and crossing handling), clamped to [0..1];
 	 *  0 = original tracing without crossing handling. 
-	 *  Negative value (or the argument omitted in the macro) keeps the current stiffness.
 	 *  **/
-	public void macroSetOneClickAlgorithms(final String sScaled, final double dStiffness)
+	public void macroSetOneClickStiffness(final double dStiffness)
 	{
 		bt.bInputLock = true;
 		bMacroMode = true;
 		
-		bt.btData.bOCDownsample = sScaled.toLowerCase().equals( "true" );
-		Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);		
-		
-		if(dStiffness >= 0)
-		{
-			bt.btData.dOCStiffness = Math.min(1.0, dStiffness);
-			Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
-		}
+		bt.btData.dOCStiffness = Math.min(1.0, Math.max(0.0, dStiffness));
+		Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
 		
 		TaskBT.runOnEDTAndWait(()->
 		{
-			IJ.log( "Setting one-click tracing algorithms:" );
+			IJ.log( "Setting one-click tracing stiffness:" );
 			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function sets global tracing parameters (Tracing tab of the settings)
+	 * @param sDownsample
+	 *  "true" or "false". If true, for large tracing sigma one-click (full auto) and semi-auto tracing
+	 *  use a block-averaged (downsampled) grid, so the kernel stays about dOCDownsampleSigma pixels.
+	 *  If false, original full resolution tracing is used.
+	 * @param sTraceOnlyClipped
+	 *  "true" or "false". If true, tracing is performed only inside the clipped volume.
+	 *  **/
+	public void macroSetTracingParams(final String sDownsample, final String sTraceOnlyClipped)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bTraceDownsample = sDownsample.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
+		
+		bt.btData.bTraceOnlyClipped = sTraceOnlyClipped.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bTraceOnlyClipped", bt.btData.bTraceOnlyClipped);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting tracing parameters:" );
+			IJ.log( "   Downsample tracing for large sigma: " + bt.btData.bTraceDownsample );
+			IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
 		});
 		bt.bInputLock = false;
 		bMacroMode = false;
@@ -1300,7 +1325,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
 		IJ.log( "   Use intensity threshold: " + bt.btData.bOCIntensityStop );	
 		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
-		IJ.log( "   Scaled (downsampled) tracing: " + bt.btData.bOCDownsample );
+		IJ.log( "   Downsample tracing for large sigma: " + bt.btData.bTraceDownsample );
 		IJ.log( "   Stiffness: " + bt.btData.dOCStiffness );
 		if(bt.btData.bOCIntensityStop)
 		{

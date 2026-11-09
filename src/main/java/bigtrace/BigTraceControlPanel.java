@@ -733,7 +733,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		cd.gridx = 0;	
 		clipExtractSettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
-		String[] sExtractClippedOutput = { "show in ImageJ", "save as TIF" };
+		String[] sExtractClippedOutput = { "show in ImageJ", "save as TIF", "save as BDV XML/HDF5" };
 		JComboBox<String> extractClippedOutputList = new JComboBox<>(sExtractClippedOutput);
 		extractClippedOutputList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractClippedOutput", 0));
 		clipExtractSettings.add(extractClippedOutputList,cd);
@@ -775,12 +775,30 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			nExtractClippedOutput = extractClippedOutputList.getSelectedIndex();
 			Prefs.set("BigTrace.nExtractClippedOutput", nExtractClippedOutput);
+			
+			//BDV XML/HDF5: ask for the file name
+			String sFullPathNoExt = null;
+			if(nExtractClippedOutput == 2)
+			{
+				final Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+				final String sFolder = (pathIn.getParent() != null) ? pathIn.getParent().toString() : "";
+				final SaveDialog sd = new SaveDialog("Save clipped volume as BDV XML/HDF5", sFolder, pathIn.getFileName().toString() + "_crop", ".xml");
+				if (sd.getDirectory() == null || sd.getFileName() == null)
+					return;
+				String sName = sd.getFileName();
+				if(sName.toLowerCase().endsWith( ".xml" ))
+				{
+					sName = sName.substring( 0, sName.length() - 4 );
+				}
+				sFullPathNoExt = sd.getDirectory() + sName;
+			}
 	        
 			//lock interaction
 			bt.bInputLock = true;
 	        bt.setLockMode(true);
 			//run in a separate thread
 			ExtractClip<T> extractClippedBG = new ExtractClip<>(bt, nTimePointMin, nTimePointMax, nExtractClippedOutput);
+			extractClippedBG.setOutputPath( sFullPathNoExt );
 
 			extractClippedBG.addPropertyChangeListener(bt.btPanel);
 			extractClippedBG.execute();

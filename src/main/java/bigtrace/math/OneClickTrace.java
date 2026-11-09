@@ -548,7 +548,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			final double s = bt.btData.sigmaTrace[d];
 			ds[d] = 1;
 			sigmaGrid[d] = s;
-			if(bt.btData.bOCDownsample)
+			if(bt.btData.bTraceDownsample)
 			{
 				ds[d] = Math.max(1, Math.round(s / bt.btData.dOCDownsampleSigma));
 				if(ds[d] > 1)

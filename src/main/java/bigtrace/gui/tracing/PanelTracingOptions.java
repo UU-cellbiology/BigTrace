@@ -39,6 +39,7 @@ public class PanelTracingOptions extends JPanel
 	final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
 	
 	final JCheckBox cbTraceOnlyClipped = new JCheckBox("Trace only clipped volume");
+	final JCheckBox cbTraceDownsample = new JCheckBox("Downsample for large sigma");
 	final String [] sEstimateMode = new String [] {"MAX", "AVG", "MIN"};
 	final JComboBox<String> cbEstimateThicknessMode = new JComboBox<>(sEstimateMode);
 	final NumberField cbEstimateThicknessCoeff = new NumberField(2);
@@ -65,6 +66,8 @@ public class PanelTracingOptions extends JPanel
 		cbEstimateThicknessMode.setSelectedIndex( bt.btData.nTraceROIThicknessMode );
 		cbEstimateThickness.setSelected(bt.btData.bEstimateROIThicknessFromParams);		
 		cbTraceOnlyClipped.setSelected(bt.btData.bTraceOnlyClipped);
+		cbTraceDownsample.setSelected(bt.btData.bTraceDownsample);
+		cbTraceDownsample.setToolTipText( "One-click and semi-auto tracing use a block-averaged grid, so the kernel stays ~target SD voxels" );
 		
 		final String [] sAxes = new String [] {"X", "Y", "Z"};
 		for(int d = 0; d < 3; d++)
@@ -137,6 +140,10 @@ public class PanelTracingOptions extends JPanel
 		gbc.gridy++;
 		gbc.anchor = GridBagConstraints.WEST;
 		this.add(cbTraceOnlyClipped,gbc);
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		this.add(cbTraceDownsample,gbc);
 	}
 	
 	/** shows SD along axis d (text in pixels) in physical units **/
@@ -223,5 +230,7 @@ public class PanelTracingOptions extends JPanel
 		}
 		bt.btData.bTraceOnlyClipped = cbTraceOnlyClipped.isSelected();
 		Prefs.set("BigTrace.bTraceOnlyClipped", bt.btData.bTraceOnlyClipped);	
+		bt.btData.bTraceDownsample = cbTraceDownsample.isSelected();
+		Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
 	}
 }

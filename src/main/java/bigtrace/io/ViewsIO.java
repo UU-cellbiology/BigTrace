@@ -82,7 +82,7 @@ public class ViewsIO
 				writer.write("dDirectionalityOneClick," + df3.format(bt.btData.dDirectionalityOneClick)+"\n");
 				writer.write("bOCIntensityStop," + Integer.toString(bt.btData.bOCIntensityStop ? 1 : 0)+"\n");
 				writer.write("dOCIntensityThreshold," + df3.format(bt.btData.dOCIntensityThreshold)+"\n");
-				writer.write("bOCDownsample," + Integer.toString(bt.btData.bOCDownsample ? 1 : 0)+"\n");
+				writer.write("bTraceDownsample," + Integer.toString(bt.btData.bTraceDownsample ? 1 : 0)+"\n");
 				writer.write("dOCStiffness," + df3.format(bt.btData.dOCStiffness)+"\n");
 				for (int d = 0; d < 3; d++)
 				{
@@ -342,9 +342,9 @@ public class ViewsIO
 					bt.btData.dOCIntensityThreshold = Double.parseDouble( line_array[1] );
 					Prefs.set("BigTrace.dOCIntensityThreshold", bt.btData.dOCIntensityThreshold);
 					break;	
-				case "bOCDownsample":
-					bt.btData.bOCDownsample = line_array[1].equals( "1" );
-					Prefs.set("BigTrace.bOCDownsample", bt.btData.bOCDownsample);
+				case "bTraceDownsample":
+					bt.btData.bTraceDownsample = line_array[1].equals( "1" );
+					Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
 					break;
 				case "dOCStiffness":
 					bt.btData.dOCStiffness = Double.parseDouble( line_array[1] );

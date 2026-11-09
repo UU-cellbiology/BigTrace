@@ -302,10 +302,12 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
 	
-	/** if true, one-click tracing runs on a block-averaged (downsampled) grid
-	* when tracing sigma is large, so the kernel stays about dOCDownsampleSigma voxels.
-	* If false, the original full resolution tracing is used. **/
-	public boolean bOCDownsample;
+	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
+	 * so the kernel stays about dOCDownsampleSigma voxels:
+	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
+	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
+	 * If false, the original full resolution tracing is used. **/
+	public boolean bTraceDownsample;
 	
 	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
@@ -369,7 +371,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		dDirectionalityOneClick = Prefs.get("BigTrace.dDirectionalityOneClick", 0.6);
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
-		bOCDownsample = Prefs.get("BigTrace.bOCDownsample", false);
+		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.5);
 
 		
