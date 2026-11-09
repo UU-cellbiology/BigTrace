@@ -10,6 +10,8 @@ import java.text.DecimalFormatSymbols;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
@@ -28,6 +30,9 @@ public class PanelOneClickTraceOptions extends JPanel
 	final NumberField nfPlaceVertex = new NumberField(4);
 	
 	final NumberField nfDirectionalityOneClick = new NumberField(4);
+	
+	/** max turn angle corresponding to the directionality constrain (arccos) **/
+	final JLabel lDirectionalityAngle = new JLabel();
 	
 	final JCheckBox cbTraceMask = new JCheckBox("Avoid (mask) existing ROIs");
 	
@@ -70,48 +75,64 @@ public class PanelOneClickTraceOptions extends JPanel
 		this.add(new JLabel("Constrain directionality (0-1): "),gbc);
 		gbc.gridx++;
 		this.add(nfDirectionalityOneClick,gbc);
+		gbc.gridx++;
+		this.add(lDirectionalityAngle,gbc);
+		updateDirectionalityAngle();
+		nfDirectionalityOneClick.addDocumentListener( new DocumentListener()
+		{
+			@Override
+			public void insertUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+			@Override
+			public void removeUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+			@Override
+			public void changedUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+		});
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		gbc.gridwidth = 2;
+		gbc.gridwidth = 3;
 
 		this.add(cbIntensityStop,gbc);
 		gbc.gridwidth = 1;
 		
 		cbIntensityStop.addActionListener( new ActionListener()
-				{
-					@Override
-					public void actionPerformed( ActionEvent arg0 )
-					{						
-						nfIntensityThreshold.setTFEnabled( cbIntensityStop.isSelected() );
-					}
-			
-				});
-		
+		{
+			@Override
+			public void actionPerformed( ActionEvent arg0 )
+			{						
+				nfIntensityThreshold.setTFEnabled( cbIntensityStop.isSelected() );
+			}
+
+		});
+
 		gbc.gridx = 0;
 		gbc.gridy++;
 		this.add(new JLabel("Minimum intensity: "), gbc);
 		gbc.gridx++;
+		gbc.gridwidth = 2;
 		this.add(nfIntensityThreshold,gbc);
-
+		gbc.gridwidth = 1;
+			
+		gbc.gridx = 0;
+		gbc.gridy++;
+		this.add(new JLabel("Detect crossings, use stiffness (0-1): "), gbc);
+		gbc.gridx++;
+		gbc.gridwidth = 2;
+		this.add(nfStiffness, gbc);
+		gbc.gridwidth = 1;
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 3;
+		this.add(cbDownsample, gbc);
+		
 		gbc.gridx = 0;
 		gbc.gridy ++;		
 		this.add(new JLabel("Ref points placement (px, >=3): "), gbc);
 		gbc.gridx++;
-		this.add(nfPlaceVertex,gbc);
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 1;
-		this.add(new JLabel("Detect crossings, use stiffness (0-1): "), gbc);
-		gbc.gridx++;
-		this.add(nfStiffness, gbc);
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
 		gbc.gridwidth = 2;
-		this.add(cbDownsample, gbc);
-		
+		this.add(nfPlaceVertex,gbc);
+		gbc.gridwidth = 1;
 	
 		if(bShowMaskOption)
 		{
@@ -120,6 +141,23 @@ public class PanelOneClickTraceOptions extends JPanel
 			gbc.gridwidth = 2;
 			this.add(cbTraceMask,gbc);		
 		}
+	}
+	
+	/** shows the max angle between consecutive directions allowed by the constrain:
+	 * arccos(value), 1 = 0 degrees, 0 = 90 degrees (no constrain) **/
+	void updateDirectionalityAngle()
+	{
+		String sOut;
+		try
+		{
+			final double dVal = Math.min( 1.0, Math.max( 0, Double.parseDouble( nfDirectionalityOneClick.getText() ) ) );
+			sOut = Long.toString( Math.round( Math.toDegrees( Math.acos( dVal ) ) ) ) + "\u00B0";
+		}
+		catch(NumberFormatException e)
+		{
+			sOut = " max turn ?";
+		}
+		lDirectionalityAngle.setText( sOut );
 	}
 	
 	public void getSetOptions()

@@ -2,6 +2,8 @@ package bigtrace.gui.tracing;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.event.ActionListener;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
@@ -31,6 +33,11 @@ public class PanelTracingOptions extends JPanel
 	
 	final DecimalFormat dfUnits;
 	
+	/** resulting ROI diameter (voxels and units), updated interactively **/
+	final JLabel lROIThickness = new JLabel();
+	
+	final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
+	
 	final JCheckBox cbTraceOnlyClipped = new JCheckBox("Trace only clipped volume");
 	final String [] sEstimateMode = new String [] {"MAX", "AVG", "MIN"};
 	final JComboBox<String> cbEstimateThicknessMode = new JComboBox<>(sEstimateMode);
@@ -59,13 +66,12 @@ public class PanelTracingOptions extends JPanel
 		cbEstimateThickness.setSelected(bt.btData.bEstimateROIThicknessFromParams);		
 		cbTraceOnlyClipped.setSelected(bt.btData.bTraceOnlyClipped);
 		
-		final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
 		final String [] sAxes = new String [] {"X", "Y", "Z"};
 		for(int d = 0; d < 3; d++)
 		{
 			gbc.gridx = 0;
 			gbc.gridy = d;
-			this.add(new JLabel("Curve thickness " + sAxes[d] + " axis (SD, px): "),gbc);
+			this.add(new JLabel("Curve thickness " + sAxes[d] + " (SD, px): "),gbc);
 			gbc.gridx++;
 			this.add(nfSigmas[d],gbc);
 			gbc.gridx++;
@@ -78,11 +84,11 @@ public class PanelTracingOptions extends JPanel
 			nfSigmas[d].addDocumentListener( new DocumentListener()
 			{
 				@Override
-				public void insertUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+				public void insertUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); updateROIThickness(); }
 				@Override
-				public void removeUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+				public void removeUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); updateROIThickness(); }
 				@Override
-				public void changedUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); }
+				public void changedUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); updateROIThickness(); }
 			});
 		}
 		
@@ -94,20 +100,38 @@ public class PanelTracingOptions extends JPanel
 		gbc2.gridx++;
 		panEstimate.add(cbEstimateThicknessCoeff, gbc2);
 		gbc2.gridx++;
-		panEstimate.add(new JLabel(" times "), gbc2);
+		panEstimate.add(new JLabel(" X "), gbc2);
 		gbc2.gridx++;
 		panEstimate.add(cbEstimateThicknessMode, gbc2);
 		gbc2.gridx++;
 		panEstimate.add(new JLabel("of all SDs"), gbc2);
 		
+		//resulting ROI diameter
+		gbc2.gridx = 0;
+		gbc2.gridy++;
+		gbc2.gridwidth = 5;
+		panEstimate.add(lROIThickness, gbc2);
+		
+		gbc.insets = new Insets(8, 0, 8, 0);
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 3;
-		//this.add(new JLabel("Estimate ROI thickness from params: "),gbc);
-		//gbc.gridx++;
-		//this.add(cbEstimateThickness,gbc);
 		this.add(panEstimate,gbc);
-		//gbc.gridwidth = 1;
+		gbc.insets = new Insets(0, 0, 0, 0);
+
+		updateROIThickness();
+		cbEstimateThicknessCoeff.addDocumentListener( new DocumentListener()
+		{
+			@Override
+			public void insertUpdate( DocumentEvent e ) { updateROIThickness(); }
+			@Override
+			public void removeUpdate( DocumentEvent e ) { updateROIThickness(); }
+			@Override
+			public void changedUpdate( DocumentEvent e ) { updateROIThickness(); }
+		});
+		final ActionListener alThickness = e -> updateROIThickness();
+		cbEstimateThicknessMode.addActionListener( alThickness );
+		cbEstimateThickness.addActionListener( alThickness );
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
@@ -122,13 +146,58 @@ public class PanelTracingOptions extends JPanel
 		try
 		{
 			final double dSD = Double.parseDouble( sPixels ) * bt.btData.globCal[d];
-			sOut = " = " + dfUnits.format( dSD ) + " " + bt.btData.sVoxelUnit;
+			sOut = "(" + dfUnits.format( dSD ) + " " + bt.btData.sVoxelUnit + ")";
 		}
 		catch(NumberFormatException e)
 		{
 			sOut = " = ? " + bt.btData.sVoxelUnit;
 		}
 		lSigmaUnits[d].setText( sOut );
+	}
+	
+	/** shows the ROI diameter resulting from the current (typed) SDs, coefficient and mode,
+	 * the same way as BigTraceData.estimateROIThicknessFromTracing (voxels = smallest voxel size) **/
+	void updateROIThickness()
+	{
+		if(lROIThickness == null)
+			return;
+		final boolean bOn = cbEstimateThickness.isSelected();
+		String sOut;
+		try
+		{
+			final double [] sd = new double[3];
+			for(int d = 0; d < 3; d++)
+			{
+				sd[d] = Double.parseDouble( nfSigmas[d].getText() ) * bt.btData.globCal[d];
+			}
+			final double dCoeff = Math.abs( Double.parseDouble( cbEstimateThicknessCoeff.getText() ) );
+			double dSD;
+			switch(cbEstimateThicknessMode.getSelectedIndex())
+			{
+			case 0:
+				dSD = Math.max( sd[0], Math.max( sd[1], sd[2] ) );
+				break;
+			case 1:
+				dSD = (sd[0] + sd[1] + sd[2]) / 3.0;
+				break;
+			default:
+				dSD = Math.min( sd[0], Math.min( sd[1], sd[2] ) );
+				break;
+			}
+			final double dUnits = dSD * dCoeff;
+			sOut = "Calculated: " + dfUnits.format( dUnits / bt.btData.dMinVoxelSize ) + " voxels ("
+					+ dfUnits.format( dUnits ) + " " + bt.btData.sVoxelUnit + ")";
+		}
+		catch(NumberFormatException e)
+		{
+			sOut = "Calculated: ?";
+		}
+		if(!bOn)
+		{
+			sOut += ", not used";
+		}
+		lROIThickness.setText( sOut );
+		lROIThickness.setEnabled( bOn );
 	}
 	
 	public void getSetOptions()
