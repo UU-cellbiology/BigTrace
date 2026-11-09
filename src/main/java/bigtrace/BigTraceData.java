@@ -195,10 +195,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public static final int silhouette_TRANSPARENT = 0, silhouette_CULLED = 1; 
 
 	/** current silhouette render type **/
-	public int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_CULLED);
+	public int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_TRANSPARENT);
 	
 	/** current silhouette render type **/
-	public double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 2.0);
+	public double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 1.0);
 	
 	//////rendering ROI over time
 	
@@ -324,22 +324,17 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 
 	/** use collision mask with existing ROIs during tracking**/
 	public boolean bTrackingUseMask = Prefs.get( "BigTrace.bTrackingUseMask", false );
-
 	
-	//IO default/last folder
-	
+	/** IO default/last folder **/
 	public String lastDir = Prefs.get( "BigTrace.lastDir", "" );
 	
 	
 	///////////////// DEFAULT SETTINGS FOR UNDEFINED GROUP
-	
 	public float undefPointSize;// = 4.0f;
 	public float undefLineThickness;// = 7.0f;
 	public int undefRenderType;// = Roi3D.SURFACE;
 	public int undefPointColor ;// = Color.GREEN.getRGB();
 	public int undefLineColor;//  = Color.BLUE.getRGB();
-	
-	///////////////// DEFAULT SETTINGS FOR ACTIVE ROI COLORS
 	
 	public BigTraceData(final BigTrace<T> bt_)
 	{
