@@ -313,11 +313,15 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
 	public double dOCDownsampleSigma = 3.0;
 		
-	/** one-click "path stiffness" (0-1). If >0, tracing keeps a smoothed (momentum) direction
-	* of the path and scores candidate voxels by saliency, orientation agreement and step direction,
-	* which makes it more robust at filament crossings. Higher = straighter, stiffer path.
-	* 0 = original tracing **/
+	/** one-click "path stiffness" (0-1), use of the path "history". If >0, tracing keeps a smoothed 
+	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 
+	* and step direction. Higher = straighter, stiffer path. 0 = original stepping **/
 	public double dOCStiffness;
+	
+	/** one-click junction (crossing) handling: crossings are detected ahead and passed 
+	 * along the steered line filter map. Set separately from stiffness, but stepping 
+	 * then uses stiffness of at least 0.1 (OneClickTrace.dJunctionMinStiffness) **/
+	public boolean bOCJunctions;
 	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
@@ -368,6 +372,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
 		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.5);
+		//before it was a separate option, junctions were handled for stiffness > 0
+		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
 
 		
 		//undefined group properties

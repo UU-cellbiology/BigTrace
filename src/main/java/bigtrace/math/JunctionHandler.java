@@ -9,7 +9,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
 
-/** Junction (crossing) handling of OneClickTrace in the crossing-aware mode (dOCStiffness > 0):
+/** Junction (crossing) handling of OneClickTrace (OneClickTrace.bJunctions, uses its momentum direction as heading):
  * - detection of a junction ahead (orientation coherence along the momentum, with hysteresis);
  * - planned junction passage: coasting along the elongated steerable line filter map
  *   of a JunctionBox, computed in a buffer and committed only if it is a crossing;

@@ -84,6 +84,8 @@ public class ViewsIO
 				writer.write("dOCIntensityThreshold," + df3.format(bt.btData.dOCIntensityThreshold)+"\n");
 				writer.write("bTraceDownsample," + Integer.toString(bt.btData.bTraceDownsample ? 1 : 0)+"\n");
 				writer.write("dOCStiffness," + df3.format(bt.btData.dOCStiffness)+"\n");
+				//after stiffness (old files without it take it from stiffness)
+				writer.write("bOCJunctions," + Integer.toString(bt.btData.bOCJunctions ? 1 : 0)+"\n");
 				for (int d = 0; d < 3; d++)
 				{
 					writer.write("Trace sigma," + Integer.toString( d ) + "," + df3.format(bt.btData.sigmaTrace[d])+"\n");					
@@ -349,6 +351,14 @@ public class ViewsIO
 				case "dOCStiffness":
 					bt.btData.dOCStiffness = Double.parseDouble( line_array[1] );
 					Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+					//old settings files: junctions were handled for stiffness > 0
+					//(overwritten by bOCJunctions line in new files)
+					bt.btData.bOCJunctions = bt.btData.dOCStiffness > 0;
+					Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+					break;
+				case "bOCJunctions":
+					bt.btData.bOCJunctions = line_array[1].equals( "1" );
+					Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
 					break;				
 				case "Trace sigma":
 					int dA = Integer.parseInt( line_array[1]);

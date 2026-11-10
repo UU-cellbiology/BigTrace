@@ -91,17 +91,32 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** vector of curve direction for the last point **/
 	final double [] lastDirectionVector = new double[3];
 	
-	/** crossing-aware stepping (momentum direction + geometric scoring) **/
-	boolean bMomentum = false;
+	/** "history" stepping (effective stiffness > 0): the momentum direction is the reference
+	 * for neighbor choice and directionality, steps are scored geometrically, 
+	 * position is re-centered on the ridge. If false, original stepping (last eigenvector). **/
+	boolean bUseHistory = false;
+	
+	/** junction (crossing) detection and passage, uses the momentum direction as heading **/
+	boolean bJunctions = false;
 	
 	/** smoothed (momentum) direction of the traced path, grid space, unit length.
 	 * Built mostly from actual step vectors, so a few bad Hessian eigenvectors
 	 * at a crossing cannot flip it **/
 	final double [] memDirectionVector = new double[3];
 	
-	/** path stiffness s (0-1), a single "summary" parameter, 
-	* the four below are derived from it in setStiffness() **/
+	/** path stiffness s (0-1) as set by the user, a single "summary" parameter **/
+	double dStiffnessSet = 0.0;
+	
+	/** effective path stiffness, the four below are derived from it in updateStepping().
+	 * s = 0: original stepping. With junction handling on, it is at least dJunctionMinStiffness **/
 	double dStiffness = 0.0;
+	
+	/** scaling of the stiffness for the downsampled grid, 1/max(ds).
+	 * Stiffness acts per step (heading memory, step/orientation scoring), 
+	 * a grid step is ds times longer, so the same value would be ~ds times stiffer 
+	 * per pixel and cut bends (tested on synthetic thick filaments: s 0.5 at ds 3 
+	 * lost a tight bend, s 0.5/3 followed it and still passed a 35 degree crossing) **/
+	double dStiffnessGridScale = 1.0;
 	
 	/** memory of momentum direction (0 = no memory, 1 = never changes) **/
 	double dMomentumAlpha = 0.6;
@@ -119,7 +134,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * about the filament radius = max tracing sigma in grid units **/
 	int nRecenterMaxSteps = 1;
 	
-	/** junction (crossing) handling in the crossing-aware mode (dOCStiffness > 0) **/
+	/** minimum stiffness of stepping with junction handling on.
+	 * With pure saliency stepping (stiffness 0) the trace turns onto a brighter crossing 
+	 * filament before the junction is detected ahead; a little history keeps it straight 
+	 * up to the junction (tested on ExM crossings: 0.1 is enough, kinks are traced 
+	 * as with the original stepping) **/
+	static final double dJunctionMinStiffness = 0.1;
+	
+	/** junction (crossing) handling (bJunctions) **/
 	final JunctionHandler<T> junctions = new JunctionHandler<>(this);
 	
 	/** if true (auto-tracing), a junction passage that ends at the end of another line trace
@@ -270,7 +292,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			
 			//auto-tracing: a start at a junction is ambiguous, 
 			//move it out along one of the arms of the junction
-			if(bRelocateJunctionStart && bMomentum)
+			if(bRelocateJunctionStart && bJunctions)
 			{
 				final RealPoint relocatedPoint = junctions.relocateStart(startPoint);
 				if(relocatedPoint != null)
@@ -536,6 +558,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	{	
 		
 		setStiffness(bt.btData.dOCStiffness);
+		setJunctions(bt.btData.bOCJunctions);
 
 		dAngleThreshold = bt.btData.dDirectionalityOneClick;		
 		
@@ -569,7 +592,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			dMaxSigmaGrid = Math.max(dMaxSigmaGrid, sigmaGrid[d]);
 		}
 		nRecenterMaxSteps = Math.max(1, (int) Math.ceil(dMaxSigmaGrid));
-		if(bMomentum)
+		
+		//same stiffness per pixel on the downsampled grid
+		dStiffnessGridScale = 1.0 / dsMax;
+		updateStepping();
+		if(bJunctions)
 		{
 			junctions.init(dMaxSigmaGrid, bDownsample);
 		}
@@ -696,7 +723,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final RandomAccess< T > raInput = bt.btData.bOCIntensityStop ? fullInput.randomAccess() : null;
 
 		//junctions: passage points, stop, or normal stepping
-		if(bMomentum)
+		if(bJunctions)
 		{
 			final int nStep = junctions.step(currpoint, raInput);
 			if(nStep == JunctionHandler.STEP_POINT)
@@ -712,7 +739,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		double [] candDirection;
 		
 		/** reference direction: momentum (smoothed path) or last eigenvector (original) **/
-		final double [] refDirection = bMomentum  ? memDirectionVector : lastDirectionVector;
+		final double [] refDirection = bUseHistory  ? memDirectionVector : lastDirectionVector;
 				
 		/** normalized step vector of the current and of the best candidate **/
 		final double [] candStep = new double[3];
@@ -806,7 +833,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						}
 					}
 					double currScore = currSal;
-					if(bMomentum)
+					if(bUseHistory)
 					{
 						//direction of the step itself (grid space)
 						for (int d = 0; d < 3; d++)
@@ -846,8 +873,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				lastDirectionVector[d] = newDirection[d];
 			}
-			//normal stepping: re-centering and momentum update
-			if(bMomentum)
+			//history stepping: re-centering and momentum update
+			if(bUseHistory)
 			{
 				//position is snapped back to the ridge
 				if(recenterOnRidge(currpoint, bestGrid, raInput))
@@ -1394,14 +1421,31 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return bChanged;
 	}
 	
-	/** sets all momentum parameters from one "path stiffness" value s (0-1).
-	 * s = 0 switches crossing-aware stepping off (original tracing),
-	 * s = 0.5 gives alpha 0.6, eigen share 0.25, powers 2 **/
+	/** sets the "path stiffness" value s (0-1), use of the path history.
+	 * s = 0 switches history stepping off (original stepping, if junctions are off too) **/
 	public void setStiffness(final double s_)
 	{
-		final double s = Math.min(1.0, Math.max(0.0, s_));
+		dStiffnessSet = Math.min(1.0, Math.max(0.0, s_));
+		updateStepping();
+	}
+	
+	/** switches junction (crossing) detection and passage on/off **/
+	public void setJunctions(final boolean bJunctions_)
+	{
+		bJunctions = bJunctions_;
+		updateStepping();
+	}
+	
+	/** sets all momentum parameters from the effective stiffness:
+	 * the set one scaled for the downsampled grid (dStiffnessGridScale), 
+	 * at least dJunctionMinStiffness with junction handling on.
+	 * s = 0.5 gives alpha 0.6, eigen share 0.25, powers 2 **/
+	void updateStepping()
+	{
+		final double sGrid = dStiffnessSet * dStiffnessGridScale;
+		final double s = bJunctions ? Math.max(sGrid, dJunctionMinStiffness) : sGrid;
 		dStiffness = s;
-		bMomentum = s > 0;
+		bUseHistory = s > 0;
 		dMomentumAlpha = 1.0 - 1.0 / (1.0 + 3.0 * s);
 		dMomentumEigenShare = (1.0 - s) * (1.0 - s);
 		dScorePowEig = 4.0 * s;

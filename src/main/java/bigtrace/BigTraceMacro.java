@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[23];
+		extensions = new ExtensionDescriptor[24];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -95,6 +95,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																					  MacroExtension.ARG_NUMBER); //max
 		extensions[22] = ExtensionDescriptor.newDescriptor("btSetTracingParams", bt, MacroExtension.ARG_STRING, //downsample for large sigma "true"/"false"
 																				   MacroExtension.ARG_STRING); //trace only clipped volume "true"/"false"
+		extensions[23] = ExtensionDescriptor.newDescriptor("btSetOneClickJunctions", bt, MacroExtension.ARG_STRING); //handle junctions "true"/"false"
 		
 	}
 	
@@ -213,6 +214,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			enqueue (()-> 
 			{
 				macroSetOneClickStiffness(((Double)args[0]).doubleValue());
+			});
+		}
+		
+		if (name.equals("btSetOneClickJunctions")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetOneClickJunctions((String)args[0]);
 			});
 		}
 		
@@ -649,8 +658,8 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	}
 	/** macro function sets stiffness of one-click tracing
 	 * @param dStiffness
-	 *  stiffness of tracing (momentum and crossing handling), clamped to [0..1];
-	 *  0 = original tracing without crossing handling. 
+	 *  stiffness of tracing (use of the path history), clamped to [0..1];
+	 *  0 = original stepping. Junction handling is set separately (btSetOneClickJunctions).
 	 *  **/
 	public void macroSetOneClickStiffness(final double dStiffness)
 	{
@@ -663,6 +672,27 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		TaskBT.runOnEDTAndWait(()->
 		{
 			IJ.log( "Setting one-click tracing stiffness:" );
+			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function switches junction (crossing) handling of one-click tracing on/off
+	 * @param sJunctions
+	 *  "true" or "false" 
+	 *  **/
+	public void macroSetOneClickJunctions(final String sJunctions)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bOCJunctions = sJunctions.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting one-click junction handling:" );
 			printOneClickParams();
 		});
 		bt.bInputLock = false;
@@ -1327,6 +1357,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
 		IJ.log( "   Downsample tracing for large sigma: " + bt.btData.bTraceDownsample );
 		IJ.log( "   Stiffness: " + bt.btData.dOCStiffness );
+		IJ.log( "   Handle junctions: " + bt.btData.bOCJunctions );
 		if(bt.btData.bOCIntensityStop)
 		{
 			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));
