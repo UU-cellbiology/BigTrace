@@ -25,7 +25,7 @@ public class PanelOneClickTraceOptions extends JPanel
 	
 	final NumberField nfIntensityThreshold = new NumberField(5);
 	
-	final JCheckBox cbIntensityStop = new JCheckBox("Use intensity threshold");
+	final JCheckBox cbIntensityStop = new JCheckBox("Stop at min intensity");
 	
 	final NumberField nfPlaceVertex = new NumberField(4);
 	
@@ -87,13 +87,27 @@ public class PanelOneClickTraceOptions extends JPanel
 			public void changedUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
 		});
 		
+		
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 3;
-
-		this.add(cbIntensityStop,gbc);
+		this.add(cbJunctions, gbc);
 		gbc.gridwidth = 1;
 		
+			
+		gbc.gridx = 0;
+		gbc.gridy++;
+		this.add(new JLabel("Path stiffness (history, 0-1): "), gbc);
+		gbc.gridx++;
+		gbc.gridwidth = 2;
+		this.add(nfStiffness, gbc);
+		gbc.gridwidth = 1;
+
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 1;
+		this.add(cbIntensityStop,gbc);
+			
 		cbIntensityStop.addActionListener( new ActionListener()
 		{
 			@Override
@@ -103,28 +117,19 @@ public class PanelOneClickTraceOptions extends JPanel
 			}
 
 		});
-
-		gbc.gridx = 0;
-		gbc.gridy++;
-		this.add(new JLabel("Minimum intensity: "), gbc);
 		gbc.gridx++;
 		gbc.gridwidth = 2;
 		this.add(nfIntensityThreshold,gbc);
 		gbc.gridwidth = 1;
-			
-		gbc.gridx = 0;
-		gbc.gridy++;
-		this.add(new JLabel("Path stiffness (history, 0-1): "), gbc);
-		gbc.gridx++;
-		gbc.gridwidth = 2;
-		this.add(nfStiffness, gbc);
-		gbc.gridwidth = 1;
+
 		
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 3;
-		this.add(cbJunctions, gbc);
-		gbc.gridwidth = 1;
+		if(bShowMaskOption)
+		{
+			gbc.gridx = 0;
+			gbc.gridy++;
+			gbc.gridwidth = 2;
+			this.add(cbTraceMask,gbc);		
+		}
 		
 		gbc.gridx = 0;
 		gbc.gridy ++;		
@@ -134,13 +139,7 @@ public class PanelOneClickTraceOptions extends JPanel
 		this.add(nfPlaceVertex,gbc);
 		gbc.gridwidth = 1;
 	
-		if(bShowMaskOption)
-		{
-			gbc.gridx = 0;
-			gbc.gridy++;
-			gbc.gridwidth = 2;
-			this.add(cbTraceMask,gbc);		
-		}
+
 	}
 	
 	/** shows the max angle between consecutive directions allowed by the constrain:
