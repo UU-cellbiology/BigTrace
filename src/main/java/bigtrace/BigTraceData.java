@@ -374,7 +374,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
 		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.0);
-		//before it was a separate option, junctions were handled for stiffness > 0
 		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
 
 		

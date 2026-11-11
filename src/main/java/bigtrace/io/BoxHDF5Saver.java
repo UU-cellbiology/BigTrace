@@ -46,8 +46,7 @@ import mpicbg.spim.data.sequence.VoxelDimensions;
  * The registration of each view places the box at its position in the original volume
  * (registration of the original BDV view, or voxel * voxel size for other data),
  * so it can be shown together with the original data.
- * Timepoint ids and channel numbers are the ones of the original data.
- * Data are stored in their own type (8-, 16-bit, float; bdv-core >= 10.6 writes any N5 data type). **/
+ * Timepoint ids and channel numbers are the ones of the original data. **/
 public class BoxHDF5Saver < T extends RealType< T > & NativeType< T > >
 {
 	final BigTrace<T> bt;

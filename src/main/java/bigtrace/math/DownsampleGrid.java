@@ -17,7 +17,7 @@ public class DownsampleGrid
 	/** downsampling factors ds and sigma of the kernels on the grid (grid voxels).
 	 * ds[d] = max(1, round(sigma[d]/dTargetSigma)) if bEnabled, otherwise 1.
 	 * Block averaging by ds already blurs with variance (ds^2-1)/12 (full res px^2),
-	 * it is subtracted from the kernel. Returns true if any ds > 1. **/
+	 * it is subtracted from the kernel. Returns true if any ds is more than 1. **/
 	public static boolean computeFactors(final double [] sigma, final boolean bEnabled, final double dTargetSigma,
 			final long [] ds, final double [] sigmaGrid)
 	{
@@ -40,13 +40,13 @@ public class DownsampleGrid
 		return bDownsample;
 	}
 
-	/** full resolution voxel -> grid voxel **/
+	/** full resolution voxel conversion to grid voxel **/
 	public static long toGrid(final long x, final long ds)
 	{
 		return Math.floorDiv(x, ds);
 	}
 
-	/** grid voxel -> full resolution coordinate of its center **/
+	/** grid voxel to full resolution coordinate of its center **/
 	public static double toFull(final long g, final long ds)
 	{
 		return g * ds + 0.5 * (ds - 1);

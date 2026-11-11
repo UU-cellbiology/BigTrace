@@ -18,8 +18,7 @@ import mpicbg.spim.data.sequence.SetupImgLoader;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 
 /** image loader of uncoiled volumes for BDV HDF5 export,
- * volumes are provided in the type of the original data (8-, 16-bit, float;
- * bdv-core >= 10.6 writes any N5 data type) **/
+ * volumes are provided in the type of the original data (8-, 16-bit, float) **/
 public class UnCoilFrameImgLoader < T extends RealType< T > & NativeType< T > > implements BasicImgLoader
 {
 	final UnCoilAnimation<T> unCoil;
