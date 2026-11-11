@@ -251,6 +251,19 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 
 	/** estimation mode value 0 - MAX, 1 - AVG, 2 - MIN **/	
 	public int nTraceROIThicknessMode = (int)Prefs.get("BigTrace.nTraceROIThicknessMode", 0.0);
+	
+	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
+	 * so the kernel stays about dOCDownsampleSigma voxels:
+	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
+	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
+	 * If false, the original full resolution tracing is used. **/
+	public boolean bTraceDownsample;
+	
+	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
+	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
+	public double dOCDownsampleSigma = 3.0;
+	
+	public boolean bShowDownSampleMessage = Prefs.get( "BigTrace.bShowDownSampleMessage", true );
 
 	
 	///////////////////////////// TRACING SETTINGS SEMI AUTO
@@ -301,17 +314,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
-	
-	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
-	 * so the kernel stays about dOCDownsampleSigma voxels:
-	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
-	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
-	 * If false, the original full resolution tracing is used. **/
-	public boolean bTraceDownsample;
-	
-	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
-	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
-	public double dOCDownsampleSigma = 3.0;
 		
 	/** one-click "path stiffness" (0-1), use of the path "history". If >0, tracing keeps a smoothed 
 	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 

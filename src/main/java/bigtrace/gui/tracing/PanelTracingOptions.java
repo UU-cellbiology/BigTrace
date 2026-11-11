@@ -1,15 +1,23 @@
 package bigtrace.gui.tracing;
 
+import java.awt.Cursor;
+import java.awt.Desktop;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -135,31 +143,41 @@ public class PanelTracingOptions extends JPanel
 		final ActionListener alThickness = e -> updateROIThickness();
 		cbEstimateThicknessMode.addActionListener( alThickness );
 		cbEstimateThickness.addActionListener( alThickness );
-		
+
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.anchor = GridBagConstraints.WEST;
-		this.add(cbTraceOnlyClipped,gbc);
+		this.add(cbTraceDownsample,gbc);
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		this.add(cbTraceDownsample,gbc);
+		this.add(cbTraceOnlyClipped,gbc);
+		
+
 	}
 	
 	/** shows SD along axis d (text in pixels) in physical units **/
 	void updateSigmaUnits(final int d, final String sPixels)
 	{
 		String sOut;
+		boolean bValid = true;
+		double dPixels = 0.0;
 		try
 		{
+			dPixels = Double.parseDouble( sPixels );
 			final double dSD = Double.parseDouble( sPixels ) * bt.btData.globCal[d];
 			sOut = "(" + dfUnits.format( dSD ) + " " + bt.btData.sVoxelUnit + ")";
 		}
 		catch(NumberFormatException e)
 		{
 			sOut = " = ? " + bt.btData.sVoxelUnit;
+			bValid = false;
 		}
 		lSigmaUnits[d].setText( sOut );
+		if(bValid && bt.btData.bShowDownSampleMessage && dPixels > 4.0)
+		{
+			showDownSampleMessage();
+		}
 	}
 	
 	/** shows the ROI diameter resulting from the current (typed) SDs, coefficient and mode,
@@ -232,5 +250,46 @@ public class PanelTracingOptions extends JPanel
 		Prefs.set("BigTrace.bTraceOnlyClipped", bt.btData.bTraceOnlyClipped);	
 		bt.btData.bTraceDownsample = cbTraceDownsample.isSelected();
 		Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
+	}
+	
+	void showDownSampleMessage()
+	{
+		JPanel pDownSampleInfo = new JPanel(new GridBagLayout());
+		JLabel infoLabel = new JLabel(
+			    "<html>For large curve thickness values (> 4 px) it is recommended to use <br>"
+			    + "\"Downsample for large sigma\" option</html>"
+			);
+//		infoLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+//		infoLabel.addMouseListener(new MouseAdapter() {
+//		    @Override
+//		    public void mouseClicked(MouseEvent e) {
+//		        try {
+//		            Desktop.getDesktop().browse(new URI("https://github.com/BioImageTools/ome-zarr-fiji-java"));
+//		        } catch (IOException | URISyntaxException exc) {
+//		            exc.printStackTrace();
+//		        }
+//		    }
+//		});
+		String[] options = {"OK"};
+		JCheckBox cbShowAgain = new JCheckBox("Do not show this message again");
+		cbShowAgain.setSelected( false );
+		
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		gbc.insets = new Insets(8, 0, 8, 0);
+		gbc.anchor = GridBagConstraints.WEST;
+
+		// Add the single label containing the entire message
+		pDownSampleInfo.add(infoLabel, gbc);
+
+		gbc.gridy = 1;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		gbc.anchor = GridBagConstraints.EAST;
+		pDownSampleInfo.add(cbShowAgain, gbc);
+		JOptionPane.showOptionDialog(null, pDownSampleInfo, "Tracing advice", 
+				JOptionPane.PLAIN_MESSAGE, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+		bt.btData.bShowDownSampleMessage= !cbShowAgain.isSelected();
+		Prefs.get( "BVB.bShowDownSampleMessage", bt.btData.bShowDownSampleMessage);
 	}
 }
