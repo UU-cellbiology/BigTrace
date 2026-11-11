@@ -315,7 +315,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
 		
-	/** one-click "path stiffness" (0-1), use of the path "history". If >0, tracing keeps a smoothed 
+	/** one-click "path stiffness" (0-1), use of the path "history". If more than zero, tracing keeps a smoothed 
 	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 
 	* and step direction. Higher = straighter, stiffer path. 0 = original stepping **/
 	public double dOCStiffness;

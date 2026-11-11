@@ -378,7 +378,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	 *  minimum (first voxel) of the clipped volume along the axis (pixels, numbering from 0)
 	 * @param nMax
 	 *  maximum (last voxel) of the clipped volume along the axis (pixels).
-	 *  Values are limited to the volume, nMin and nMax are swapped if nMin > nMax. 
+	 *  Values are limited to the volume, nMin and nMax are swapped if nMin is more than nMax. 
 	 *  To reset the clipping along an axis, use a large range, e.g. (axis, 0, 100000).
 	 **/
 	public void macroSetClippingLimit(final int nClippingAxis, final int nMin, final int nMax)
