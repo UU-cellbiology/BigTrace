@@ -721,7 +721,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		TaskBT.runOnEDTAndWait(()->
 		{
 			IJ.log( "Setting tracing parameters:" );
-			IJ.log( "   Downsample tracing for large sigma: " + bt.btData.bTraceDownsample );
+			IJ.log( "   Downsample data for large thickness: " + bt.btData.bTraceDownsample );
 			IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
 		});
 		bt.bInputLock = false;

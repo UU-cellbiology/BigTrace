@@ -47,7 +47,7 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 		final long [] ds = new long[3];
 		final double [] sigmaGrid = new double[3];
 		final boolean bDownsample = DownsampleGrid.computeFactors(bt.btData.sigmaTrace, bt.btData.bTraceDownsample, 
-				bt.btData.dOCDownsampleSigma, ds, sigmaGrid);
+				bt.btData.dDownsampleSigma, ds, sigmaGrid);
 		
 		setProgress(0);
 		

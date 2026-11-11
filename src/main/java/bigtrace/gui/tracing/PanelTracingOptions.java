@@ -1,19 +1,12 @@
 package bigtrace.gui.tracing;
 
-import java.awt.Cursor;
-import java.awt.Desktop;
+
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -47,7 +40,7 @@ public class PanelTracingOptions extends JPanel
 	final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
 	
 	final JCheckBox cbTraceOnlyClipped = new JCheckBox("Trace only clipped volume");
-	final JCheckBox cbTraceDownsample = new JCheckBox("Downsample for large sigma");
+	final JCheckBox cbTraceDownsample = new JCheckBox("Downsample data for large thickness");
 	final String [] sEstimateMode = new String [] {"MAX", "AVG", "MIN"};
 	final JComboBox<String> cbEstimateThicknessMode = new JComboBox<>(sEstimateMode);
 	final NumberField cbEstimateThicknessCoeff = new NumberField(2);
@@ -257,7 +250,7 @@ public class PanelTracingOptions extends JPanel
 		JPanel pDownSampleInfo = new JPanel(new GridBagLayout());
 		JLabel infoLabel = new JLabel(
 			    "<html>For large curve thickness values (> 4 px) it is recommended to use <br>"
-			    + "\"Downsample for large sigma\" option</html>"
+			    + "\"Downsample data for large thickness\" option</html>"
 			);
 //		infoLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 //		infoLabel.addMouseListener(new MouseAdapter() {

@@ -253,7 +253,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public int nTraceROIThicknessMode = (int)Prefs.get("BigTrace.nTraceROIThicknessMode", 0.0);
 	
 	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
-	 * so the kernel stays about dOCDownsampleSigma voxels:
+	 * so the kernel stays about dDownsampleSigma voxels:
 	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
 	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
 	 * If false, the original full resolution tracing is used. **/
@@ -261,7 +261,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
-	public double dOCDownsampleSigma = 3.0;
+	public double dDownsampleSigma = 3.0;
 	
 	public boolean bShowDownSampleMessage = Prefs.get( "BigTrace.bShowDownSampleMessage", true );
 
@@ -361,6 +361,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		sigmaTrace[1] = Prefs.get("BigTrace.sigmaTraceY", 3.0);
 		sigmaTrace[2] = Prefs.get("BigTrace.sigmaTraceZ", 3.0);
 		bTraceOnlyClipped = Prefs.get("BigTrace.bTraceOnlyClipped", false);
+		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		
 		nTraceBoxSize = (int) Prefs.get("BigTrace.nTraceBoxSize", 50);				
 		fTraceBoxAdvanceFraction = (float) Prefs.get("BigTrace.fTraceBoxAdvanceFraction", 0.9);
@@ -372,8 +373,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		dDirectionalityOneClick = Prefs.get("BigTrace.dDirectionalityOneClick", 0.6);
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
-		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
-		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.5);
+		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.0);
 		//before it was a separate option, junctions were handled for stiffness > 0
 		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
 
