@@ -338,6 +338,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(bCoastEndedByDistance && !bFaded && !isNearTraced(lastGrid))
 		{
 			passageQueue.addAll(path);
+			exitPassageHeading(path.get(path.size() - 1));
 			return PASSAGE_OK;
 		}
 		if(isTraced(lastGrid))
@@ -381,19 +382,60 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		System.arraycopy(lastBefore, 0, oc.lastDirectionVector, 0, 3);
 		if(box.hessBox == null)
 			return;
-		final double [] pAhead = toGrid(currpoint);
+		final double [] outArm = findOutgoingArm(toGrid(currpoint), memBefore);
+		if(outArm != null)
+		{
+			System.arraycopy(outArm, 0, oc.memDirectionVector, 0, 3);
+			System.arraycopy(outArm, 0, oc.lastDirectionVector, 0, 3);
+		}
+	}
+	
+	/** Exit of an accepted passage: a kink (bend) of the filament can be detected as a junction,
+	 * since it lowers the coherence ahead like a shallow crossing. The passage then coasts straight 
+	 * and ends at/after the bend with the heading of the incoming part, 
+	 * so normal stepping (and gap bridging) can not turn into the outgoing part and tracing stops.
+	 * Here the heading is turned to the outgoing arm of the elongated line filter ~sigma ahead of the exit 
+	 * (hessian of a junction box centered at the exit): the arm closest to the heading, other than 
+	 * the incoming one, if it is within the directionality constrain.
+	 * At the exit of a real crossing it is the straight continuation, the heading barely changes. **/
+	void exitPassageHeading(final RealPoint exitPoint)
+	{
+		final double [] heading = oc.memDirectionVector.clone();
+		final double [] pExit = toGrid(exitPoint);
+		final long [] center = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
-			pAhead[d] += nJunctionRadius * memBefore[d];
+			center[d] = Math.round(pExit[d]);
+		}
+		computeJunctionHessian(center);
+		final double [] outArm = findOutgoingArm(pExit, heading);
+		if(outArm == null)
+			return;
+		if(SteerableLineFilter.dot(outArm, heading) < oc.dAngleThreshold)
+			return;
+		System.arraycopy(outArm, 0, oc.memDirectionVector, 0, 3);
+		System.arraycopy(outArm, 0, oc.lastDirectionVector, 0, 3);
+	}
+	
+	/** Arms of the elongated line filter (current junction box) at ~sigma ahead of pGrid along heading:
+	 * returns the outgoing arm, closest to the heading other than the incoming one 
+	 * (the one pointing back along the heading), or null if there are fewer than 2 arms
+	 * or none points forward **/
+	double [] findOutgoingArm(final double [] pGrid, final double [] heading)
+	{
+		final double [] pAhead = pGrid.clone();
+		for (int d = 0; d < 3; d++)
+		{
+			pAhead[d] += nJunctionRadius * heading[d];
 		}
 		final ArrayList<double[]> arms = box.hessBox.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
 		if(arms.size() < 2)
-			return;
+			return null;
 		//incoming arm: pointing back along the heading
 		int nIncoming = 0;
 		for (int i = 1; i < arms.size(); i++)
 		{
-			if(SteerableLineFilter.dot(arms.get(i), memBefore) < SteerableLineFilter.dot(arms.get(nIncoming), memBefore))
+			if(SteerableLineFilter.dot(arms.get(i), heading) < SteerableLineFilter.dot(arms.get(nIncoming), heading))
 				nIncoming = i;
 		}
 		double [] outArm = null;
@@ -402,18 +444,14 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		{
 			if(i == nIncoming)
 				continue;
-			final double c = SteerableLineFilter.dot(arms.get(i), memBefore);
+			final double c = SteerableLineFilter.dot(arms.get(i), heading);
 			if(c > dBest)
 			{
 				dBest = c;
 				outArm = arms.get(i);
 			}
 		}
-		if(outArm != null)
-		{
-			System.arraycopy(outArm, 0, oc.memDirectionVector, 0, 3);
-			System.arraycopy(outArm, 0, oc.lastDirectionVector, 0, 3);
-		}
+		return outArm;
 	}
 
 	/** starts coasting at the current point: heading = momentum, junction map, first coasting step **/

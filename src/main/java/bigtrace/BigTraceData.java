@@ -319,6 +319,15 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 
 	* and step direction. Higher = straighter, stiffer path. 0 = original stepping **/
 	public double dOCStiffness;
+
+	/** one-click tracing: max gap to jump over when the ridge is interrupted
+	 * (dotty/punctate lines), in units of tracing sigma (per axis), 0 = off.
+	 * Limited by dOCGapBridgeMaxSigma **/
+	public double dOCGapBridgeSigma;
+	
+	/** maximum of dOCGapBridgeSigma: the look-ahead cone has to fit 
+	 * into the +-3 sigma box where saliency is calculated **/
+	public static final double dOCGapBridgeMaxSigma = 4.5;
 	
 	/** one-click junction (crossing) handling: crossings are detected ahead and passed 
 	 * along the steered line filter map. Set separately from stiffness, but stepping 
@@ -374,6 +383,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
 		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.0);
+		dOCGapBridgeSigma = Math.min(dOCGapBridgeMaxSigma, Math.max(0.0, Prefs.get("BigTrace.dOCGapBridgeSigma", 0.0)));
 		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
 
 		

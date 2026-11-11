@@ -14,6 +14,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import bigtrace.BigTrace;
+import bigtrace.BigTraceData;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.panels.NumberField;
 import ij.Prefs;
@@ -37,6 +38,11 @@ public class PanelOneClickTraceOptions extends JPanel
 	final JCheckBox cbTraceMask = new JCheckBox("Avoid (mask) existing ROIs");
 	
 	final NumberField nfStiffness = new NumberField(4);
+	
+	final NumberField nfGapBridge = new NumberField(4);
+	
+	/** gap bridging distance in px/units at the current tracing sigma **/
+	final JLabel lGapBridgeDist = new JLabel();
 	
 	final JCheckBox cbJunctions = new JCheckBox("Handle junctions (crossings)");
 	
@@ -66,6 +72,10 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		nfStiffness.setText(df.format(bt.btData.dOCStiffness));
 		nfStiffness.setToolTipText( "Use of path history. Higher = straighter path. 0 = original stepping" );
+		nfGapBridge.setText(df.format(bt.btData.dOCGapBridgeSigma));
+		nfGapBridge.setToolTipText( "<html>When the ridge is interrupted (dotty lines), look ahead along the trace direction<br>"
+				+ "for its continuation, up to this distance in units of tracing sigma (0-" 
+				+ BigTraceData.dOCGapBridgeMaxSigma + "). 0 = off</html>" );
 		cbJunctions.setSelected( bt.btData.bOCJunctions );
 		cbJunctions.setToolTipText( "Detect crossings ahead and pass them along the same filament (stepping uses stiffness of at least 0.1)" );
 		
@@ -103,6 +113,40 @@ public class PanelOneClickTraceOptions extends JPanel
 		this.add(nfStiffness, gbc);
 		gbc.gridwidth = 1;
 
+		gbc.gridx = 0;
+		gbc.gridy++;
+		this.add(new JLabel("Bridge gaps (\u03C3, 0-" + BigTraceData.dOCGapBridgeMaxSigma + ", 0=off): "), gbc);
+		gbc.gridx++;
+		this.add(nfGapBridge, gbc);
+		//gbc.gridx++;
+		//this.add(lGapBridgeDist, gbc);
+//		updateGapBridgeDistance();
+//		nfGapBridge.addDocumentListener( new DocumentListener()
+//		{
+//			@Override
+//			public void insertUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+//			@Override
+//			public void removeUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+//			@Override
+//			public void changedUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+//		});
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 3;
+		
+		this.add(lGapBridgeDist, gbc);
+		updateGapBridgeDistance();
+		nfGapBridge.addDocumentListener( new DocumentListener()
+		{
+			@Override
+			public void insertUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+			@Override
+			public void removeUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+			@Override
+			public void changedUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
+		});
+
+		
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 1;
@@ -159,6 +203,30 @@ public class PanelOneClickTraceOptions extends JPanel
 		lDirectionalityAngle.setText( sOut );
 	}
 	
+	/** shows the gap bridging distance in XY at the current tracing sigma, in px and units **/
+	void updateGapBridgeDistance()
+	{
+		String sOut;
+		try
+		{
+			final double dVal = Math.min( BigTraceData.dOCGapBridgeMaxSigma, Math.max( 0, Double.parseDouble( nfGapBridge.getText() ) ) );
+			final double dPx = dVal * bt.btData.sigmaTrace[0];
+			final DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance();
+			dfs.setDecimalSeparator('.');
+			final DecimalFormat dfOut = new DecimalFormat("0.##", dfs);
+			sOut = "Bridge length " + dfOut.format( dPx ) + " px";
+			if(!bt.btData.sVoxelUnit.equals( "pixel" ))
+			{
+				sOut = sOut + " (" + dfOut.format( dPx * bt.btData.globCal[0] ) + " " + bt.btData.sVoxelUnit + ")";
+			}
+		}
+		catch(NumberFormatException e)
+		{
+			sOut = " ?";
+		}
+		lGapBridgeDist.setText( sOut );
+	}
+	
 	public void getSetOptions()
 	{
 		bt.btData.nVertexPlacementPointN = Math.max(3, Integer.parseInt(nfPlaceVertex.getText()));
@@ -177,6 +245,9 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		bt.btData.dOCStiffness = Math.min(1.0, Math.max(0, Double.parseDouble(nfStiffness.getText())));
 		Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+		
+		bt.btData.dOCGapBridgeSigma = Math.min(BigTraceData.dOCGapBridgeMaxSigma, Math.max(0, Double.parseDouble(nfGapBridge.getText())));
+		Prefs.set("BigTrace.dOCGapBridgeSigma", bt.btData.dOCGapBridgeSigma);
 		
 		bt.btData.bOCJunctions = cbJunctions.isSelected();
 		Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
