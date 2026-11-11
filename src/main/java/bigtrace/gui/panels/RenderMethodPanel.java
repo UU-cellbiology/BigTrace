@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.panels;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -14,6 +14,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import bigtrace.BigTrace;
+import bigtrace.gui.GBCHelper;
 
 
 public class RenderMethodPanel < T extends RealType< T > & NativeType< T > > extends JPanel implements ActionListener

@@ -40,17 +40,17 @@ import bdv.tools.brightness.ColorIcon;
 import bdv.util.Affine3DHelpers;
 import bigtrace.animation.AnimationPanel;
 import bigtrace.gui.AnisotropicTransformAnimator3D;
-import bigtrace.gui.ClipPanel;
+import bigtrace.gui.ColorUserSettings;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.PanelTitle;
-import bigtrace.gui.RangeSliderPanel;
-import bigtrace.gui.RenderMethodPanel;
-import bigtrace.gui.VoxelSizePanel;
+import bigtrace.gui.panels.ClipPanel;
+import bigtrace.gui.panels.NumberField;
+import bigtrace.gui.panels.PanelTitle;
+import bigtrace.gui.panels.RangeSliderPanel;
+import bigtrace.gui.panels.RenderMethodPanel;
+import bigtrace.gui.panels.VoxelSizePanel;
 import bigtrace.io.ViewsIO;
 import bigtrace.measure.RoiMeasure3D;
-import bigtrace.rois.ColorUserSettings;
-import bigtrace.rois.RoiManager3D;
+import bigtrace.roimanager.RoiManager3D;
 import bigtrace.tracks.TrackingPanel;
 import bigtrace.volume.ExtractClip;
 import ij.Prefs;
@@ -117,35 +117,35 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		URL icon_path = this.getClass().getResource("/bt_icons/cube_icon.png");
 	    ImageIcon tabIcon = new ImageIcon(icon_path);
 
-	    tabPane.addTab("",tabIcon,panelView(), "View/Clip");
+	    tabPane.addTab("", tabIcon, panelView(), "View/Clip");
 
 	    //ROI MANAGER
 	    icon_path = this.getClass().getResource("/bt_icons/node.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,roiManager,"Tracing");
+	    tabPane.addTab("", tabIcon, roiManager.rmPanel, "Tracing");
 	    
 	    //MEASUREMENTS	    
 	    icon_path = this.getClass().getResource("/bt_icons/measure.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,roiMeasure,"Measure");
+	    tabPane.addTab("", tabIcon, roiMeasure, "Measure");
 	    
 	    //TRACKS	
 	    if(bt.btData.nNumTimepoints > 1)
 	    {
 		    icon_path = this.getClass().getResource("/bt_icons/tracks.png");
 		    tabIcon = new ImageIcon(icon_path);
-		    tabPane.addTab("",tabIcon ,btTracksPanel,"Tracking");
+		    tabPane.addTab("", tabIcon, btTracksPanel, "Tracking");
 	    }
 	    
 	    //ANIMATION
 	    icon_path = this.getClass().getResource("/bt_icons/director.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,btAniPanel,"Movie animation");
+	    tabPane.addTab("", tabIcon, btAniPanel, "Movie animation");
 	    
 	    //HELP/SHORTCUTS
 	    icon_path = this.getClass().getResource("/bt_icons/shortcut.png");
 	    tabIcon = new ImageIcon(icon_path);
-	    tabPane.addTab("",tabIcon ,panelInformation(),"Help/Shortcuts");
+	    tabPane.addTab("", tabIcon, panelInformation(), "Help/Shortcuts");
 	    	    
 	    tabPane.setSize(350, 300);
 	    tabPane.setSelectedIndex(1);
@@ -733,7 +733,7 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 		cd.gridx = 0;	
 		clipExtractSettings.add(new JLabel("Output:"),cd);
 		cd.gridx++;
-		String[] sExtractClippedOutput = { "show in ImageJ", "save as TIF" };
+		String[] sExtractClippedOutput = { "show in ImageJ", "save as TIF", "save as BDV XML/HDF5" };
 		JComboBox<String> extractClippedOutputList = new JComboBox<>(sExtractClippedOutput);
 		extractClippedOutputList.setSelectedIndex((int)Prefs.get("BigTrace.nExtractClippedOutput", 0));
 		clipExtractSettings.add(extractClippedOutputList,cd);
@@ -775,12 +775,30 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 			
 			nExtractClippedOutput = extractClippedOutputList.getSelectedIndex();
 			Prefs.set("BigTrace.nExtractClippedOutput", nExtractClippedOutput);
+			
+			//BDV XML/HDF5: ask for the file name
+			String sFullPathNoExt = null;
+			if(nExtractClippedOutput == 2)
+			{
+				final Path pathIn = Paths.get(bt.btData.sFileNameFullImg);
+				final String sFolder = (pathIn.getParent() != null) ? pathIn.getParent().toString() : "";
+				final SaveDialog sd = new SaveDialog("Save clipped volume as BDV XML/HDF5", sFolder, pathIn.getFileName().toString() + "_crop", ".xml");
+				if (sd.getDirectory() == null || sd.getFileName() == null)
+					return;
+				String sName = sd.getFileName();
+				if(sName.toLowerCase().endsWith( ".xml" ))
+				{
+					sName = sName.substring( 0, sName.length() - 4 );
+				}
+				sFullPathNoExt = sd.getDirectory() + sName;
+			}
 	        
 			//lock interaction
 			bt.bInputLock = true;
 	        bt.setLockMode(true);
 			//run in a separate thread
 			ExtractClip<T> extractClippedBG = new ExtractClip<>(bt, nTimePointMin, nTimePointMax, nExtractClippedOutput);
+			extractClippedBG.setOutputPath( sFullPathNoExt );
 
 			extractClippedBG.addPropertyChangeListener(bt.btPanel);
 			extractClippedBG.execute();
@@ -834,16 +852,16 @@ public class BigTraceControlPanel< T extends RealType< T > & NativeType< T > > e
 	            	progressBar.setValue(progress);
 	            }
 	            
-	            if(evt.getSource() instanceof bigtrace.BigTraceBGWorker)
+	            if(evt.getSource() instanceof bigtrace.BigTraceBGTask)
 	            {
-	            	progressBar.setString(((bigtrace.BigTraceBGWorker)(evt.getSource())).getProgressState());
+	            	progressBar.setString(((bigtrace.BigTraceBGTask)(evt.getSource())).getProgressState());
 	            }
 	        }
 	        if ("ProgressBarString" == evt.getPropertyName()) 
 	        {
-	            if(evt.getSource() instanceof bigtrace.BigTraceBGWorker)
+	            if(evt.getSource() instanceof bigtrace.BigTraceBGTask)
 	            {
-	            	progressBar.setString(((bigtrace.BigTraceBGWorker)(evt.getSource())).getProgressState());
+	            	progressBar.setString(((bigtrace.BigTraceBGTask)(evt.getSource())).getProgressState());
 	            }
 	        }
 	        

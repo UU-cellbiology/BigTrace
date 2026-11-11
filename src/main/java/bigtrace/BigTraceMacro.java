@@ -1,6 +1,7 @@
 package bigtrace;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,6 +15,7 @@ import bigtrace.measure.ROIsMeasureBG;
 import bigtrace.measure.RoiMeasure3D;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
+import bigtrace.rois.RoiBGScaler;
 import bigtrace.volume.StraightenCurve;
 import bvvpg.vistools.BvvStackSource;
 import ij.IJ;
@@ -42,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[17];
+		extensions = new ExtensionDescriptor[24];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -59,24 +61,41 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				  																		  MacroExtension.ARG_NUMBER, 
 				  																		  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL, 
 				  																		  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);		
-		extensions[9] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
+		extensions[9] = ExtensionDescriptor.newDescriptor("btSetOneClickStiffness", bt, MacroExtension.ARG_NUMBER); //stiffness 0..1
+		
+		extensions[10] = ExtensionDescriptor.newDescriptor("btRunFullAutoTrace", bt, MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
 		
-		extensions[10] = ExtensionDescriptor.newDescriptor("btSetMeasurements", bt, MacroExtension.ARG_STRING);
-		extensions[11] = ExtensionDescriptor.newDescriptor("btMeasureAndSave", bt, MacroExtension.ARG_STRING);
-		extensions[12] = ExtensionDescriptor.newDescriptor("btSetDisplayRangeGamma", bt,  MacroExtension.ARG_NUMBER,
+		extensions[11] = ExtensionDescriptor.newDescriptor("btSetMeasurements", bt, MacroExtension.ARG_STRING);
+		extensions[12] = ExtensionDescriptor.newDescriptor("btMeasureAndSave", bt, MacroExtension.ARG_STRING);
+		extensions[13] = ExtensionDescriptor.newDescriptor("btSetDisplayRangeGamma", bt,  MacroExtension.ARG_NUMBER,
 																						  MacroExtension.ARG_NUMBER,
 																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																						  MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[13] = ExtensionDescriptor.newDescriptor("btSetAlphaRangeGamma", bt, MacroExtension.ARG_NUMBER,
+		extensions[14] = ExtensionDescriptor.newDescriptor("btSetAlphaRangeGamma", bt, MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL,
 																					   MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL);
-		extensions[14] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
-		extensions[15] = ExtensionDescriptor.newDescriptor("btTest", bt);
-		extensions[16] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[15] = ExtensionDescriptor.newDescriptor("btScaleROIs", bt, MacroExtension.ARG_NUMBER, //scale X
+																							 MacroExtension.ARG_NUMBER, //scale Y
+																							 MacroExtension.ARG_NUMBER, //scale Z
+																							 MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //group name
+		extensions[16] = ExtensionDescriptor.newDescriptor("btRemoveROI", bt, MacroExtension.ARG_STRING, 
+				   															  MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
+		extensions[17] = ExtensionDescriptor.newDescriptor("btOpenNext", bt, MacroExtension.ARG_STRING);
+		extensions[18] = ExtensionDescriptor.newDescriptor("btTest", bt);
+		extensions[19] = ExtensionDescriptor.newDescriptor("btClose", bt);
+		extensions[20] = ExtensionDescriptor.newDescriptor("btSetFullAutoTraceParameters", bt, MacroExtension.ARG_STRING, //min length in units "true"/"false"
+																								MacroExtension.ARG_NUMBER + MacroExtension.ARG_OPTIONAL, //stop when added N traces (per timepoint), 0 = no limit
+																								MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL); //start only inside clip "true"/"false"
+		extensions[21] = ExtensionDescriptor.newDescriptor("btSetClippingLimit", bt, MacroExtension.ARG_NUMBER, //axis 0 - X, 1 - Y, 2 - Z
+																					  MacroExtension.ARG_NUMBER, //min
+																					  MacroExtension.ARG_NUMBER); //max
+		extensions[22] = ExtensionDescriptor.newDescriptor("btSetTracingParams", bt, MacroExtension.ARG_STRING, //downsample for large sigma "true"/"false"
+																				   MacroExtension.ARG_STRING); //trace only clipped volume "true"/"false"
+		extensions[23] = ExtensionDescriptor.newDescriptor("btSetOneClickJunctions", bt, MacroExtension.ARG_STRING); //handle junctions "true"/"false"
 		
 	}
 	
@@ -190,6 +209,29 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				macroSetOneClickParameters((int)Math.round(((Double)args[0]).doubleValue()), ((Double)args[1]).doubleValue(), (String)args[2],((Double)args[3]).doubleValue());					
 			});
 		}
+		if (name.equals("btSetOneClickStiffness")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetOneClickStiffness(((Double)args[0]).doubleValue());
+			});
+		}
+		
+		if (name.equals("btSetOneClickJunctions")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetOneClickJunctions((String)args[0]);
+			});
+		}
+		
+		if (name.equals("btSetTracingParams")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetTracingParams((String)args[0], (String)args[1]);
+			});
+		}
 
 		if (name.equals("btRunFullAutoTrace")) 
 		{
@@ -206,7 +248,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				final int nFirstTP = nFirstTPi;
 				final int nLastTP = nLastTPi;
 
-				macroRunFullAutoTrace(((Double)args[0]).doubleValue(), (int)Math.round(((Double)args[1]).doubleValue()), nFirstTP, nLastTP);
+				macroRunFullAutoTrace(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), nFirstTP, nLastTP);
 			});
 		}
 		
@@ -261,6 +303,35 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 				macroSetAlphaRangeGamma(((Double)args[0]).doubleValue(), ((Double)args[1]).doubleValue(), dGamma[0], nCh[0]);
 			});			
 		}
+		
+		if (name.equals("btScaleROIs")) 
+		{
+			final double [] scaleFactor = new double[3];
+			for(int d = 0; d < 3; d++)
+			{
+				scaleFactor[d] = ((Double)args[d]).doubleValue();
+			}
+			final String sGroupName = (String)args[3];
+			enqueue (()-> 
+			{
+				macroScaleROIs(scaleFactor, sGroupName);
+			});
+		}
+		
+		if (name.equals("btRemoveROI")) 
+		{
+			enqueue (()-> 
+			{
+				if(args[1] == null)
+				{
+					macroRemoveROI( (String)args[0], "All" );
+				}
+				else
+				{
+					macroRemoveROI( (String)args[0], (String)args[1] );
+				}
+			});
+		}
 
 		if (name.equals("btOpenNext")) 
 		{
@@ -278,28 +349,128 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			});
 		}
 		
+		if (name.equals("btSetClippingLimit")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetClippingLimit((int)Math.round(((Double)args[0]).doubleValue()),
+									  (int)Math.round(((Double)args[1]).doubleValue()),
+									  (int)Math.round(((Double)args[2]).doubleValue()));
+			});
+		}
+		
+		if (name.equals("btSetFullAutoTraceParameters")) 
+		{
+			enqueue (()-> 
+			{
+				//optional arguments: negative N / null keep the current value
+				final int nMaxTraces = (args[1] == null) ? -1 : (int)Math.round(((Double)args[1]).doubleValue());
+				macroSetFullAutoTraceParameters((String)args[0], nMaxTraces, (String)args[2]);
+			});
+		}
+		
 		return null;
 	}
+	/** macro function sets the clipping (view and tracing volume) limits along one axis
+	 * @param nClippingAxis
+	 *  0 - X, 1 - Y, 2 - Z
+	 * @param nMin
+	 *  minimum (first voxel) of the clipped volume along the axis (pixels, numbering from 0)
+	 * @param nMax
+	 *  maximum (last voxel) of the clipped volume along the axis (pixels).
+	 *  Values are limited to the volume, nMin and nMax are swapped if nMin > nMax. 
+	 *  To reset the clipping along an axis, use a large range, e.g. (axis, 0, 100000).
+	 **/
+	public void macroSetClippingLimit(final int nClippingAxis, final int nMin, final int nMax)
+	{
+		if(nClippingAxis < 0 || nClippingAxis > 2)
+		{
+			IJ.log( "BigTrace macro error: clipping axis should be 0 (X), 1 (Y) or 2 (Z), provided value " + Integer.toString( nClippingAxis ) + "." );
+			return;
+		}
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		final long nLow = bt.btData.nDimIni[0][nClippingAxis];
+		final long nHigh = bt.btData.nDimIni[1][nClippingAxis];
+		final long [][] box = new long [2][3];
+		for(int d = 0; d < 3; d++)
+		{
+			box[0][d] = bt.btData.nDimCurr[0][d];
+			box[1][d] = bt.btData.nDimCurr[1][d];
+		}
+		box[0][nClippingAxis] = Math.max(nLow, Math.min(nHigh, Math.min(nMin, nMax)));
+		box[1][nClippingAxis] = Math.max(nLow, Math.min(nHigh, Math.max(nMin, nMax)));
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			//update the sliders of the clipping panel (it also updates the view)
+			bt.btPanel.clipPanel.setBoundingBox( box );
+			//make sure the clipping is applied (no change if it is already the case)
+			bt.btPanel.bbChanged( box );
+			final String [] sAxes = new String [] {"X", "Y", "Z"};
+			IJ.log( "BigTrace macro: clipping along " + sAxes[nClippingAxis] + " set to [" 
+					+ Long.toString( bt.btData.nDimCurr[0][nClippingAxis] ) + ", " 
+					+ Long.toString( bt.btData.nDimCurr[1][nClippingAxis] ) + "]" );
+		});
+		bt.repaintBVV();
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function sets parameters of full auto tracing (stored in Prefs, the same as in the full auto trace dialog)
+	 * @param sMinLengthInUnits
+	 *  "true" or "false": min curve length of btRunFullAutoTrace is in physical units (true) or in voxels (false)
+	 * @param nMaxTraces
+	 *  stop full auto tracing at a time point when N traces were added there (per time point), 0 = no limit.
+	 *  Negative value (or the argument omitted in the macro) keeps the current value.
+	 * @param sStartOnlyInsideClip
+	 *  "true" or "false": start tracing only inside the clipped volume.
+	 *  null (the argument omitted in the macro) keeps the current value.
+	 **/
+	public void macroSetFullAutoTraceParameters(final String sMinLengthInUnits, final int nMaxTraces, final String sStartOnlyInsideClip)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		Prefs.set("BigTrace.bMinCurveLengthInUnits", sMinLengthInUnits.toLowerCase().equals( "true" ));
+		if(nMaxTraces >= 0)
+		{
+			Prefs.set("BigTrace.nAutoMaxTraces", nMaxTraces);
+		}
+		if(sStartOnlyInsideClip != null)
+		{
+			Prefs.set("BigTrace.bStartOnlyInsideClip", sStartOnlyInsideClip.toLowerCase().equals( "true" ));
+		}
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting full auto tracing parameters:" );
+			printFullAutoTraceParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
 	/** macro function runs full auto on all time points 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
-	 * @param nMinNumPoints
-	 * 	specifies the minimum number of points in a curve
+	 * @param dMinCurveLength
+	 * 	specifies the minimum curve length
 	 **/
-	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints)
+	public void macroRunFullAutoTrace(final Double dMinIntensity, final Double dMinCurveLength)
 	{
-		macroRunFullAutoTrace(dMinIntensity, nMinNumPoints, 0, bt.btData.nNumTimepoints - 1);		
+		macroRunFullAutoTrace(dMinIntensity, dMinCurveLength, 0, bt.btData.nNumTimepoints - 1);		
 	}
 	/** macro function runs full auto on specified time points range. 
 	 * @param dMinIntensity 
 	 * 	the minimum intensity to start tracing curve 
-	 * @param nMinNumPoints
-	 * 	specifies the minimum number of points in a curve
+	 * @param dMinCurveLength
+	 * 	specifies the minimum curve length
 	 * @param nFirstFrame 
 	 * 	in case of timelapse data, first frame to start (numbering from 0) 
 	 * @param nLastFrame
 	 *  in case of timelapse data, the last frame to trace  **/
-	public void macroRunFullAutoTrace(final Double dMinIntensity, final Integer nMinNumPoints, final Integer nFirstFrame, final Integer nLastFrame)
+	public void macroRunFullAutoTrace(final Double dMinIntensity, final Double dMinCurveLength, final Integer nFirstFrame, final Integer nLastFrame)
 	{
 
 		int nFirstTP = 0;
@@ -315,16 +486,28 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		}
 		TaskBT.runOnEDTAndWait(()->
 		{
+			boolean bMinCurveLengthInUnits = Prefs.get("BigTrace.bMinCurveLengthInUnits", false );
+			String sUnits = "";
+			if(bMinCurveLengthInUnits)
+			{
+				sUnits = " " + bt.btData.sVoxelUnit;
+			}
+			else
+			{
+				sUnits = " voxels";
+			}
 			IJ.log( "BigTrace macro: running full autotrace with parameters:" );
 			IJ.log( "   Min intensity trace start: " + Double.toString( dMinIntensity ));
-			IJ.log( "   Min # points in curve: " + Integer.toString( nMinNumPoints ));
+			IJ.log( "   Min curve length: " + Double.toString( dMinCurveLength ) + sUnits) ;
 			IJ.log( "   First time frame: " + Integer.toString( nFirstFrame ));
 			IJ.log( "   Last time frame: " + Integer.toString( nLastFrame ));
+			printFullAutoTraceParams();
 			printShapeInterpolation();
 			IJ.log( "One-click tracing parameters" );
 			printOneClickParams();
 		});
-		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, nMinNumPoints, nFirstFrame, nLastFrame );
+		final int nAutoMaxTraces = Math.max(0, (int)Prefs.get("BigTrace.nAutoMaxTraces", 0));
+		bt.roiManager.panelFullAutoTrace.launchFullAutoTrace( dMinIntensity, dMinCurveLength, nFirstFrame, nLastFrame, nAutoMaxTraces );
 		bMacroMode = false;
 	}
 	
@@ -473,7 +656,77 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		bt.bInputLock = false;
 		bMacroMode = false;
 	}
+	/** macro function sets stiffness of one-click tracing
+	 * @param dStiffness
+	 *  stiffness of tracing (use of the path history), clamped to [0..1];
+	 *  0 = original stepping. Junction handling is set separately (btSetOneClickJunctions).
+	 *  **/
+	public void macroSetOneClickStiffness(final double dStiffness)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.dOCStiffness = Math.min(1.0, Math.max(0.0, dStiffness));
+		Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting one-click tracing stiffness:" );
+			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
 	
+	/** macro function switches junction (crossing) handling of one-click tracing on/off
+	 * @param sJunctions
+	 *  "true" or "false" 
+	 *  **/
+	public void macroSetOneClickJunctions(final String sJunctions)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bOCJunctions = sJunctions.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting one-click junction handling:" );
+			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function sets global tracing parameters (Tracing tab of the settings)
+	 * @param sDownsample
+	 *  "true" or "false". If true, for large tracing sigma one-click (full auto) and semi-auto tracing
+	 *  use a block-averaged (downsampled) grid, so the kernel stays about dOCDownsampleSigma pixels.
+	 *  If false, original full resolution tracing is used.
+	 * @param sTraceOnlyClipped
+	 *  "true" or "false". If true, tracing is performed only inside the clipped volume.
+	 *  **/
+	public void macroSetTracingParams(final String sDownsample, final String sTraceOnlyClipped)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bTraceDownsample = sDownsample.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
+		
+		bt.btData.bTraceOnlyClipped = sTraceOnlyClipped.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bTraceOnlyClipped", bt.btData.bTraceOnlyClipped);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting tracing parameters:" );
+			IJ.log( "   Downsample data for large thickness: " + bt.btData.bTraceDownsample );
+			IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
 	
 	/** macro function loads ROIs. 
 	 * @param sFileName
@@ -610,7 +863,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			IJ.log( "First axis parameter should be in the range of 0-2, wher 0 = X axis, 1 = Y axis, 2 = Z axis" );
 			IJ.log( "Setting the value to 0, X axis." );
 		}
-		int nShape = 0 ;
+		int nShape = 0;
 		if(sShape == "Round")
 		{
 			nShape  = 1;
@@ -827,6 +1080,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		macroSetDisplayRangeGamma(minIntensity, maxIntensity, dGamma, -1);
 	}
+	
 	public void macroSetDisplayRangeGamma(final Double minIntensity, final Double maxIntensity)
 	{
 		macroSetDisplayRangeGamma(minIntensity, maxIntensity, 1.0);
@@ -886,6 +1140,148 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		macroSetAlphaRangeGamma(minAlpha, maxAlpha, dGamma, -1);
 
 	}
+	
+	/** macro function scales all ROIs (or ROIs of one group) using RoiBGScaler
+	 * @param scaleFactor
+	 * 	array of scaling factors along X, Y and Z axes
+	 **/
+	public void macroScaleROIs(final double [] scaleFactor)
+	{
+		macroScaleROIs(scaleFactor, null);
+	}
+	
+	/** macro function scales all ROIs (or ROIs of one group) using RoiBGScaler
+	 * @param scaleFactor
+	 * 	array of scaling factors along X, Y and Z axes
+	 * @param sGroupName
+	 * 	name of ROI group to scale. If null or empty, all ROIs are scaled.
+	 **/
+	public void macroScaleROIs(final double [] scaleFactor, final String sGroupName)
+	{
+		bMacroMode = true;
+		bt.bInputLock = true;
+		bt.setLockMode(true);
+		
+		List<Roi3D> scaleROIs = bt.roiManager.rois;
+		String sTarget = "all ROIs";
+		boolean bValid = true;
+		
+		if(sGroupName != null && !sGroupName.isEmpty())
+		{
+			int nGroupInd = -1;
+			for(int i = 0; i < bt.roiManager.groups.size(); i++)
+			{
+				if(bt.roiManager.groups.get( i ).getName().equals( sGroupName ))
+				{
+					nGroupInd = i;
+					break;
+				}
+			}
+			if(nGroupInd < 0)
+			{
+				bValid = false;
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( "Error! Cannot find ROI group with the name \"" + sGroupName + "\". Scaling aborted." );
+				});
+			}
+			else
+			{
+				scaleROIs = new ArrayList<>();
+				for(final Roi3D roi : bt.roiManager.rois)
+				{
+					if(roi.getGroupInd() == nGroupInd)
+					{
+						scaleROIs.add( roi );
+					}
+				}
+				sTarget = "ROIs of group \"" + sGroupName + "\"";
+			}
+		}
+		
+		if(bValid)
+		{
+			if(scaleROIs.size() > 0)
+			{
+				final RoiBGScaler roiBGScaler = new RoiBGScaler(bt, scaleROIs, scaleFactor);
+				roiBGScaler.scaleROIs();
+				final String sOut = "BigTrace macro: scaled " + Integer.toString( scaleROIs.size() ) + " " + sTarget 
+						+ " with factors X " + Double.toString( scaleFactor[0] ) 
+						+ " Y " + Double.toString( scaleFactor[1] ) 
+						+ " Z " + Double.toString( scaleFactor[2] ) + ".";
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( sOut );
+				});
+			}
+			else
+			{
+				TaskBT.runOnEDTAndWait(()->
+				{
+					IJ.log( "Cannot find ROIs to apply scaling." );
+				});
+			}
+		}
+		
+		bt.setLockMode(false);
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function removes ROIs with the provided name.
+	 * @param sROIName
+	 * 	exact ROI name (case sensitive), as shown in the ROI manager
+	 *  without the [group] prefix and the T time point prefix
+	 * @param sMode
+	 * 	"First" removes only the first ROI with this name (top of the list),
+	 *  "All" removes all ROIs with this name (default) **/
+	public void macroRemoveROI(final String sROIName, final String sMode)
+	{
+		final boolean bFirstOnly;
+		switch ( sMode )
+		{
+		case "First":
+			bFirstOnly = true;
+			break;
+		case "All":
+			bFirstOnly = false;
+			break;
+		default:
+			TaskBT.runOnEDTAndWait(()->
+			{
+				IJ.log( "Error! btRemoveROI: second parameter should be either First or All." );
+			});
+			return;
+		}
+		if(sROIName == null || sROIName.isEmpty())
+		{
+			TaskBT.runOnEDTAndWait(()->
+			{
+				IJ.log( "Error! btRemoveROI: ROI name should not be empty." );
+			});
+			return;
+		}
+		bt.bInputLock = true;
+		bMacroMode = true;
+
+		final int nRemoved = bt.roiManager.removeRoisByName( sROIName, bFirstOnly );
+
+		TaskBT.runOnEDTAndWait(()->
+		{
+			if(nRemoved == 0)
+			{
+				IJ.log( "BigTrace macro: no ROIs with the name \"" + sROIName + "\" found, nothing removed." );
+			}
+			else
+			{
+				IJ.log( "BigTrace macro: removed " + Integer.toString( nRemoved ) + " ROI(s) with the name \"" + sROIName + "\" (mode " + sMode + ")." );
+			}
+			IJ.log( "  Total " + Integer.toString( bt.roiManager.rois.size() ) + " ROIs left." );
+		});
+		bt.repaintBVV();
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
 
 	/** macro function removes current loaded image and loads a new one to BigTrace.
 	 * also deletes all existing ROIs 
@@ -902,7 +1298,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			bt.bvv_sources.get( i ).removeFromBdv();
 		}
 		bt.bvv_sources.clear();
-		bt.roiManager.rois.clear();
+		bt.roiManager.clearRois();
 		TaskBT.runOnEDTAndWait(()->
 		{
 			bt.roiManager.updateRoiListModel();
@@ -940,6 +1336,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	
 	//LOGGING HELPERS
 	
+	void printFullAutoTraceParams()
+	{
+		IJ.log( "   Min curve length in units: " + Prefs.get("BigTrace.bMinCurveLengthInUnits", false) );
+		final int nMax = (int)Prefs.get("BigTrace.nAutoMaxTraces", 0);
+		IJ.log( "   Stop when added N traces (per timepoint): " + (nMax > 0 ? Integer.toString( nMax ) : "0 (no limit)") );
+		IJ.log( "   Start tracing only inside clip: " + Prefs.get("BigTrace.bStartOnlyInsideClip", false) );
+	}
+	
 	void printOneClickParams()
 	{
 		IJ.log( "   Active channel: " + Integer.toString(bt.btData.nChAnalysis + 1) );
@@ -951,6 +1355,9 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Intermediate vertex placement: " + bt.btData.nVertexPlacementPointN );
 		IJ.log( "   Use intensity threshold: " + bt.btData.bOCIntensityStop );	
 		IJ.log( "   Trace only clipped volume: " + bt.btData.bTraceOnlyClipped );
+		IJ.log( "   Downsample tracing for large sigma: " + bt.btData.bTraceDownsample );
+		IJ.log( "   Stiffness: " + bt.btData.dOCStiffness );
+		IJ.log( "   Handle junctions: " + bt.btData.bOCJunctions );
 		if(bt.btData.bOCIntensityStop)
 		{
 			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));

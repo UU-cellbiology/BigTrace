@@ -14,26 +14,23 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 import javax.imageio.ImageIO;
 
 import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.Prefs;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bvvpg.core.render.VolumeRenderer.RepaintType;
 import ij.IJ;
 
 
-public class AnimationRender extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class AnimationRender extends BigTraceBGTask
 {
 	
 	final BigTrace<?> bt;
 	
 	final AnimationPanel aPanel;
-	
-	private String progressState;
 	
 	JButton butRecord = null;
 	
@@ -43,16 +40,6 @@ public class AnimationRender extends SwingWorker<Void, String> implements BigTra
 	
 	JPanel glass = null;
 
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 	
 	public AnimationRender(BigTrace<?> bt_,  AnimationPanel aPanel_)
 	{

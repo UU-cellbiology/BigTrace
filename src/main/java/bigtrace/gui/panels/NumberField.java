@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.panels;
 
 import java.awt.FlowLayout;
 import java.awt.event.FocusListener;
@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.event.DocumentListener;
 
 public class NumberField extends JPanel {
 
@@ -29,6 +30,11 @@ public class NumberField extends JPanel {
 
 	public void addListener(Listener l) {
 		listener.add(l);
+	}
+
+	/** listener of any text change (typing, pasting, setText) **/
+	public void addDocumentListener(DocumentListener l) {
+		textfield.getDocument().addDocumentListener(l);
 	}
 
 	public void addNumberFieldFocusListener(FocusListener l) {

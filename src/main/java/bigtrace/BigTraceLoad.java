@@ -44,6 +44,11 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
@@ -117,8 +122,8 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		btdata.nTotalChannels = seq.getViewSetupsOrdered().size();
 
 		
-		//in the end always 16-bit
-		btdata.nBitDepth = 16;
+		//bit depth from the pixel type of the data
+		btdata.nBitDepth = getBitDepth(seq);
 		colorsCh = new Color[btdata.nTotalChannels];
 		channelRanges = new double [2][btdata.nTotalChannels];
 		
@@ -261,20 +266,16 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		bt.btData.nNumTimepoints = seq.getTimePoints().size();
 		
 		//see if data comes from LLS7
-		String sTestLLS = seq.getViewDescription(0, 0).getViewSetup().getName();
-		if(sTestLLS.length() > 3)
+		if(btdata.sFileNameFullImg.contains("LLS"))
 		{
-			if((sTestLLS.contains("LLS")||sTestLLS.contains("LatticeLightsheet")) && btdata.sFileNameFullImg.endsWith(".czi"))
-			{
-				if (JOptionPane.showConfirmDialog(null, "Looks like the input comes from Zeiss LLS7.\nDo you want to deskew it?\n"
-						+ "(if it is already deskewed, click No)", "Loading option",
-				        JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-				    // yes option
-					bt.bApplyLLSTransform = true;
-				} 
-			}
-
+			if (JOptionPane.showConfirmDialog(null, "Looks like the input comes from Zeiss LLS7.\nDo you want to deskew it?\n"
+					+ "(if it is already deskewed, click No)", "Loading option",
+					JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+				// yes option
+				bt.bApplyLLSTransform = true;
+			} 
 		}
+
 		
 		FinalInterval rai_int;
 		RandomAccessibleInterval<T> raitest = (RandomAccessibleInterval<T>) seq.getImgLoader().getSetupImgLoader(0).getImage(0);
@@ -299,14 +300,30 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 		btdata.nTotalChannels = seq.getViewSetupsOrdered().size();	
 		
 		
-		//TODO FOR NOW, get it from the class
-		//not really needed later, but anyway
-		btdata.nBitDepth = 16;
+		//bit depth from the pixel type of the data
+		btdata.nBitDepth = getBitDepth(seq);
 		colorsCh = new Color[btdata.nTotalChannels];
 		channelRanges = new double [2][btdata.nTotalChannels];
 	
 		return null;
 		
+	}
+	
+	/** bit depth of the data (8, 16 or 32) from the pixel type of the first view setup **/
+	@SuppressWarnings( "cast" )
+	static int getBitDepth(final SequenceDescription seq)
+	{
+		final int nSetupId = seq.getViewSetupsOrdered().get( 0 ).getId();
+		final Object type = ((BasicImgLoader)seq.getImgLoader()).getSetupImgLoader( nSetupId ).getImageType();
+		if(type instanceof UnsignedByteType || type instanceof ByteType)
+			return 8;
+		if(type instanceof UnsignedShortType || type instanceof ShortType)
+			return 16;
+		if(type instanceof FloatType)
+			return 32;
+		if(type instanceof RealType)
+			return ((RealType<?>) type).getBitsPerPixel();
+		return 16;
 	}
 	
 	/** function assigns new LLS7 transform to bt.afDataTransform (using provided voxel size of original data) 
@@ -319,7 +336,7 @@ public class BigTraceLoad < T extends RealType< T > & NativeType< T > >
 	
 		
 		//rotate 30 degrees
-		tRotate.rotate(0, (-1.0)*Math.PI/6.0);
+		tRotate.rotate(0, (-1.0) * Math.PI / 6.0);
 		//shearing transform
 		tShear.set(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.7320508075688767, 0.0, 0.0, 0.0, 1.0, 0.0);
 		//Z-step adjustment transform

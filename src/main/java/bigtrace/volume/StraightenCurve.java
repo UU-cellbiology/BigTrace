@@ -3,36 +3,37 @@ package bigtrace.volume;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
-import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
-import bigtrace.geometry.Pipe3D;
-import bigtrace.measure.Circle2DMeasure;
-import bigtrace.rois.Roi3D;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.Calibration;
-import bigtrace.rois.AbstractCurve3D;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class StraightenCurve < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+import bigtrace.BigTrace;
+import bigtrace.BigTraceBGTask;
+import bigtrace.geometry.Pipe3D;
+import bigtrace.measure.Circle2DMeasure;
+import bigtrace.rois.Roi3D;
+import bigtrace.rois.AbstractCurve3D;
 
-	private String progressState;
-	final public BigTrace<T> bt;
+public class StraightenCurve < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
+
+	final BigTrace<T> bt;
 	final float fRadiusIn;
 	final int nStraightenAxis;
 	final int nStraightenShape;
@@ -57,19 +58,6 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		nOutput = nOutput_;
 		sSaveFolderPath = sSaveFolderPath_;
 		cal = new Calibration();
-	}
-	
-	@Override
-	public String getProgressState() {
-		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) {
-		
-		progressState = state_;
-		
 	}
 	
 	@Override
@@ -182,14 +170,14 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		{
 			nRadius = Math.round(fRadiusIn);
 		}
-		int dimXY = nRadius*2+1;
+		int dimXY = nRadius * 2 + 1;
 		
 		int nTotDim = all_RAI.numDimensions();
 		long [] dimS =new long[nTotDim];
 		all_RAI.dimensions(dimS);
-		dimS[0]=points_space.size(); //length along the line becomes X
-		dimS[1]=dimXY;
-		dimS[2]=dimXY;
+		dimS[0] = points_space.size(); //length along the line becomes X
+		dimS[1] = dimXY;
+		dimS[2] = dimXY;
 		long nChannelN = 1;
 		
 		int nMinTimePoint, nMaxTimePoint;
@@ -208,11 +196,12 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		}
 		//channels number
 		nChannelN = dimS[4];
-
+		
+		final DiskCachedCellImgOptions options = DiskCachedCellImgOptions.options()
+			    .cellDimensions(32, 32, 32);
 		//this is where we store straightened volume
-		Img<T> out1 = Util.getSuitableImgFactory(all_RAI, all_RAI.getType()).create(new FinalInterval(dimS));
-		
-		
+		final Img<T> outRAI = new DiskCachedCellImgFactory<>(all_RAI.getType(), options)
+			    .create(dimS);
 		//get a frame around line
 		double [][][] rsVect =  Pipe3D.rotationMinimizingFrame(points_space, tangents, bt.btData.rotationMinFrame);
 
@@ -224,7 +213,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		double [] current_point = new double [3];
 		RealRandomAccessible<T> interpolate = Views.interpolate(Views.extendZero(all_RAI), bt.btData.nInterpolatorFactory);
 		RealRandomAccess<T> ra = interpolate.realRandomAccess();
-		RandomAccess<T> ra_out = out1.randomAccess();
+		RandomAccess<T> ra_out = outRAI.randomAccess();
 	
 		RealPoint curr_XY;
 		if(bUpdateProgressBar)
@@ -245,7 +234,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 			{			
 				planeNorm = getNormCircleGridXYPairs(nRadius, bt.btData.dMinVoxelSize, rsVect[0][nPoint], rsVect[1][nPoint], current_point);			
 			}
-			for(int i=0;i<planeNorm.size();i++)
+			for(int i = 0; i < planeNorm.size(); i++)
 			{
 				//current XY point coordinates
 				curr_XY = new RealPoint( planeNorm.get(i).getB());
@@ -275,32 +264,34 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 			}
 			
 		}
+		
 		if(bUpdateProgressBar)
 		{
 			setProgressState("ROI straightening finished.");
 			setProgress(100);
 		}
+		
 		/** in case line is along Y or Z**/
-		if(nStraightenAxis>0)
+		if(nStraightenAxis > 0)
 		{
-			return Views.permute(out1, 0, nStraightenAxis);
+			return Views.permute(outRAI, 0, nStraightenAxis);
 		}
 		
-		return Views.interval(out1,out1);
+		return Views.interval(outRAI, outRAI);
 		
 	}
 	
 	/** generates initial square XY plane sampling with data from -nRadius till nRadius values (in dPixSize units) in XY 
 	 * centered around (0,0)**/
-	public static ArrayList< RealPoint > iniNormPlane(final int nRadius,final double dPixSize)
+	public static ArrayList< RealPoint > iniNormPlane(final int nRadius, final double dPixSize)
 	{
 		 ArrayList< RealPoint > planeXY = new  ArrayList< > ();
 		 		 
-		 for (int i = -nRadius; i<= nRadius; i++)
+		 for (int i = -nRadius; i <= nRadius; i++)
 		 {
 			 for (int j = -nRadius; j <= nRadius; j++)
 			 {
-				 planeXY.add(new RealPoint(i*dPixSize,j*dPixSize,0.0));
+				 planeXY.add(new RealPoint(i * dPixSize, j * dPixSize, 0.0));
 			 }
 		 }
 		 
@@ -332,7 +323,7 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 	
 	/** generates XY sampling grid coordinates in the shape of a circle from -nRadius till nRadius values (in dPixSize units) in XY plane 
 	 * defined by two normalized perpendicular vectors X and Y and with center at c **/
-	public static ArrayList< ValuePair< int[],RealPoint> > getNormCircleGridXYPairs(final int nRadius,final double dPixSize,final double [] x,final double [] y, final double [] c)
+	public static ArrayList< ValuePair< int[],RealPoint> > getNormCircleGridXYPairs(final int nRadius, final double dPixSize, final double [] x, final double [] y, final double [] c)
 	{
 		 ArrayList< ValuePair< int[],RealPoint> > circleXY = new  ArrayList< > ();
 		 
@@ -346,17 +337,42 @@ public class StraightenCurve < T extends RealType< T > & NativeType< T > > exten
 		 {
 			 circle.cursorCircle.fwd();
 			 circle.cursorCircle.localize(currentPoint);
-			 LinAlgHelpers.scale(x, currentPoint[0]*dPixSize, xp);
-			 LinAlgHelpers.scale(y, currentPoint[1]*dPixSize, yp);
-			 LinAlgHelpers.add(xp, yp,xp);
-			 LinAlgHelpers.add(xp, c,xp);
-			 circleXY.add(new ValuePair<>(new int[] {(int)Math.round(currentPoint[0])+nRadius, (int)Math.round( currentPoint[1])+nRadius},new RealPoint(xp)));
+			 LinAlgHelpers.scale(x, currentPoint[0] * dPixSize, xp);
+			 LinAlgHelpers.scale(y, currentPoint[1] * dPixSize, yp);
+			 LinAlgHelpers.add(xp, yp, xp);
+			 LinAlgHelpers.add(xp, c, xp);
+			 circleXY.add(new ValuePair<>(new int[] {(int)Math.round(currentPoint[0])+nRadius, (int)Math.round( currentPoint[1])+nRadius}, new RealPoint(xp)));
 		 }		 
 
 		 return circleXY;
 	}
-
-	
+	/** Calculates an interval for the square's corners from -nRadius till nRadius values (in dPixSize units) in XY plane 
+	 * defined by two normalized perpendicular vectors X and Y and with center at c **/
+	public static FinalInterval getCornersInterval(final int dR, final double dPixSize, final double [] x, final double [] y, final double [] c, final double [] globCal)
+	{
+		FinalInterval currInt = new FinalInterval(new long[]{10,10,10}, new long[]{0,0,0});
+		final double [] signs = new double[] {-dR, dR};
+		double[] cornerScaled;
+		final double [] xp = new double[3];
+		final double [] yp = new double[3];
+		final long[] posInt = new long[3];
+        for (double sx : signs)
+        {
+            for (double sy : signs)
+            {
+   			 	LinAlgHelpers.scale(x, sx * dPixSize, xp);
+   			 	LinAlgHelpers.scale(y, sy * dPixSize, yp);
+   			 	LinAlgHelpers.add(xp, yp, xp);
+   			 	LinAlgHelpers.add(xp, c, xp);
+   			 	cornerScaled = Roi3D.scaleGlobInv(xp, globCal);
+   			 	for (int d = 0; d < 3; d++)
+   			 		posInt[d] = Math.round(cornerScaled[d]);
+   			 	currInt = Intervals.union(currInt, new FinalInterval(posInt, posInt));
+            }
+        }
+        return currInt;
+		
+	}
     /*
      * Executed in event dispatching thread
      */

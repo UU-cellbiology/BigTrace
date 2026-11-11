@@ -20,7 +20,7 @@ import net.imglib2.util.LinAlgHelpers;
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
 import bigtrace.gui.GetFolderDialog;
-import bigtrace.gui.NumberField;
+import bigtrace.gui.panels.NumberField;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
 import ij.IJ;

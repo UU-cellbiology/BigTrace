@@ -1,10 +1,12 @@
-package bigtrace.rois;
+package bigtrace.roimanager;
 
 import java.awt.Color;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+
+import bigtrace.rois.Roi3D;
 
 public class Roi3DGroup 
 {

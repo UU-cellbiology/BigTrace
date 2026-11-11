@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.panels;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -12,7 +12,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
-
 
 
 
@@ -102,6 +101,7 @@ public class VoxelSizePanel extends JPanel implements NumberField.Listener, Focu
 		for(Listener l : listeners)
 			l.voxelSizeChanged(newVoxelSize);
 	}
+	
 	public void addVoxelSizePanelListener(Listener l) {
         listeners.add(l);
     }

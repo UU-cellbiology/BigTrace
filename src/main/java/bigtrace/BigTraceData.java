@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import bigtrace.gui.BCsettings;
-import bigtrace.gui.RenderSettings;
+import bigtrace.gui.panels.RenderSettings;
 import bigtrace.rois.Roi3D;
 import ij.Prefs;
 import net.imglib2.FinalInterval;
@@ -32,7 +32,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 {
 
 	/** current plugin version **/
-	public static String sVersion = "0.9.3";
+	public static String sVersion = "1.0.0";
 	
 	/** plugin instance **/
 	BigTrace<T> bt;
@@ -195,10 +195,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	public static final int silhouette_TRANSPARENT = 0, silhouette_CULLED = 1; 
 
 	/** current silhouette render type **/
-	public int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_CULLED);
+	public int silhouetteRender = (int) Prefs.get("BigTrace.silhouetteRender", silhouette_TRANSPARENT);
 	
 	/** current silhouette render type **/
-	public double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 2.0);
+	public double silhouetteDecay = Prefs.get("BigTrace.silhouetteDecay", 1.0);
 	
 	//////rendering ROI over time
 	
@@ -251,6 +251,19 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 
 	/** estimation mode value 0 - MAX, 1 - AVG, 2 - MIN **/	
 	public int nTraceROIThicknessMode = (int)Prefs.get("BigTrace.nTraceROIThicknessMode", 0.0);
+	
+	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
+	 * so the kernel stays about dDownsampleSigma voxels:
+	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
+	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
+	 * If false, the original full resolution tracing is used. **/
+	public boolean bTraceDownsample;
+	
+	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
+	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
+	public double dDownsampleSigma = 3.0;
+	
+	public boolean bShowDownSampleMessage = Prefs.get( "BigTrace.bShowDownSampleMessage", true );
 
 	
 	///////////////////////////// TRACING SETTINGS SEMI AUTO
@@ -301,28 +314,33 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
+		
+	/** one-click "path stiffness" (0-1), use of the path "history". If >0, tracing keeps a smoothed 
+	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 
+	* and step direction. Higher = straighter, stiffer path. 0 = original stepping **/
+	public double dOCStiffness;
+	
+	/** one-click junction (crossing) handling: crossings are detected ahead and passed 
+	 * along the steered line filter map. Set separately from stiffness, but stepping 
+	 * then uses stiffness of at least 0.1 (OneClickTrace.dJunctionMinStiffness) **/
+	public boolean bOCJunctions;
 	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
 
 	/** use collision mask with existing ROIs during tracking**/
 	public boolean bTrackingUseMask = Prefs.get( "BigTrace.bTrackingUseMask", false );
-
 	
-	//IO default/last folder
-	
+	/** IO default/last folder **/
 	public String lastDir = Prefs.get( "BigTrace.lastDir", "" );
 	
 	
 	///////////////// DEFAULT SETTINGS FOR UNDEFINED GROUP
-	
 	public float undefPointSize;// = 4.0f;
 	public float undefLineThickness;// = 7.0f;
 	public int undefRenderType;// = Roi3D.SURFACE;
 	public int undefPointColor ;// = Color.GREEN.getRGB();
 	public int undefLineColor;//  = Color.BLUE.getRGB();
-	
-	///////////////// DEFAULT SETTINGS FOR ACTIVE ROI COLORS
 	
 	public BigTraceData(final BigTrace<T> bt_)
 	{
@@ -343,6 +361,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		sigmaTrace[1] = Prefs.get("BigTrace.sigmaTraceY", 3.0);
 		sigmaTrace[2] = Prefs.get("BigTrace.sigmaTraceZ", 3.0);
 		bTraceOnlyClipped = Prefs.get("BigTrace.bTraceOnlyClipped", false);
+		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		
 		nTraceBoxSize = (int) Prefs.get("BigTrace.nTraceBoxSize", 50);				
 		fTraceBoxAdvanceFraction = (float) Prefs.get("BigTrace.fTraceBoxAdvanceFraction", 0.9);
@@ -354,6 +373,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		dDirectionalityOneClick = Prefs.get("BigTrace.dDirectionalityOneClick", 0.6);
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
+		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.0);
+		//before it was a separate option, junctions were handled for stiffness > 0
+		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
+
 		
 		//undefined group properties
 		undefPointSize = ( float ) Prefs.get( "BigTrace.undefPointSize", 4.0 );

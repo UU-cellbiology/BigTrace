@@ -9,6 +9,7 @@ import org.joml.Matrix4fc;
 import com.jogamp.opengl.GL3;
 
 import bigtrace.geometry.Line3D;
+import bigtrace.roimanager.Roi3DGroup;
 
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
@@ -79,7 +80,13 @@ public interface Roi3D
 	
 	public double getMinDist(final Line3D line);
 	
+	/** scale ROI coordinates vie coordFactor and sizes (points, thickness) by sizeFactor **/
+	public void scale(final double [] coordFactor, final double sizeFactor);
+	
+	/** returns bounding box including only centerline vertices (for curves) **/
 	public Interval getBoundingBoxVisual();
+	
+	/** returns bounding box including centerline vertices and the pipe around them (for curves) **/
 	public Interval getBoundingBox();
 	
 	/** given 3D RAI (without channel or time),
@@ -137,6 +144,7 @@ public interface Roi3D
 		}
 		return reversed; 
 	}
+	
 	/**
 	 * transforms realpoint in pixel coordinates to space units
 	 * **/

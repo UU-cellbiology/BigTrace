@@ -35,9 +35,9 @@ import net.imglib2.util.LinAlgHelpers;
 
 import bigtrace.BigTrace;
 import bigtrace.gui.GBCHelper;
-import bigtrace.gui.NumberField;
-import bigtrace.gui.PanelTitle;
-import bigtrace.gui.RangeSliderPanel;
+import bigtrace.gui.panels.NumberField;
+import bigtrace.gui.panels.PanelTitle;
+import bigtrace.gui.panels.RangeSliderPanel;
 import bigtrace.measure.MeasureValues;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.Roi3D;
@@ -108,7 +108,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		cr = new GridBagConstraints();
 		
 		//synchronized ROI list
-		jlist = new JList<>(bt.roiManager.listModel);
+		jlist = new JList<>(bt.roiManager.rmPanel.listModel);
 		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		listScroller = new JScrollPane(jlist);
 		jlist.addListSelectionListener(this);
@@ -129,7 +129,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 				{
 					if(bt.roiManager.activeRoi.intValue()>=0)
 					{
-						bt.roiManager.dialProperties();
+						bt.roiManager.rmDialogs.dialProperties();
 					}
 				}
 			}
@@ -494,7 +494,7 @@ public class TrackingPanel < T extends RealType< T > & NativeType< T > > extends
 		//Settings
 		if(e.getSource() == butSettings)
 		{
-			bt.roiManager.rmDiag.dialOneClickProperties();
+			bt.roiManager.rmDialogs.dialOneClickProperties();
 		}
 	}
 	@Override

@@ -4,11 +4,11 @@ import org.scijava.command.Command;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
-import bigtrace.gui.RenderSettings;
+import bigtrace.gui.panels.RenderSettings;
 import ij.Prefs;
 
 
-@Plugin(type = Command.class, menuPath = "Plugins>BigTrace 0.9.3>Volume Render Settings")
+@Plugin(type = Command.class, menuPath = "Plugins>BigTrace 1.0.0>Volume Render Settings")
 public class BigTraceRenderSettings implements Command {
 
 	
@@ -27,9 +27,9 @@ public class BigTraceRenderSettings implements Command {
 
 	@Parameter( label = "Number of dither samples",
 			description = "Pixels are interpolated from this many nearest neighbors when dithering. This is not very expensive, it's fine to turn it up to 8.",
-			min="1",
-			max="8",
-			style="slider")
+			min = "1",
+			max = "8",
+			style = "slider")
 	private int numDitherSamples = (int) Prefs.get("BigTrace.numDitherSamples", RenderSettings.defNumDitherSamples);
 
 	@Parameter( label = "GPU cache tile size" )

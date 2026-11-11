@@ -9,44 +9,31 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.BigTraceData;
 import bigtrace.gui.TaskBT;
+import bigtrace.roimanager.Roi3DGroup;
+import bigtrace.roimanager.Roi3DGroupManager;
 import bigtrace.rois.CrossSection3D;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Point3D;
 import bigtrace.rois.PolyLine3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.Roi3DGroup;
-import bigtrace.rois.Roi3DGroupManager;
 import ij.Prefs;
 
 import net.imglib2.RealPoint;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
-public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
 
-	private String progressState;
 	public BigTrace<T> bt;
 	public String sFilename;
 	public int nLoadMode;
 	String sFinalOut = "";
-    
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
-	
+    	
 	@Override
 	protected Void doInBackground() throws Exception 
 	{
@@ -83,7 +70,7 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
         globCalNew[1] = Double.NaN;
         globCalNew[2] = Double.NaN;                
        
-        Roi3DGroupManager<T> roiGM;
+        Roi3DGroupManager roiGM;
 
 		try ( BufferedReader br = new BufferedReader(new FileReader(sFilename));) 
 		{			       
@@ -91,14 +78,14 @@ public class ROIsLoadBG < T extends RealType< T > & NativeType< T > > extends Sw
 	        //read Groups first
 	        if(nLoadMode == 0)
 	        {
-	        	roiGM = new Roi3DGroupManager<>(bt.roiManager);
+	        	roiGM = new Roi3DGroupManager(bt.roiManager);
 	        	if(roiGM.loadGroups(br) < 0)
 	        	{
 	        		 System.err.println("Not a BigTrace ROI Group file format or plugin/file version mismatch,\nloading Groups failed.\n"+
 	        	"Try 'Append' loading mode.\n");
 	        		 return;
 	        	}
-	        	bt.roiManager.updateGroupsList();
+	        	bt.roiManager.rmPanel.updateGroupsList();
 	        	line = br.readLine();
 	        }
 	        //skip to ROI part

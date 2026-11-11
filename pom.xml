@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>42.0.0</version>
+		<version>45.0.0</version>
 		<relativePath />
 	</parent>
 
 	<groupId>nl.uu.science.cellbiology</groupId>
 	<artifactId>bigtrace</artifactId>
-	<version>0.9.3-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 
 	<name>BigTrace</name>
 	<description>Tracing of curvilinear structures in 3D</description>
@@ -81,10 +81,21 @@
 		<package-name>BigTrace</package-name>    
 		<license.licenseName>bsd_2</license.licenseName>
         <license.copyrightOwners>Cell Biology, Neurobiology and Biophysics Department of Utrecht University.</license.copyrightOwners>  			
+		<license.excludes>**/resources/**</license.excludes>
+		<!-- NB: Parent pom-scijava sets Java 11. We override it here to stay compatible with FIJI stable / Java 8. -->
+        <scijava.jvm.version>1.8</scijava.jvm.version>
+        <scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
+        <!-- Use older versions of dependencies to stay compatible with FIJI stable / Java 8. -->
+        <bigdataviewer-core.version>10.6.8</bigdataviewer-core.version>
+        <scifio.version>0.48.0</scifio.version>
+        
+        <!-- dependencies of BT -->
+		<bvv-playground.version>0.6.3</bvv-playground.version>
+		<bdv-loaders.version>0.23.3</bdv-loaders.version>
+		
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--  releaseProfiles>sign,deploy-to-scijava</releaseProfiles -->
-		<bvv-playground.version>0.5.7</bvv-playground.version>
-		<bdv-loaders.version>0.10.0</bdv-loaders.version>
+
 	</properties>
 
 	<dependencies>
@@ -106,10 +117,6 @@
 			</exclusions>
 		</dependency>
 		
-		<!--dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>imagej-mesh</artifactId>
-		</dependency -->
 		<dependency>
 		    <groupId>net.imglib2</groupId>
 		    <artifactId>imglib2-mesh</artifactId>	

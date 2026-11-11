@@ -3,10 +3,9 @@ package bigtrace.volume;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
-
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
+import bigtrace.io.BoxHDF5Saver;
 import bigtrace.rois.Roi3D;
 
 import ij.IJ;
@@ -17,19 +16,19 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker{
+public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
+{
 
-	private String progressState;
-	
-	final public BigTrace<T> bt;
+	final BigTrace<T> bt;
 	
 	int nExpandROIBox;
 	/** 0 - single time point, 1 - all time points **/
@@ -39,7 +38,7 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 
 	boolean bOnlyVoxelsInsideROI = false;
 	
-	/** 0 - show in ImageJ, 1 - save as TIFF **/
+	/** 0 - show in ImageJ, 1 - save as TIFF, 2 - save as BDV XML/HDF5 **/
 	int nOutput;
 	
 	String sSaveFolderPath;
@@ -56,18 +55,6 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 		nOutput = nOutput_;
 		sSaveFolderPath = sSaveFolderPath_;
 		cal = new Calibration();
-	}
-	
-	@Override
-	public String getProgressState() 
-	{		
-		return progressState;
-	}
-	
-	@Override
-	public void setProgressState(String state_) 
-	{		
-		progressState=state_;		
 	}
 	
 	@Override
@@ -96,13 +83,13 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 			return null;
 		String sRoiName;
 
-		for(int nRoi=0; nRoi<nTotROIs; nRoi++)
+		for(int nRoi = 0; nRoi < nTotROIs; nRoi++)
 		{
 			sRoiName = bt.roiManager.getFullDisplayedRoiName(listROIs.get(nRoi));
 			try {
 				Thread.sleep(1);
 			} catch (InterruptedException ignore) {}
-			setProgress(100*nRoi/(nTotROIs));
+			setProgress(100 * nRoi / (nTotROIs));
 			setProgressState("extracting ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
 			final IntervalView<T> extractedRAI;
 			if(bOnlyVoxelsInsideROI)
@@ -117,7 +104,17 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 			setProgressState("extracting ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName);
 			if(extractedRAI != null)
 			{
-				outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_bbox",cal, bt.btData.nNumTimepoints));
+				if(nOutput == 2)
+				{
+					//BDV XML/HDF5, placed at the box position in the original volume
+					setProgressState("saving ROI ("+Integer.toString(nRoi+1)+"/"+Integer.toString(nTotROIs)+") "+ sRoiName + " as HDF5 (see log)...");
+					final long [] boxMin = getBoxInterval(listROIs.get(nRoi), full_RAI).minAsLongArray();
+					new BoxHDF5Saver<>(bt, extractedRAI, boxMin, sSaveFolderPath + sRoiName + "_bbox").export();
+				}
+				else
+				{
+					outputImagePlus(VolumeMisc.wrapImgImagePlusCal(extractedRAI, sRoiName + "_bbox",cal, bt.btData.nNumTimepoints));
+				}
 			}
 		}
 		
@@ -138,7 +135,8 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 			IJ.saveAsTiff(ip, sSaveFolderPath+ip.getTitle());
 		}
 	}
-	IntervalView<T> extractBoxRoiNoZeros(final Roi3D roiIn, final RandomAccessibleInterval<T> all_RAI)
+	/** box around ROI (expanded by nExpandROIBox) with time range and all channels, XYZTC **/
+	FinalInterval getBoxInterval(final Roi3D roiIn, final RandomAccessibleInterval<T> all_RAI)
 	{
 		FinalInterval roiBoxInt = (FinalInterval) roiIn.getBoundingBox();
 		
@@ -167,55 +165,32 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 			nInt[1][3] = all_RAI.max(3);
 		}
 
-		FinalInterval finBoxInt = new FinalInterval(nInt[0],nInt[1]);
-		
-		//check the time axis
-		//Img<T> out1 = Util.getSuitableImgFactory(all_RAI, Util.getTypeFromInterval(all_RAI)).create(Intervals.zeroMin(finBoxInt));
-		//IntervalView<T> finBox = Views.interval(Views.extendZero(all_RAI),finBoxInt);
+		return new FinalInterval(nInt[0],nInt[1]);
+	}
+	
+	IntervalView<T> extractBoxRoiNoZeros(final Roi3D roiIn, final RandomAccessibleInterval<T> all_RAI)
+	{
+		final FinalInterval finBoxInt = getBoxInterval(roiIn, all_RAI);
 		return Views.interval(Views.extendZero(all_RAI),finBoxInt);
 	}	
 	
 	IntervalView<T> extractBoxRoiVolumeShape(final Roi3D roiIn, final RandomAccessibleInterval<T> all_RAI)
 	{
-		FinalInterval roiBoxInt = (FinalInterval) roiIn.getBoundingBox();
-
-		//expand box
-		FinalInterval finBox3D = Intervals.expand(roiBoxInt, nExpandROIBox);
-		long [][] nInt = new long [2][5];
-		
-		finBox3D.min(nInt[0]);
-		finBox3D.max(nInt[1]);
-		//channel
-		nInt[0][4] = all_RAI.min(4);
-		nInt[1][4] = all_RAI.max(4);
-		//time
-		
-		//current timepoint
-		if(nTimeRange == 0)
-		{
-
-			nInt[0][3] = roiIn.getTimePoint();
-			nInt[1][3] = roiIn.getTimePoint();
-			
-		}
-		//all time points
-		else
-		{
-			nInt[0][3] = all_RAI.min(3);
-			nInt[1][3] = all_RAI.max(3);
-		}
-
-		FinalInterval finBoxInt = new FinalInterval(nInt[0],nInt[1]);
-			
-		
+		final FinalInterval finBoxInt = getBoxInterval(roiIn, all_RAI);
+		final long [][] nInt = new long [2][5];
+		finBoxInt.min( nInt[0] );
+		finBoxInt.max( nInt[1] );
+					
 		//check the time and channel axes!!!
 		
+		IntervalView<T> bboxMeasure = Views.interval(Views.extendZero(all_RAI), finBoxInt);
 		
-		IntervalView<T> bboxMeasure = Views.interval(Views.extendZero(all_RAI),finBoxInt);
+		final DiskCachedCellImgOptions options = DiskCachedCellImgOptions.options()
+			    .cellDimensions(32, 32, 32);
+		final Img<T> outRAI = new DiskCachedCellImgFactory<>(bboxMeasure.getType(), options)
+			    .create(bboxMeasure);	
 		
-		Img<T> out1 =  Util.getSuitableImgFactory(bboxMeasure, bboxMeasure.getType()).create(bboxMeasure);
-		
-		IntervalView< T > trans = Views.translate( out1, bboxMeasure.minAsLongArray() );
+		IntervalView< T > trans = Views.translate( outRAI, bboxMeasure.minAsLongArray() );
 
 		final Cursor< T > cursorRoi = roiIn.getSingle3DVolumeCursor(Views.hyperSlice(Views.hyperSlice( trans, 3, 0),3,0) );
 		
@@ -225,12 +200,12 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 
 		final int [] pos = new int[5];
 		//time
-		for (int nTP = ( int ) nInt[0][3]; nTP<=nInt[1][3]; nTP++)
+		for (int nTP = ( int )nInt[0][3]; nTP <= nInt[1][3]; nTP++)
 			//channels
-			for(int nCh = ( int ) nInt[0][4]; nCh<=nInt[1][4];nCh++)
+			for(int nCh = ( int )nInt[0][4]; nCh <= nInt[1][4]; nCh++)
 			{
-				pos[3]= nTP;
-				pos[4]= nCh;
+				pos[3] = nTP;
+				pos[4] = nCh;
 				cursorRoi.reset();
 				while ( cursorRoi.hasNext() )
 				{
@@ -240,10 +215,9 @@ public class ExtractROIBox < T extends RealType< T > & NativeType< T > > extends
 					bboxMeasureRA.setPosition( pos );
 					raOut.get().set( bboxMeasureRA.get());
 				}
-	
 			}
 		
-		return Views.interval( out1, out1 );
+		return Views.interval( outRAI, outRAI );
 	}
     /*
      * Executed in event dispatching thread

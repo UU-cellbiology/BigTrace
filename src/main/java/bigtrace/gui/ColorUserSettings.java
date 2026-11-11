@@ -1,4 +1,4 @@
-package bigtrace.rois;
+package bigtrace.gui;
 
 import java.awt.Color;
 

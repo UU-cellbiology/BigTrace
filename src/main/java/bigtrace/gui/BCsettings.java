@@ -20,7 +20,7 @@ public class BCsettings {
 		bInit = false;
 	}
 	
-	/** stores currect brightness and alpha settings from provided source **/
+	/** stores current brightness and alpha settings from provided source **/
 	public void storeBC(final BvvStackSource<?> source)
 	{
 		bInit  = true;

@@ -1,4 +1,4 @@
-package bigtrace.gui;
+package bigtrace.gui.tracing;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -10,8 +10,12 @@ import java.text.DecimalFormatSymbols;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import bigtrace.BigTrace;
+import bigtrace.gui.GBCHelper;
+import bigtrace.gui.panels.NumberField;
 import ij.Prefs;
 
 /** options for one-click tracing **/
@@ -21,13 +25,20 @@ public class PanelOneClickTraceOptions extends JPanel
 	
 	final NumberField nfIntensityThreshold = new NumberField(5);
 	
-	final JCheckBox cbIntensityStop = new JCheckBox("Use intensity threshold");
+	final JCheckBox cbIntensityStop = new JCheckBox("Stop at min intensity");
 	
 	final NumberField nfPlaceVertex = new NumberField(4);
 	
 	final NumberField nfDirectionalityOneClick = new NumberField(4);
 	
+	/** max turn angle corresponding to the directionality constrain (arccos) **/
+	final JLabel lDirectionalityAngle = new JLabel();
+	
 	final JCheckBox cbTraceMask = new JCheckBox("Avoid (mask) existing ROIs");
+	
+	final NumberField nfStiffness = new NumberField(4);
+	
+	final JCheckBox cbJunctions = new JCheckBox("Handle junctions (crossings)");
 	
 	boolean bShowMaskOption = true;
 	
@@ -53,43 +64,64 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		cbTraceMask.setSelected( bt.btData.bOneClickUseMask );
 		
+		nfStiffness.setText(df.format(bt.btData.dOCStiffness));
+		nfStiffness.setToolTipText( "Use of path history. Higher = straighter path. 0 = original stepping" );
+		cbJunctions.setSelected( bt.btData.bOCJunctions );
+		cbJunctions.setToolTipText( "Detect crossings ahead and pass them along the same filament (stepping uses stiffness of at least 0.1)" );
 		
 		gbc.gridx = 0;		
 		gbc.gridy = 0;
 		this.add(new JLabel("Constrain directionality (0-1): "),gbc);
 		gbc.gridx++;
 		this.add(nfDirectionalityOneClick,gbc);
+		gbc.gridx++;
+		this.add(lDirectionalityAngle,gbc);
+		updateDirectionalityAngle();
+		nfDirectionalityOneClick.addDocumentListener( new DocumentListener()
+		{
+			@Override
+			public void insertUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+			@Override
+			public void removeUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+			@Override
+			public void changedUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
+		});
+		
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		gbc.gridwidth = 2;
-		//cd.anchor=GridBagConstraints.WEST;
-		//this.add(new JLabel("Use intensity threshold"),gbc);
-		//gbc.gridx++;
-		this.add(cbIntensityStop,gbc);
+		gbc.gridwidth = 3;
+		this.add(cbJunctions, gbc);
 		gbc.gridwidth = 1;
 		
-		cbIntensityStop.addActionListener( new ActionListener()
-				{
-					@Override
-					public void actionPerformed( ActionEvent arg0 )
-					{						
-						nfIntensityThreshold.setTFEnabled( cbIntensityStop.isSelected() );
-					}
 			
-				});
-		
 		gbc.gridx = 0;
 		gbc.gridy++;
-		this.add(new JLabel("Minimum intensity: "),gbc);
+		this.add(new JLabel("Path stiffness (history, 0-1): "), gbc);
 		gbc.gridx++;
-		this.add(nfIntensityThreshold,gbc);
+		gbc.gridwidth = 2;
+		this.add(nfStiffness, gbc);
+		gbc.gridwidth = 1;
 
 		gbc.gridx = 0;
-		gbc.gridy ++;		
-		this.add(new JLabel("Ref points placement (px, >=3): "),gbc);
+		gbc.gridy++;
+		gbc.gridwidth = 1;
+		this.add(cbIntensityStop,gbc);
+			
+		cbIntensityStop.addActionListener( new ActionListener()
+		{
+			@Override
+			public void actionPerformed( ActionEvent arg0 )
+			{						
+				nfIntensityThreshold.setTFEnabled( cbIntensityStop.isSelected() );
+			}
+
+		});
 		gbc.gridx++;
-		this.add(nfPlaceVertex,gbc);
+		gbc.gridwidth = 2;
+		this.add(nfIntensityThreshold,gbc);
+		gbc.gridwidth = 1;
+
 		
 		if(bShowMaskOption)
 		{
@@ -99,9 +131,34 @@ public class PanelOneClickTraceOptions extends JPanel
 			this.add(cbTraceMask,gbc);		
 		}
 		
-
+		gbc.gridx = 0;
+		gbc.gridy ++;		
+		this.add(new JLabel("Ref points placement (px, >=3): "), gbc);
+		gbc.gridx++;
+		gbc.gridwidth = 2;
+		this.add(nfPlaceVertex,gbc);
+		gbc.gridwidth = 1;
+	
 
 	}
+	
+	/** shows the max angle between consecutive directions allowed by the constrain:
+	 * arccos(value), 1 = 0 degrees, 0 = 90 degrees (no constrain) **/
+	void updateDirectionalityAngle()
+	{
+		String sOut;
+		try
+		{
+			final double dVal = Math.min( 1.0, Math.max( 0, Double.parseDouble( nfDirectionalityOneClick.getText() ) ) );
+			sOut = Long.toString( Math.round( Math.toDegrees( Math.acos( dVal ) ) ) ) + "\u00B0";
+		}
+		catch(NumberFormatException e)
+		{
+			sOut = " max turn ?";
+		}
+		lDirectionalityAngle.setText( sOut );
+	}
+	
 	public void getSetOptions()
 	{
 		bt.btData.nVertexPlacementPointN = Math.max(3, Integer.parseInt(nfPlaceVertex.getText()));
@@ -117,10 +174,17 @@ public class PanelOneClickTraceOptions extends JPanel
 			bt.btData.dOCIntensityThreshold = Math.max(0, Double.parseDouble(nfIntensityThreshold.getText()));
 			Prefs.set("BigTrace.dOCIntensityThreshold",bt.btData.dOCIntensityThreshold);		
 		}
+		
+		bt.btData.dOCStiffness = Math.min(1.0, Math.max(0, Double.parseDouble(nfStiffness.getText())));
+		Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+		
+		bt.btData.bOCJunctions = cbJunctions.isSelected();
+		Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+		
 		if(bShowMaskOption)
 		{
 			bt.btData.bOneClickUseMask = cbTraceMask.isSelected();
-			Prefs.get( "BigTrace.bOneClickUseMask", bt.btData.bOneClickUseMask );			
+			Prefs.set( "BigTrace.bOneClickUseMask", bt.btData.bOneClickUseMask );			
 		}
 	}
 }

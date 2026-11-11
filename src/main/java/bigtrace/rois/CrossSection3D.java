@@ -19,6 +19,7 @@ import bigtrace.BigTraceData;
 import bigtrace.geometry.Intersections3D;
 import bigtrace.geometry.Line3D;
 import bigtrace.geometry.Plane3D;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisPolygonFlat;
 
@@ -152,8 +153,7 @@ public class CrossSection3D extends AbstractRoi3D
 		vertices = new ArrayList<>();
 		for(int i = 0; i < vertices_.size(); i++)
 			vertices.add(new RealPoint(vertices_.get(i)));		
-		updateRenderVertices();
-		
+		updateRenderVertices();		
 	}
 
 	@Override
@@ -474,6 +474,14 @@ public class CrossSection3D extends AbstractRoi3D
 		{
 			bTransparent = true;
 		}
+	}
+	
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		setPointSize(( float ) ( getPointSize() * sizeFactor ));
+		vertices = RoiBGScaler.scaleRealPointArray( vertices, coordFactor );
+		updateRenderVertices();
 	}
 
 }

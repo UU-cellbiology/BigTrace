@@ -14,6 +14,7 @@ import com.jogamp.opengl.GL3;
 import bigtrace.BigTraceData;
 import bigtrace.geometry.CurveShapeInterpolation;
 import bigtrace.geometry.Line3D;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.scene.VisPointsScaled;
 import bigtrace.scene.VisWireMesh;
 
@@ -105,10 +106,10 @@ public class PolyLine3D extends AbstractCurve3D
 
 		verticesVis.setVertices(vertices);
 		bMeshInit = false;
-		if(vertices.size()>1)
+		if(vertices.size() > 1)
 		{
 			interpolator.init(vertices, btdata.shapeInterpolation);
-			edgesVis.setVertices(interpolator.getVerticesVisual(),interpolator.getTangentsVisual());
+			edgesVis.setVertices(interpolator.getVerticesVisual(), interpolator.getTangentsVisual());
 		}
 		else
 		{
@@ -116,14 +117,13 @@ public class PolyLine3D extends AbstractCurve3D
 			{
 				edgesVis.nPointsN = 0;	
 			}
-		}
-
-		
+		}	
 	}
+	
 	public void setVertices(ArrayList<RealPoint> vertices_)
 	{
 		vertices = new ArrayList<>();
-		for(int i=0;i<vertices_.size();i++)
+		for(int i = 0; i < vertices_.size(); i++)
 			vertices.add(new RealPoint(vertices_.get(i)));		
 		updateRenderVertices();
 		
@@ -156,20 +156,17 @@ public class PolyLine3D extends AbstractCurve3D
 	@Override
 	public void setLineThickness(float line_thickness) {
 
-		lineThickness=line_thickness;
+		lineThickness = line_thickness;
 		edgesVis.setThickness(lineThickness);
 		updateRenderVertices();
 	}
 
 	@Override
-	public void setPointSize(float point_size) {
-
-		pointSize=point_size;
-		verticesVis.setSize(pointSize);
-		
-	}
-	
-
+	public void setPointSize(float point_size) 
+	{
+		pointSize = point_size;
+		verticesVis.setSize(pointSize);	
+	}	
 	
 	@Override
 	public void setRenderType(int nRenderType){
@@ -264,7 +261,17 @@ public class PolyLine3D extends AbstractCurve3D
 		return dMinDist;
 	}
 
+	@Override
+	public void scale(final double [] coordFactor, final double sizeFactor)
+	{
+		setPointSize(( float ) ( getPointSize() * sizeFactor ));
+		
+		lineThickness *= sizeFactor;
+		edgesVis.setThickness(lineThickness);
 
+		vertices = RoiBGScaler.scaleRealPointArray( vertices, coordFactor );
+		updateRenderVertices();
+	}
 	
 
 }

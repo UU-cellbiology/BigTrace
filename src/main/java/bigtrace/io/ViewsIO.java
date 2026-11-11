@@ -82,19 +82,24 @@ public class ViewsIO
 				writer.write("dDirectionalityOneClick," + df3.format(bt.btData.dDirectionalityOneClick)+"\n");
 				writer.write("bOCIntensityStop," + Integer.toString(bt.btData.bOCIntensityStop ? 1 : 0)+"\n");
 				writer.write("dOCIntensityThreshold," + df3.format(bt.btData.dOCIntensityThreshold)+"\n");
+				writer.write("bTraceDownsample," + Integer.toString(bt.btData.bTraceDownsample ? 1 : 0)+"\n");
+				writer.write("dOCStiffness," + df3.format(bt.btData.dOCStiffness)+"\n");
+				//after stiffness (old files without it take it from stiffness)
+				writer.write("bOCJunctions," + Integer.toString(bt.btData.bOCJunctions ? 1 : 0)+"\n");
 				for (int d = 0; d < 3; d++)
 				{
-					writer.write("Trace sigma,"+Integer.toString( d )+ ","+ df3.format(bt.btData.sigmaTrace[d])+"\n");					
+					writer.write("Trace sigma," + Integer.toString( d ) + "," + df3.format(bt.btData.sigmaTrace[d])+"\n");					
 				}
 				
-				writer.write("bEstimateROIThicknessFromParams," + Integer.toString( bt.btData.bEstimateROIThicknessFromParams ? 1 : 0 )+"\n");
+				writer.write("bEstimateROIThicknessFromParams," + Integer.toString( bt.btData.bEstimateROIThicknessFromParams ? 1 : 0 ) + "\n");
 				writer.write("dTraceROIThicknessCoeff," + df3.format( bt.btData.dTraceROIThicknessCoeff)+"\n");
 				writer.write("nTraceROIThicknessMode," + Integer.toString( bt.btData.nTraceROIThicknessMode )+"\n");
 				writer.write("bOneClickUseMask," + Integer.toString( bt.btData.bOneClickUseMask ? 1 : 0 )+"\n");
 				writer.write("bTrackingUseMask," + Integer.toString( bt.btData.bTrackingUseMask ? 1 : 0 )+"\n");
 
 				writer.write("dAutoMinStartTraceInt," + Integer.toString( (int)Prefs.get("BigTrace.dAutoMinStartTraceInt",128.0) )+"\n");
-				writer.write("nAutoMinPointsCurve," + Integer.toString( (int)Prefs.get("BigTrace.nAutoMinPointsCurve",3) )+"\n");
+				writer.write("dAutoMinCurveLength," + df3.format(Prefs.get("BigTrace.dAutoMinCurveLength", 3) )+"\n");
+				writer.write("nAutoMaxTraces," + Integer.toString( (int)Prefs.get("BigTrace.nAutoMaxTraces", 0) )+"\n");
 				
 				writer.write("Scene, current\n");
 				bt.getCurrentScene().save( writer );
@@ -339,6 +344,22 @@ public class ViewsIO
 					bt.btData.dOCIntensityThreshold = Double.parseDouble( line_array[1] );
 					Prefs.set("BigTrace.dOCIntensityThreshold", bt.btData.dOCIntensityThreshold);
 					break;	
+				case "bTraceDownsample":
+					bt.btData.bTraceDownsample = line_array[1].equals( "1" );
+					Prefs.set("BigTrace.bTraceDownsample", bt.btData.bTraceDownsample);
+					break;
+				case "dOCStiffness":
+					bt.btData.dOCStiffness = Double.parseDouble( line_array[1] );
+					Prefs.set("BigTrace.dOCStiffness", bt.btData.dOCStiffness);
+					//old settings files: junctions were handled for stiffness > 0
+					//(overwritten by bOCJunctions line in new files)
+					bt.btData.bOCJunctions = bt.btData.dOCStiffness > 0;
+					Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+					break;
+				case "bOCJunctions":
+					bt.btData.bOCJunctions = line_array[1].equals( "1" );
+					Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);
+					break;				
 				case "Trace sigma":
 					int dA = Integer.parseInt( line_array[1]);
 					bt.btData.sigmaTrace[dA] = Double.parseDouble( line_array[2] ) ;
@@ -368,9 +389,12 @@ public class ViewsIO
 					final int dAutoMinStartTraceInt = Integer.parseInt( line_array[1] );
 					Prefs.set("BigTrace.dAutoMinStartTraceInt", dAutoMinStartTraceInt);
 					break;	
-				case "nAutoMinPointsCurve":
-					final int nAutoMinPointsCurve = Integer.parseInt( line_array[1] );
-					Prefs.set("BigTrace.nAutoMinPointsCurve", nAutoMinPointsCurve);
+				case "dAutoMinCurveLength":
+					final double dAutoMinCurveLength = Double.parseDouble( line_array[1] );
+					Prefs.set("BigTrace.dAutoMinCurveLength", dAutoMinCurveLength);
+					break;
+				case "nAutoMaxTraces":
+					Prefs.set("BigTrace.nAutoMaxTraces", Integer.parseInt( line_array[1] ));
 					break;		
 					
 					

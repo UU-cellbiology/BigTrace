@@ -5,40 +5,24 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 
-import javax.swing.DefaultListModel;
-import javax.swing.SwingWorker;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamReader;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.rois.Point3D;
 import bigtrace.rois.Roi3D;
 import ij.IJ;
 import net.imglib2.RealPoint;
 
-public class ROIsImportTrackMateBG  extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class ROIsImportTrackMateBG extends BigTraceBGTask
 {
 	
-	private String progressState;
 	public int nImportColor = 0;
 	public BigTrace<?> bt;
 	public String sFilename;
 	String sFinalOut = "";
 	
-	
-	@Override
-	public String getProgressState() {
-		
-		return progressState;
-	}
-
-	@Override
-	public void setProgressState(String state_) {
-		
-		progressState = state_;
-		
-	}
 
 	@Override
 	protected Void doInBackground() throws Exception {
@@ -132,14 +116,8 @@ public class ROIsImportTrackMateBG  extends SwingWorker<Void, String> implements
 			bt.roiManager.rois.add( roi );
 		}		
 		
-		DefaultListModel<String> listModelin = new  DefaultListModel<>();
-		for (int i = 0; i < allRois.size(); i++)
-		{
-			listModelin.addElement(allRois.get(i).getName());
-		}
-		bt.roiManager.listModel = listModelin;
-		bt.roiManager.jlist.setModel(bt.roiManager.listModel);
-		sFinalOut="importing TrackMate tracks done.";
+		bt.roiManager.replaceAllRois( allRois );
+		sFinalOut = "importing TrackMate tracks done.";
 		setProgressState(sFinalOut);
 		IJ.log("Imported " + Integer.toString(nTotTracks)+ " tracks, created "+Long.toString(nTotParticles)+" point ROIs."); 
 		

@@ -1,5 +1,4 @@
-package bigtrace.gui;
-
+package bigtrace.gui.panels;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -16,8 +15,6 @@ import javax.swing.event.ChangeListener;
 
 import bvvpg.ui.sliders.RangeSliderPG;
 
-
-
 public class RangeSliderPanel extends JPanel implements FocusListener, NumberField.Listener, ChangeListener{
 
 	public static void main(String[] args) {
@@ -33,8 +30,6 @@ public class RangeSliderPanel extends JPanel implements FocusListener, NumberFie
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-
-
 
 	public static interface Listener {
 		public void sliderChanged();

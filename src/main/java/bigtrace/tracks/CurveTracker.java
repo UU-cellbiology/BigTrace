@@ -1,9 +1,7 @@
 package bigtrace.tracks;
 
-
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.SwingWorker;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 
@@ -20,17 +18,17 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceBGWorker;
+import bigtrace.BigTraceBGTask;
 import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.measure.MeasureValues;
+import bigtrace.roimanager.Roi3DGroup;
 import bigtrace.rois.AbstractCurve3D;
 import bigtrace.rois.LineTrace3D;
 import bigtrace.rois.Roi3D;
-import bigtrace.rois.Roi3DGroup;
 import bigtrace.volume.VolumeMisc;
 
-public class CurveTracker < T extends RealType< T > & NativeType< T > > extends SwingWorker<Void, String> implements BigTraceBGWorker
+public class CurveTracker < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {	
 	final BigTrace<T> bt;
 	
@@ -53,23 +51,11 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 	Roi3DGroup newGroupTrack;
 	
 	final RandomAccessibleInterval<T> full_RAI;
-	
-	private String progressState;
-	
+
 	JButton butTrack = null;
 	
 	ImageIcon tabIconTrain = null; 
 	
-	@Override
-	public String getProgressState()
-	{
-		return progressState;
-	}
-	@Override
-	public void setProgressState(String state_)
-	{
-		progressState = state_;
-	}
 	
 	public CurveTracker(BigTrace<T> bt)
 	{
@@ -199,20 +185,19 @@ public class CurveTracker < T extends RealType< T > & NativeType< T > > extends 
 		oneClickTask.startPoint = rpMax;
 		if(bt.btData.bTrackingUseMask)
 		{
-			oneClickTask.traceMask.initTraceMask( traceIV, true );
+			oneClickTask.traceMask.initTraceMask( traceIV, traceIV, true );
 			
 		}
 		
 		oneClickTask.runTracing();
-		//oneClickTask.releaseMultiThread();
 
 		//get the new box
-		//currentRoi = bt.roiManager.rois.get(bt.roiManager.rois.size()-1);
-		currentRoi = bt.roiManager.getActiveRoi();
-		//found just one vertex, abort
-		if(((LineTrace3D)currentRoi).vertices.size()<2)
+		currentRoi = oneClickTask.getCurrentTracing(); 
+		
+		//nothing found or just one vertex, abort
+		if(!bt.roiManager.containsRoi( currentRoi ) || ((LineTrace3D)currentRoi).vertices.size() < 2)
 		{
-			bt.roiManager.removeRoi(bt.roiManager.rois.size()-1);
+			bt.roiManager.removeRoi( currentRoi );         
 			bTracing = false;
 			System.out.println("Very short (one voxel) ROI found, stopping tracing at frame "+ Integer.toString( nTP )+".");
 		}
