@@ -329,6 +329,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	 * into the +-3 sigma box where saliency is calculated **/
 	public static final double dOCGapBridgeMaxSigma = 4.5;
 	
+	/** one-click tracing: when the trace would stop (e.g. at a kink of the filament),
+	 * look a bit ahead in a wider cone and continue with reset momentum **/
+	public boolean bOCKinkRecovery;
+	
 	/** one-click junction (crossing) handling: crossings are detected ahead and passed 
 	 * along the steered line filter map. Set separately from stiffness, but stepping 
 	 * then uses stiffness of at least 0.1 (OneClickTrace.dJunctionMinStiffness) **/
@@ -383,6 +387,7 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		bOCIntensityStop = Prefs.get("BigTrace.bOCIntensityStop", false);
 		dOCIntensityThreshold = Prefs.get("BigTrace.dOCIntensityThreshold", 100.);
 		dOCStiffness = Prefs.get("BigTrace.dOCStiffness", 0.0);
+		bOCKinkRecovery = Prefs.get("BigTrace.bOCKinkRecovery", false);
 		dOCGapBridgeSigma = Math.min(dOCGapBridgeMaxSigma, Math.max(0.0, Prefs.get("BigTrace.dOCGapBridgeSigma", 0.0)));
 		bOCJunctions = Prefs.get("BigTrace.bOCJunctions", dOCStiffness > 0);
 

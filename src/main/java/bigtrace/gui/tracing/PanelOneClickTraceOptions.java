@@ -44,6 +44,8 @@ public class PanelOneClickTraceOptions extends JPanel
 	/** gap bridging distance in px/units at the current tracing sigma **/
 	final JLabel lGapBridgeDist = new JLabel();
 	
+	final JCheckBox cbKinkRecovery = new JCheckBox("Recover at kinks (relaxed look-ahead when stuck)");
+	
 	final JCheckBox cbJunctions = new JCheckBox("Handle junctions (crossings)");
 	
 	boolean bShowMaskOption = true;
@@ -76,6 +78,9 @@ public class PanelOneClickTraceOptions extends JPanel
 		nfGapBridge.setToolTipText( "<html>When the ridge is interrupted (dotty lines), look ahead along the trace direction<br>"
 				+ "for its continuation, up to this distance in units of tracing sigma (0-" 
 				+ BigTraceData.dOCGapBridgeMaxSigma + "). 0 = off</html>" );
+		cbKinkRecovery.setSelected( bt.btData.bOCKinkRecovery );
+		cbKinkRecovery.setToolTipText( "<html>When tracing would stop (e.g. at a kink), look up to 2 sigma ahead within the directionality constrain<br>"
+				+ "for a line continuing in the jump direction, and continue with reset path history</html>" );
 		cbJunctions.setSelected( bt.btData.bOCJunctions );
 		cbJunctions.setToolTipText( "Detect crossings ahead and pass them along the same filament (stepping uses stiffness of at least 0.1)" );
 		
@@ -115,25 +120,16 @@ public class PanelOneClickTraceOptions extends JPanel
 
 		gbc.gridx = 0;
 		gbc.gridy++;
+		gbc.gridwidth = 3;
+		this.add(cbKinkRecovery, gbc);
+		gbc.gridwidth = 1;
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
 		this.add(new JLabel("Bridge gaps (\u03C3, 0-" + BigTraceData.dOCGapBridgeMaxSigma + ", 0=off): "), gbc);
 		gbc.gridx++;
 		this.add(nfGapBridge, gbc);
-		//gbc.gridx++;
-		//this.add(lGapBridgeDist, gbc);
-//		updateGapBridgeDistance();
-//		nfGapBridge.addDocumentListener( new DocumentListener()
-//		{
-//			@Override
-//			public void insertUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
-//			@Override
-//			public void removeUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
-//			@Override
-//			public void changedUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
-//		});
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 3;
-		
+		gbc.gridx++;
 		this.add(lGapBridgeDist, gbc);
 		updateGapBridgeDistance();
 		nfGapBridge.addDocumentListener( new DocumentListener()
@@ -146,7 +142,6 @@ public class PanelOneClickTraceOptions extends JPanel
 			public void changedUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
 		});
 
-		
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 1;
@@ -214,7 +209,7 @@ public class PanelOneClickTraceOptions extends JPanel
 			final DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance();
 			dfs.setDecimalSeparator('.');
 			final DecimalFormat dfOut = new DecimalFormat("0.##", dfs);
-			sOut = "Bridge length " + dfOut.format( dPx ) + " px";
+			sOut = "\u2248" + dfOut.format( dPx ) + " px";
 			if(!bt.btData.sVoxelUnit.equals( "pixel" ))
 			{
 				sOut = sOut + " (" + dfOut.format( dPx * bt.btData.globCal[0] ) + " " + bt.btData.sVoxelUnit + ")";
@@ -248,6 +243,9 @@ public class PanelOneClickTraceOptions extends JPanel
 		
 		bt.btData.dOCGapBridgeSigma = Math.min(BigTraceData.dOCGapBridgeMaxSigma, Math.max(0, Double.parseDouble(nfGapBridge.getText())));
 		Prefs.set("BigTrace.dOCGapBridgeSigma", bt.btData.dOCGapBridgeSigma);
+		
+		bt.btData.bOCKinkRecovery = cbKinkRecovery.isSelected();
+		Prefs.set("BigTrace.bOCKinkRecovery", bt.btData.bOCKinkRecovery);
 		
 		bt.btData.bOCJunctions = cbJunctions.isSelected();
 		Prefs.set("BigTrace.bOCJunctions", bt.btData.bOCJunctions);

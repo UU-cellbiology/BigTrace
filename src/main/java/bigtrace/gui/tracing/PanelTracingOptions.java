@@ -252,17 +252,7 @@ public class PanelTracingOptions extends JPanel
 			    "<html>For large curve thickness values (> 4 px) it is recommended to use <br>"
 			    + "\"Downsample data for large thickness\" option</html>"
 			);
-//		infoLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-//		infoLabel.addMouseListener(new MouseAdapter() {
-//		    @Override
-//		    public void mouseClicked(MouseEvent e) {
-//		        try {
-//		            Desktop.getDesktop().browse(new URI("https://github.com/BioImageTools/ome-zarr-fiji-java"));
-//		        } catch (IOException | URISyntaxException exc) {
-//		            exc.printStackTrace();
-//		        }
-//		    }
-//		});
+
 		String[] options = {"OK"};
 		JCheckBox cbShowAgain = new JCheckBox("Do not show this message again");
 		cbShowAgain.setSelected( false );
@@ -282,7 +272,7 @@ public class PanelTracingOptions extends JPanel
 		pDownSampleInfo.add(cbShowAgain, gbc);
 		JOptionPane.showOptionDialog(null, pDownSampleInfo, "Tracing advice", 
 				JOptionPane.PLAIN_MESSAGE, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-		bt.btData.bShowDownSampleMessage= !cbShowAgain.isSelected();
-		Prefs.get( "BVB.bShowDownSampleMessage", bt.btData.bShowDownSampleMessage);
+		bt.btData.bShowDownSampleMessage = !cbShowAgain.isSelected();
+		Prefs.set( "BVB.bShowDownSampleMessage", bt.btData.bShowDownSampleMessage);
 	}
 }

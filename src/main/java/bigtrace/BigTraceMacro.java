@@ -44,7 +44,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 	{
 		bt = bt_;
 		
-		extensions = new ExtensionDescriptor[25];
+		extensions = new ExtensionDescriptor[26];
 		extensions[0] = ExtensionDescriptor.newDescriptor("btLoadROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING);
 		extensions[1] = ExtensionDescriptor.newDescriptor("btSaveROIs", bt, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
 		extensions[2] = ExtensionDescriptor.newDescriptor("btStraighten", bt, MacroExtension.ARG_NUMBER, MacroExtension.ARG_STRING, MacroExtension.ARG_STRING + MacroExtension.ARG_OPTIONAL);
@@ -97,6 +97,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 																				   MacroExtension.ARG_STRING); //trace only clipped volume "true"/"false"
 		extensions[23] = ExtensionDescriptor.newDescriptor("btSetOneClickJunctions", bt, MacroExtension.ARG_STRING); //handle junctions "true"/"false"
 		extensions[24] = ExtensionDescriptor.newDescriptor("btSetOneClickGapBridge", bt, MacroExtension.ARG_NUMBER); //max gap in tracing sigmas, 0 = off
+		extensions[25] = ExtensionDescriptor.newDescriptor("btSetOneClickKinkRecovery", bt, MacroExtension.ARG_STRING); //recover at kinks "true"/"false"
 		
 	}
 	
@@ -231,6 +232,14 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 			enqueue (()-> 
 			{
 				macroSetOneClickGapBridge(((Double)args[0]).doubleValue());
+			});
+		}
+		
+		if (name.equals("btSetOneClickKinkRecovery")) 
+		{
+			enqueue (()-> 
+			{
+				macroSetOneClickKinkRecovery((String)args[0]);
 			});
 		}
 		
@@ -703,6 +712,27 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		TaskBT.runOnEDTAndWait(()->
 		{
 			IJ.log( "Setting one-click gap bridging:" );
+			printOneClickParams();
+		});
+		bt.bInputLock = false;
+		bMacroMode = false;
+	}
+	
+	/** macro function switches stall (kink) recovery of one-click tracing on/off
+	 * @param sRecovery
+	 *  "true" or "false" 
+	 *  **/
+	public void macroSetOneClickKinkRecovery(final String sRecovery)
+	{
+		bt.bInputLock = true;
+		bMacroMode = true;
+		
+		bt.btData.bOCKinkRecovery = sRecovery.toLowerCase().equals( "true" );
+		Prefs.set("BigTrace.bOCKinkRecovery", bt.btData.bOCKinkRecovery);
+		
+		TaskBT.runOnEDTAndWait(()->
+		{
+			IJ.log( "Setting one-click kink recovery:" );
 			printOneClickParams();
 		});
 		bt.bInputLock = false;
@@ -1390,6 +1420,7 @@ public class BigTraceMacro < T extends RealType< T > & NativeType< T > >
 		IJ.log( "   Stiffness: " + bt.btData.dOCStiffness );
 		IJ.log( "   Handle junctions: " + bt.btData.bOCJunctions );
 		IJ.log( "   Bridge gaps (sigma, 0 = off): " + bt.btData.dOCGapBridgeSigma );
+		IJ.log( "   Recover at kinks: " + bt.btData.bOCKinkRecovery );
 		if(bt.btData.bOCIntensityStop)
 		{
 			IJ.log( "   Intensity threshold min value: " + Double.toString( bt.btData.dOCIntensityThreshold));
