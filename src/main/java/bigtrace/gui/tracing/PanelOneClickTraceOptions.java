@@ -102,34 +102,35 @@ public class PanelOneClickTraceOptions extends JPanel
 			public void changedUpdate( DocumentEvent e ) { updateDirectionalityAngle(); }
 		});
 		
-		
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 3;
-		this.add(cbJunctions, gbc);
-		gbc.gridwidth = 1;
-		
-			
+
 		gbc.gridx = 0;
 		gbc.gridy++;
 		this.add(new JLabel("Path stiffness (history, 0-1): "), gbc);
 		gbc.gridx++;
 		gbc.gridwidth = 2;
 		this.add(nfStiffness, gbc);
-		gbc.gridwidth = 1;
-
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 3;
-		this.add(cbKinkRecovery, gbc);
-		gbc.gridwidth = 1;
 		
 		gbc.gridx = 0;
 		gbc.gridy++;
+		gbc.gridwidth = 3;
+		this.add(cbJunctions, gbc);
+		gbc.gridwidth = 1;
+	
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 1;
 		this.add(new JLabel("Bridge gaps (\u03C3, 0-" + BigTraceData.dOCGapBridgeMaxSigma + ", 0=off): "), gbc);
+		gbc.gridwidth = 2;
 		gbc.gridx++;
 		this.add(nfGapBridge, gbc);
+		
+		
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 1;
+		this.add(new JLabel("Bridge length "), gbc);		
 		gbc.gridx++;
+		gbc.gridwidth = 2;
 		this.add(lGapBridgeDist, gbc);
 		updateGapBridgeDistance();
 		nfGapBridge.addDocumentListener( new DocumentListener()
@@ -142,6 +143,12 @@ public class PanelOneClickTraceOptions extends JPanel
 			public void changedUpdate( DocumentEvent e ) { updateGapBridgeDistance(); }
 		});
 
+		gbc.gridx = 0;
+		gbc.gridy++;
+		gbc.gridwidth = 3;
+		this.add(cbKinkRecovery, gbc);
+		gbc.gridwidth = 1;
+		
 		gbc.gridx = 0;
 		gbc.gridy++;
 		gbc.gridwidth = 1;
@@ -209,7 +216,7 @@ public class PanelOneClickTraceOptions extends JPanel
 			final DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance();
 			dfs.setDecimalSeparator('.');
 			final DecimalFormat dfOut = new DecimalFormat("0.##", dfs);
-			sOut = "\u2248" + dfOut.format( dPx ) + " px";
+			sOut = "~ " + dfOut.format( dPx ) + " px";
 			if(!bt.btData.sVoxelUnit.equals( "pixel" ))
 			{
 				sOut = sOut + " (" + dfOut.format( dPx * bt.btData.globCal[0] ) + " " + bt.btData.sVoxelUnit + ")";

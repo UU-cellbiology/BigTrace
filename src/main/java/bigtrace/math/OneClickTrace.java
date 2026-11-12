@@ -289,8 +289,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			init();
 		}
 		
-		//long start1, end1;
-		
+		//long start1, end1;		
 		//start1 = System.currentTimeMillis();
 		
 		bt.visualBoxes.bShowTraceBox = true;
