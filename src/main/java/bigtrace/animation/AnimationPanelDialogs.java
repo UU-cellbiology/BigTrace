@@ -432,6 +432,10 @@ public class AnimationPanelDialogs
 		JCheckBox cbScaleBar = new JCheckBox();
 		cbScaleBar.setSelected( pan.bRenderScaleBar);
 		
+		JCheckBox cbAxisOverlay = new JCheckBox();
+		cbAxisOverlay.setSelected( pan.bRenderAxisGizmo);
+		
+		
 		NumberField nfFrameRenderMax = new NumberField(4);
 		nfFrameRenderMax.setIntegersOnly(true);
 		nfFrameRenderMax.setText(Integer.toString(pan.nRenderFrameTimeLimit));
@@ -441,14 +445,19 @@ public class AnimationPanelDialogs
 		GBCHelper.alighLoose(cd);
 		pAnimSettings.add(new JLabel("Render BVV MultiBox: "),cd);
 		cd.gridx++;
-		pAnimSettings.add(cbMultiBox,cd);
-	
+		pAnimSettings.add(cbMultiBox,cd);	
 		
 		cd.gridx = 0;
 		cd.gridy++;
 		pAnimSettings.add(new JLabel("Render scale bar: "),cd);
 		cd.gridx++;
 		pAnimSettings.add(cbScaleBar,cd);
+		
+		cd.gridx = 0;
+		cd.gridy++;
+		pAnimSettings.add(new JLabel("Render axis gizmo: "),cd);
+		cd.gridx++;
+		pAnimSettings.add(cbAxisOverlay,cd);
 		
 		cd.gridx=0;
 		cd.gridy++;
@@ -476,6 +485,10 @@ public class AnimationPanelDialogs
 			//scale bar
 			pan.bRenderScaleBar = cbScaleBar.isSelected();
 			Prefs.set("BigTrace.bRenderScaleBar", pan.bRenderScaleBar );
+			
+			//axis gizmo
+			pan.bRenderAxisGizmo = cbScaleBar.isSelected();
+			Prefs.set("BigTrace.cbAxisOverlay", pan.bRenderAxisGizmo );
 			
 			pan.nRenderFrameTimeLimit = Integer.parseInt(nfFrameRenderMax.getText());
 			Prefs.set("BigTrace.nRenderFrameTimeLimit", pan.nRenderFrameTimeLimit);

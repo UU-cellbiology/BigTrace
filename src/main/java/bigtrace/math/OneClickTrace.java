@@ -7,6 +7,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import bigtrace.BigTrace;
+import bigtrace.BigTraceData;
 import bigtrace.BigTraceBGTask;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
@@ -141,6 +142,39 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * as with the original stepping) **/
 	static final double dJunctionMinStiffness = 0.1;
 	
+	/** gap bridging (dotty lines): max look-ahead when stepping finds no candidate,
+	 * in units of tracing sigma (per axis), 0 = off **/
+	double dGapBridgeSigma = 0.0;
+	
+	/** gap bridging: landing voxel saliency must be at least this fraction 
+	 * of the running average saliency of the trace (avoids jumping onto background) **/
+	static final double dGapMinRelSal = 0.3;
+	
+	/** running (exponential) average of saliency along the current trace direction **/
+	double dSalTrace = 0.0;
+	
+	/** stall (kink) recovery is on **/
+	boolean bKinkRecovery = false;
+	
+	/** stall recovery: max look-ahead distance in tracing sigmas (per axis) **/
+	static final double dRecoverReachSigma = 2.0;
+	
+	/** stall recovery: min |cos| between the line orientation at the landing voxel
+	 * (and at the confirmation probe) and the direction of the jump **/
+	static final double dRecoverAlignCos = 0.8;
+	
+	/** physical size of a grid voxel (calibration x downsampling factor);
+	 * angles in gap bridging and stall recovery are measured in physical space,
+	 * otherwise with anisotropic voxels a jump in z looks much straighter than it is **/
+	final double [] gridVoxelSize = new double [] {1.0, 1.0, 1.0};
+	
+	/** sigma of the hessian kernels in grid voxels **/
+	final double [] sigmaGridV = new double[3];
+	
+	/** gap bridging: cosine of the half-angle of the look-ahead cone (~37 deg),
+	 * also the minimum agreement of the landing voxel orientation with the heading **/
+	static final double dGapConeCos = 0.8;
+	
 	/** junction (crossing) handling (bJunctions) **/
 	final JunctionHandler<T> junctions = new JunctionHandler<>(this);
 	
@@ -255,8 +289,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			init();
 		}
 		
-		//long start1, end1;
-		
+		//long start1, end1;		
 		//start1 = System.currentTimeMillis();
 		
 		bt.visualBoxes.bShowTraceBox = true;
@@ -439,6 +472,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		points.add(startPoint);
 		
+		//saliency reference for gap bridging
+		final long [] startGrid = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			startGrid[d] = Math.min(salWeights.max(d), Math.max(salWeights.min(d), toGrid(startPoint.getDoublePosition(d), d)));
+		}
+		dSalTrace = raW.setPositionAndGet(startGrid).get();
+		
 		junctions.resetDirection();
 		
 		addIntersectionPoint(startPoint.positionAsDoubleArray());
@@ -601,6 +642,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			junctions.init(dMaxSigmaGrid, bDownsample);
 		}
 				
+		//gap bridging, distance is in sigmas
+		dGapBridgeSigma = Math.min(BigTraceData.dOCGapBridgeMaxSigma, Math.max(0.0, bt.btData.dOCGapBridgeSigma));
+		bKinkRecovery = bt.btData.bOCKinkRecovery;
+		for (int d = 0; d < 3; d++)
+		{
+			final double cal = bt.btData.globCal[d];
+			gridVoxelSize[d] = (cal > 0 ? cal : 1.0) * ds[d];
+		}
+		for (int d = 0; d < 3; d++)
+		{
+			sigmaGridV[d] = sigmaGrid[d];
+		}
+		
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
 		if(bDownsample)
@@ -746,6 +800,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] bestStep = new double[3];
 		/** grid position of the best candidate **/
 		final long [] bestGrid = new long[3];
+		/** saliency of the best candidate **/
+		float bestSal = 0.0f;
 		
 		//find a pixel in the neighborhood 
 		//according to direction vector
@@ -850,6 +906,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(currScore > maxScore)
 					{
 						maxScore = currScore;
+						bestSal = currSal;
 						for (int d = 0; d < 3; d++)
 						{
 							finPos[d] = (float) toFull(candPos[d], d);
@@ -901,10 +958,348 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				
 			}
 			out = new RealPoint(finPos);
+			dSalTrace = 0.9 * dSalTrace + 0.1 * bestSal;
+		}
+		else if(dGapBridgeSigma > 0)
+		{
+			//ridge is interrupted, try to find its continuation ahead
+			out = bridgeGap(currpoint, refDirection, raInput);
+		}
+		if(out == null && bKinkRecovery)
+		{
+			//still stuck (e.g. at a kink): relaxed look-ahead, momentum reset
+			out = recoverStall(currpoint, refDirection, raInput);
 		}
 		
 		return out;
 		
+	}
+	
+	/** Stall recovery, called when normal stepping (and gap bridging) found no continuation.
+	 * At a kink of the filament (and right after a junction passage that coasted straight through it)
+	 * the heading (momentum) still points along the incoming part, the corner itself is blob-like 
+	 * (eigenvectors are ill-defined), so stepping and gap bridging (narrow cone around the heading) stop.
+	 * Here the constraints are relaxed once:
+	 * - look-ahead up to dRecoverReachSigma tracing sigmas (min 1.5 grid voxels),
+	 *   in the cone of the directionality constrain (dAngleThreshold) around the heading;
+	 * - the landing voxel's line orientation must agree with the jump direction (dRecoverAlignCos),
+	 *   not with the heading (the line continues where we jump), saliency at least 
+	 *   dGapMinRelSal of the running average, same intensity/mask/self-intersection checks;
+	 * - confirmation: the line must continue ~sigma further along the landing orientation 
+	 *   (a voxel in the 3x3x3 neighborhood of the probe passing the same saliency/orientation checks),
+	 *   so the trace does not turn into a short side spur or a punctum;
+	 * - on success the momentum is reset to the landing orientation (no memory of the old heading).
+	 * Candidates are scored by saliency, alignment with the jump, straightness and distance.
+	 * Returns null if nothing is found (trace ends there). **/
+	RealPoint recoverStall(final RealPoint currpoint, final double [] refDirection, final RandomAccess< T > raInput)
+	{
+		final double [] ref = refDirection.clone();
+		LinAlgHelpers.normalize(ref);
+		final double G = dRecoverReachSigma;
+		
+		double dMaxSigmaGrid = 0;
+		double dNormRef = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dMaxSigmaGrid = Math.max(dMaxSigmaGrid, sigmaGridV[d]);
+			dNormRef += (ref[d] / sigmaGridV[d]) * (ref[d] / sigmaGridV[d]);
+		}
+		final double dReachAlong = G / Math.sqrt(dNormRef);
+		
+		final long [] currGrid = new long[3];
+		final double [] aheadFull = new double[3];
+		final int [] L = new int[3];
+		for (int d = 0; d < 3; d++)
+		{
+			currGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
+			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * ref[d] * ds[d];
+			aheadFull[d] = Math.min(fullInput.max(d), Math.max(fullInput.min(d), aheadFull[d]));
+			L[d] = (int) Math.ceil(G * sigmaGridV[d]);
+		}
+		getMathForCurrentPoint(new RealPoint(aheadFull));
+		
+		final double dMinSal = dGapMinRelSal * dSalTrace;
+		//angles are measured in physical space
+		final double [] refPhys = toPhysDir(ref);
+		//candidates: score, grid position, orientation (oriented along the jump), saliency, cos to heading
+		final ArrayList<double[]> cands = new ArrayList<>();
+		final long [] cand = new long[3];
+		final double [] candFullPos = new double[3];
+		final double [] jump = new double[3];
+		for (int dz = -L[2]; dz <= L[2]; dz++)
+			for (int dy = -L[1]; dy <= L[1]; dy++)
+				for (int dx = -L[0]; dx <= L[0]; dx++)
+				{
+					final double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+					if(dist < 1.5)
+						continue;
+					final double distSigma = Math.sqrt((dx / sigmaGridV[0]) * (dx / sigmaGridV[0])
+							+ (dy / sigmaGridV[1]) * (dy / sigmaGridV[1]) 
+							+ (dz / sigmaGridV[2]) * (dz / sigmaGridV[2]));
+					if(distSigma > G)
+						continue;
+					jump[0] = dx / dist;
+					jump[1] = dy / dist;
+					jump[2] = dz / dist;
+					final double [] jumpPhys = toPhysDir(jump);
+					final double cosHeading = LinAlgHelpers.dot(jumpPhys, refPhys);
+					if(cosHeading < dAngleThreshold)
+						continue;
+					cand[0] = currGrid[0] + dx;
+					cand[1] = currGrid[1] + dy;
+					cand[2] = currGrid[2] + dz;
+					if(!isInsideMath(cand))
+						continue;
+					final float sal = raW.setPositionAndGet(cand).get();
+					if(sal <= 0 || sal < dMinSal)
+						continue;
+					final double [] candVec = getVectorAtGrid(cand);
+					final double dAlign = LinAlgHelpers.dot(toPhysDir(candVec), jumpPhys);
+					if(Math.abs(dAlign) < dRecoverAlignCos)
+						continue;
+					final long [] candFull = toFullLong(cand);
+					if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( candFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+						continue;
+					if(bUseMask && traceMask.isOccupied( candFull ))
+						continue;
+					for (int d = 0; d < 3; d++)
+					{
+						candFullPos[d] = toFull(cand[d], d);
+					}
+					if(checkIntersection(new RealPoint(candFullPos)))
+						continue;
+					final double sign = dAlign < 0 ? -1.0 : 1.0;
+					final double score = sal * dAlign * dAlign * cosHeading / (1.0 + distSigma / G);
+					cands.add(new double [] {score, cand[0], cand[1], cand[2], 
+							sign * candVec[0], sign * candVec[1], sign * candVec[2], sal});
+				}
+		cands.sort((a, b) -> Double.compare(b[0], a[0]));
+		
+		final long [] probe = new long[3];
+		final long [] nb = new long[3];
+		final double [] vLand = new double[3];
+		for(final double [] c : cands)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				vLand[d] = c[4 + d];
+				probe[d] = Math.round(c[1 + d] + dMaxSigmaGrid * vLand[d]);
+			}
+			final double [] vLandPhys = toPhysDir(vLand);
+			//confirmation: the line continues ~sigma further
+			boolean bConfirmed = false;
+			for (int pz = -1; pz <= 1 && !bConfirmed; pz++)
+				for (int py = -1; py <= 1 && !bConfirmed; py++)
+					for (int px = -1; px <= 1 && !bConfirmed; px++)
+					{
+						nb[0] = probe[0] + px;
+						nb[1] = probe[1] + py;
+						nb[2] = probe[2] + pz;
+						if(!isInsideMath(nb))
+							continue;
+						final float salNb = raW.setPositionAndGet(nb).get();
+						if(salNb <= 0 || salNb < dMinSal)
+							continue;
+						if(Math.abs(LinAlgHelpers.dot(toPhysDir(getVectorAtGrid(nb)), vLandPhys)) >= dRecoverAlignCos)
+							bConfirmed = true;
+					}
+			if(!bConfirmed)
+				continue;
+			//reset momentum to the landing orientation
+			for (int d = 0; d < 3; d++)
+			{
+				lastDirectionVector[d] = vLand[d];
+				memDirectionVector[d] = vLand[d];
+			}
+			dSalTrace = 0.9 * dSalTrace + 0.1 * c[7];
+			final float [] finPos = new float[3];
+			for (int d = 0; d < 3; d++)
+			{
+				finPos[d] = (float) toFull((long) c[1 + d], d);
+			}
+			return new RealPoint(finPos);
+		}
+		return null;
+	}
+	
+	/** direction (in grid voxel units) converted to a unit direction in physical space **/
+	double [] toPhysDir(final double [] v)
+	{
+		final double [] out = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			out[d] = v[d] * gridVoxelSize[d];
+		}
+		LinAlgHelpers.normalize(out);
+		return out;
+	}
+	
+	/** true if the grid position is inside the dataset and inside the current math (saliency/vectors) box **/
+	boolean isInsideMath(final long [] gridPos)
+	{
+		for (int d = 0; d < 3; d++)
+		{
+			if(gridPos[d] < gridMin[d] || gridPos[d] > gridMax[d]
+					|| gridPos[d] < salWeights.min(d) || gridPos[d] > salWeights.max(d))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	/** Gap bridging for "dotty" (punctate) lines, called when normal stepping finds no candidate.
+	 * Looks ahead in a cone along the reference direction (half-angle acos(dGapConeCos)),
+	 * up to dGapBridgeSigma tracing sigmas away. Distance is measured in sigma units per axis, 
+	 * so the search region is an ellipsoid with the same anisotropy as the math box 
+	 * (+-rangeFullBoxDim sigma), which the whole cone fits into for dGapBridgeSigma up to 4.5.
+	 * It looks for a ridge voxel (saliency at least dGapMinRelSal of the running average 
+	 * along the trace) whose orientation agrees with the heading and that passes the same intensity/mask/self-intersection checks.
+	 * The best one (saliency weighted by alignment and distance) becomes the next point, 
+	 * the gap is a straight piece of the trace.
+	 * The math box is re-centered half way into the gap first. 
+	 * Returns null if nothing is found (trace ends there). **/
+	RealPoint bridgeGap(final RealPoint currpoint, final double [] refDirection, final RandomAccess< T > raInput)
+	{
+		//refDirection can be lastDirectionVector, which is updated below
+		final double [] ref = refDirection.clone();
+		LinAlgHelpers.normalize(ref);
+		
+		final double G = dGapBridgeSigma;
+		
+		//grid distance along ref that corresponds to G sigmas
+		double dNormRef = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dNormRef += (ref[d] / sigmaGridV[d]) * (ref[d] / sigmaGridV[d]);
+		}
+		final double dReachAlong = G / Math.sqrt(dNormRef);
+		
+		final long [] currGrid = new long[3];
+		final double [] aheadFull = new double[3];
+		//search half-range per axis (grid voxels)
+		final int [] L = new int[3];
+		for (int d = 0; d < 3; d++)
+		{
+			currGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
+			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * ref[d] * ds[d];
+			//keep it inside the dataset (otherwise the math box can be empty)
+			aheadFull[d] = Math.min(fullInput.max(d), Math.max(fullInput.min(d), aheadFull[d]));
+			L[d] = (int) Math.ceil(G * sigmaGridV[d]);
+		}
+		getMathForCurrentPoint(new RealPoint(aheadFull));
+		
+		final double dMinOrient = Math.max(dAngleThreshold, dGapConeCos);
+		final double dMinSal = dGapMinRelSal * dSalTrace;
+		//angles are measured in physical space
+		final double [] refPhys = toPhysDir(ref);
+		final double [] jumpBr = new double[3];
+		final long [] cand = new long[3];
+		final long [] best = new long[3];
+		final double [] candFullPos = new double[3];
+		double [] bestVec = null;
+		double bestScore = 0.0;
+		float bestLandSal = 0.0f;
+		
+		for (int dz = -L[2]; dz <= L[2]; dz++)
+			for (int dy = -L[1]; dy <= L[1]; dy++)
+				for (int dx = -L[0]; dx <= L[0]; dx++)
+				{
+					//distance in grid voxels (for the cone and minimum jump)
+					final double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+					if(dist < 2.0)
+						continue;
+					//distance in sigmas
+					final double distSigma = Math.sqrt((dx / sigmaGridV[0]) * (dx / sigmaGridV[0])
+							+ (dy / sigmaGridV[1]) * (dy / sigmaGridV[1]) 
+							+ (dz / sigmaGridV[2]) * (dz / sigmaGridV[2]));
+					if(distSigma > G)
+						continue;
+					jumpBr[0] = dx;
+					jumpBr[1] = dy;
+					jumpBr[2] = dz;
+					final double cosCone = LinAlgHelpers.dot(toPhysDir(jumpBr), refPhys);
+					if(cosCone < dGapConeCos)
+						continue;
+					cand[0] = currGrid[0] + dx;
+					cand[1] = currGrid[1] + dy;
+					cand[2] = currGrid[2] + dz;
+					boolean bInside = true;
+					for (int d = 0; d < 3; d++)
+					{
+						if(cand[d] < gridMin[d] || cand[d] > gridMax[d]
+								|| cand[d] < salWeights.min(d) || cand[d] > salWeights.max(d))
+						{
+							bInside = false;
+							break;
+						}
+					}
+					if(!bInside)
+						continue;
+					final float sal = raW.setPositionAndGet(cand).get();
+					if(sal <= 0 || sal < dMinSal)
+						continue;
+					final double [] candVec = getVectorAtGrid(cand);
+					if(Math.abs(LinAlgHelpers.dot(toPhysDir(candVec), refPhys)) < dMinOrient)
+						continue;
+					final long [] candFull = toFullLong(cand);
+					if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( candFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+						continue;
+					if(bUseMask && traceMask.isOccupied( candFull ))
+						continue;
+					for (int d = 0; d < 3; d++)
+					{
+						candFullPos[d] = toFull(cand[d], d);
+					}
+					if(checkIntersection(new RealPoint(candFullPos)))
+						continue;
+					//prefer bright, straight ahead and close
+					final double score = sal * cosCone * cosCone / (1.0 + distSigma / G);
+					if(score > bestScore)
+					{
+						bestScore = score;
+						bestLandSal = sal;
+						bestVec = candVec;
+						System.arraycopy(cand, 0, best, 0, 3);
+					}
+				}
+		
+		if(bestVec == null)
+		{
+			return null;
+		}
+		dSalTrace = 0.9 * dSalTrace + 0.1 * bestLandSal;
+		
+		//orient and store the new direction
+		if(LinAlgHelpers.dot(bestVec, ref) < 0)
+		{
+			LinAlgHelpers.scale(bestVec, -1.0, bestVec);
+		}
+		for (int d = 0; d < 3; d++)
+		{
+			lastDirectionVector[d] = bestVec[d];
+		}
+		if(bUseHistory)
+		{
+			final double [] jump = new double[3];
+			for (int d = 0; d < 3; d++)
+			{
+				jump[d] = best[d] - currGrid[d];
+			}
+			LinAlgHelpers.normalize(jump);
+			for (int d = 0; d < 3; d++)
+			{
+				memDirectionVector[d] = dMomentumAlpha * memDirectionVector[d] 
+						+ (1.0 - dMomentumAlpha) * ((1.0 - dMomentumEigenShare) * jump[d] + dMomentumEigenShare * bestVec[d]);
+			}
+			LinAlgHelpers.normalize(memDirectionVector);
+		}
+		final float [] finPos = new float[3];
+		for (int d = 0; d < 3; d++)
+		{
+			finPos[d] = (float) toFull(best[d], d);
+		}
+		return new RealPoint(finPos);
 	}
 
 	/** calculate hessian/eigen vectors around current point **/
