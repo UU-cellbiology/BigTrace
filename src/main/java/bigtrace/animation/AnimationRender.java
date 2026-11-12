@@ -39,7 +39,6 @@ public class AnimationRender extends BigTraceBGTask
 	ImageIcon tabIconRecord = null;
 	
 	JPanel glass = null;
-
 	
 	public AnimationRender(BigTrace<?> bt_,  AnimationPanel aPanel_)
 	{
@@ -64,6 +63,8 @@ public class AnimationRender extends BigTraceBGTask
 		Prefs.showScaleBarInMovie( aPanel.bRenderScaleBar );
 
 		Prefs.showTextOverlay(false);
+		bt.axisOverlay.setEnabled( aPanel.bRenderAxisGizmo);
+		
 
 		float dT = aPanel.kfAnim.nTotalTime/(float)(nTotFrames-1);		
 
@@ -216,9 +217,8 @@ public class AnimationRender extends BigTraceBGTask
 		
 		Prefs.showScaleBar( bt.btData.bShowScaleBar );
 		Prefs.showScaleBarInMovie( bt.btData.bShowScaleBar );
-		
+		bt.axisOverlay.setEnabled( bt.btData.bShowAxisOverlay);		
 		Prefs.showTextOverlay(true);
-		
     	//unlock user interaction
     	bt.bInputLock = false;
     	bt.setLockMode(false);

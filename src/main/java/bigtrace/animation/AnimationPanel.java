@@ -117,6 +117,8 @@ public class AnimationPanel extends JPanel implements ListSelectionListener, Num
 	
 	boolean bRenderScaleBar =  Prefs.get("BigTrace.bRenderScaleBar", false);
 	
+	boolean bRenderAxisGizmo =  Prefs.get("BigTrace.bRenderAxisGizmo", false);
+	
 	int nRenderFrameTimeLimit = (int)Prefs.get("BigTrace.nRenderFrameTimeLimit", 60);
 	
 	String sRenderSavePath = null;
