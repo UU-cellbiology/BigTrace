@@ -91,7 +91,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	@SuppressWarnings( "unchecked" )
 	private final ArrayList<int[]>[] neighborsArr = new ArrayList[27];
 	
-	/** vector of curve direction for the last point **/
+	/** vector of curve direction for the last point, physical space, unit length.
+	 * All directions (eigenvectors from getVectorAtGrid, last, momentum) are kept in physical space,
+	 * so angles (directionality constrain, stiffness scores, junction coherence) are real angles
+	 * also for anisotropic voxels. They are converted to grid space (physToGridDir) only
+	 * where they are used as displacements on the grid (neighbors, look-ahead positions, cross-sections) **/
 	final double [] lastDirectionVector = new double[3];
 	
 	/** "history" stepping (effective stiffness > 0): the momentum direction is the reference
@@ -102,7 +106,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** junction (crossing) detection and passage, uses the momentum direction as heading **/
 	boolean bJunctions = false;
 	
-	/** smoothed (momentum) direction of the traced path, grid space, unit length.
+	/** smoothed (momentum) direction of the traced path, physical space, unit length.
 	 * Built mostly from actual step vectors, so a few bad Hessian eigenvectors
 	 * at a crossing cannot flip it **/
 	final double [] memDirectionVector = new double[3];
@@ -165,9 +169,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * (and at the confirmation probe) and the direction of the jump **/
 	static final double dRecoverAlignCos = 0.8;
 	
-	/** physical size of a grid voxel (calibration x downsampling factor);
-	 * angles in gap bridging and stall recovery are measured in physical space,
-	 * otherwise with anisotropic voxels a jump in z looks much straighter than it is **/
+	/** physical size of a grid voxel (calibration x downsampling factor).
+	 * Used to convert directions between grid and physical space: 
+	 * with anisotropic voxels, a direction in grid space makes a step in z look much straighter than it is **/
 	final double [] gridVoxelSize = new double [] {1.0, 1.0, 1.0};
 	
 	/** sigma of the hessian kernels in grid voxels **/
@@ -378,10 +382,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					currentTracing.vertices.get(currentTracing.vertices.size()-2).localize(prevDirection);
 				}
 				LinAlgHelpers.subtract(startPoint.positionAsDoubleArray(), prevDirection, prevDirection);
-				//direction vectors live in grid space
+				//direction vectors live in physical space (full resolution voxel -> physical)
 				for(int d = 0; d < 3; d++)
 				{
-						prevDirection[d] /= ds[d];
+					prevDirection[d] *= gridVoxelSize[d] / ds[d];
 				}
 				LinAlgHelpers.normalize(prevDirection);
 				final double sameDir = LinAlgHelpers.dot(prevDirection, lastDirectionVector);
@@ -768,27 +772,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	{
 		if(newPoint == null || !bLiveUpdate || !bt.bOCVisDebugEnabled || bt.ocVisDebug == null)
 			return;
-		final double [] lastPhys = gridDirToPhysical(lastDirectionVector);
-		final double [] memPhys = bUseHistory ? gridDirToPhysical(memDirectionVector) : null;
-		bt.ocVisDebug.showStep(newPoint.positionAsDoubleArray(), lastPhys, dAngleThreshold, memPhys, dScorePowStep, bt.btData.sigmaTrace);
+		//directions are already in physical space
+		bt.ocVisDebug.showStep(newPoint.positionAsDoubleArray(), lastDirectionVector, dAngleThreshold, 
+				bUseHistory ? memDirectionVector : null, dScorePowStep, bt.btData.sigmaTrace);
 		bt.repaintBVV();
 		bt.ocVisDebug.stepDelay();
-	}
-	
-	/** unit direction in grid (voxel or downsampled grid) space -> unit direction in physical space **/
-	double [] gridDirToPhysical(final double [] v)
-	{
-		final double [] out = new double[3];
-		for(int d = 0; d < 3; d++)
-		{
-			out[d] = v[d] * ds[d] * bt.btData.globCal[d];
-		}
-		final double len = LinAlgHelpers.length(out);
-		if(len > 0)
-		{
-			LinAlgHelpers.scale(out, 1.0 / len, out);
-		}
-		return out;
 	}
 	
 	boolean checkIntersection(RealPoint currpoint)
@@ -844,8 +832,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] newDirection = new double[3];
 		double [] candDirection;
 		
-		/** reference direction: momentum (smoothed path) or last eigenvector (original) **/
+		/** reference direction: momentum (smoothed path) or last eigenvector (original), physical space **/
 		final double [] refDirection = bUseHistory  ? memDirectionVector : lastDirectionVector;
+		/** the same in grid space, for the choice of neighbors **/
+		final double [] refGrid = physToGridDir(refDirection);
 				
 		/** normalized step vector of the current and of the best candidate **/
 		final double [] candStep = new double[3];
@@ -861,7 +851,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		for (int d = 0; d < 3; d++)
 		{
-			nNeighborIndex = nNeighborIndex * 3 + ((int)Math.round(refDirection[d]) + 1);
+			nNeighborIndex = nNeighborIndex * 3 + ((int)Math.round(refGrid[d]) + 1);
 		}
 		
 		//get all relevant neighbors
@@ -877,7 +867,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		else
 		{
-			scannedPos = getNeighborPixels(refDirection);
+			scannedPos = getNeighborPixels(refGrid);
 		}
 		int [] candidateNeighbor; 
 
@@ -943,10 +933,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					double currScore = currSal;
 					if(bUseHistory)
 					{
-						//direction of the step itself (grid space)
+						//direction of the step itself (physical space)
 						for (int d = 0; d < 3; d++)
 						{
-							candStep[d] = candidateNeighbor[d];
+							candStep[d] = candidateNeighbor[d] * gridVoxelSize[d];
 						}
 						LinAlgHelpers.normalize(candStep);
 						final double cosStep = Math.max(0.0, LinAlgHelpers.dot(candStep, refDirection));
@@ -998,7 +988,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				//so heading errors get corrected), partly from the local orientation 
 				for (int d = 0; d < 3; d++)
 				{
-					bestStep[d] = bestGrid[d] - toGrid(currpoint.getDoublePosition(d), d);
+					bestStep[d] = (bestGrid[d] - toGrid(currpoint.getDoublePosition(d), d)) * gridVoxelSize[d];
 				}
 				LinAlgHelpers.normalize(bestStep);
 				for (int d = 0; d < 3; d++)
@@ -1045,8 +1035,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * Returns null if nothing is found (trace ends there). **/
 	RealPoint recoverStall(final RealPoint currpoint, final double [] refDirection, final RandomAccess< T > raInput)
 	{
+		//heading in physical space (angles) and in grid space (look-ahead)
 		final double [] ref = refDirection.clone();
 		LinAlgHelpers.normalize(ref);
+		final double [] refGrid = physToGridDir(ref);
 		final double G = dRecoverReachSigma;
 		
 		double dMaxSigmaGrid = 0;
@@ -1054,7 +1046,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		for (int d = 0; d < 3; d++)
 		{
 			dMaxSigmaGrid = Math.max(dMaxSigmaGrid, sigmaGridV[d]);
-			dNormRef += (ref[d] / sigmaGridV[d]) * (ref[d] / sigmaGridV[d]);
+			dNormRef += (refGrid[d] / sigmaGridV[d]) * (refGrid[d] / sigmaGridV[d]);
 		}
 		final double dReachAlong = G / Math.sqrt(dNormRef);
 		
@@ -1064,15 +1056,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		for (int d = 0; d < 3; d++)
 		{
 			currGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
-			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * ref[d] * ds[d];
+			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * refGrid[d] * ds[d];
 			aheadFull[d] = Math.min(fullInput.max(d), Math.max(fullInput.min(d), aheadFull[d]));
 			L[d] = (int) Math.ceil(G * sigmaGridV[d]);
 		}
 		getMathForCurrentPoint(new RealPoint(aheadFull));
 		
 		final double dMinSal = dGapMinRelSal * dSalTrace;
-		//angles are measured in physical space
-		final double [] refPhys = toPhysDir(ref);
 		//candidates: score, grid position, orientation (oriented along the jump), saliency, cos to heading
 		final ArrayList<double[]> cands = new ArrayList<>();
 		final long [] cand = new long[3];
@@ -1093,8 +1083,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					jump[0] = dx / dist;
 					jump[1] = dy / dist;
 					jump[2] = dz / dist;
-					final double [] jumpPhys = toPhysDir(jump);
-					final double cosHeading = LinAlgHelpers.dot(jumpPhys, refPhys);
+					final double [] jumpPhys = gridToPhysDir(jump);
+					final double cosHeading = LinAlgHelpers.dot(jumpPhys, ref);
 					if(cosHeading < dAngleThreshold)
 						continue;
 					cand[0] = currGrid[0] + dx;
@@ -1106,7 +1096,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(sal <= 0 || sal < dMinSal)
 						continue;
 					final double [] candVec = getVectorAtGrid(cand);
-					final double dAlign = LinAlgHelpers.dot(toPhysDir(candVec), jumpPhys);
+					final double dAlign = LinAlgHelpers.dot(candVec, jumpPhys);
 					if(Math.abs(dAlign) < dRecoverAlignCos)
 						continue;
 					final long [] candFull = toFullLong(cand);
@@ -1135,9 +1125,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			for (int d = 0; d < 3; d++)
 			{
 				vLand[d] = c[4 + d];
-				probe[d] = Math.round(c[1 + d] + dMaxSigmaGrid * vLand[d]);
 			}
-			final double [] vLandPhys = toPhysDir(vLand);
+			final double [] vLandGrid = physToGridDir(vLand);
+			for (int d = 0; d < 3; d++)
+			{
+				probe[d] = Math.round(c[1 + d] + dMaxSigmaGrid * vLandGrid[d]);
+			}
 			//confirmation: the line continues ~sigma further
 			boolean bConfirmed = false;
 			for (int pz = -1; pz <= 1 && !bConfirmed; pz++)
@@ -1152,7 +1145,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						final float salNb = raW.setPositionAndGet(nb).get();
 						if(salNb <= 0 || salNb < dMinSal)
 							continue;
-						if(Math.abs(LinAlgHelpers.dot(toPhysDir(getVectorAtGrid(nb)), vLandPhys)) >= dRecoverAlignCos)
+						if(Math.abs(LinAlgHelpers.dot(getVectorAtGrid(nb), vLand)) >= dRecoverAlignCos)
 							bConfirmed = true;
 					}
 			if(!bConfirmed)
@@ -1174,16 +1167,38 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return null;
 	}
 	
-	/** direction (in grid voxel units) converted to a unit direction in physical space **/
-	double [] toPhysDir(final double [] v)
+	/** direction in grid voxel units (eigenvector, step, jump) -> unit direction in physical space **/
+	double [] gridToPhysDir(final double [] v)
 	{
 		final double [] out = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
 			out[d] = v[d] * gridVoxelSize[d];
 		}
-		LinAlgHelpers.normalize(out);
-		return out;
+		return normalizeSafe(out);
+	}
+	
+	/** direction in physical space -> unit direction in grid voxel units 
+	 * (for displacements on the grid: neighbors, look-ahead positions, cross-sections) **/
+	double [] physToGridDir(final double [] v)
+	{
+		final double [] out = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			out[d] = v[d] / gridVoxelSize[d];
+		}
+		return normalizeSafe(out);
+	}
+	
+	/** normalizes v in place (a zero vector stays zero), returns it **/
+	static double [] normalizeSafe(final double [] v)
+	{
+		final double len = LinAlgHelpers.length(v);
+		if(len > 0)
+		{
+			LinAlgHelpers.scale(v, 1.0 / len, v);
+		}
+		return v;
 	}
 	
 	/** true if the grid position is inside the dataset and inside the current math (saliency/vectors) box **/
@@ -1219,11 +1234,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		final double G = dGapBridgeSigma;
 		
+		//heading in grid space (look-ahead)
+		final double [] refGrid = physToGridDir(ref);
 		//grid distance along ref that corresponds to G sigmas
 		double dNormRef = 0;
 		for (int d = 0; d < 3; d++)
 		{
-			dNormRef += (ref[d] / sigmaGridV[d]) * (ref[d] / sigmaGridV[d]);
+			dNormRef += (refGrid[d] / sigmaGridV[d]) * (refGrid[d] / sigmaGridV[d]);
 		}
 		final double dReachAlong = G / Math.sqrt(dNormRef);
 		
@@ -1234,7 +1251,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		for (int d = 0; d < 3; d++)
 		{
 			currGrid[d] = toGrid(currpoint.getDoublePosition(d), d);
-			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * ref[d] * ds[d];
+			aheadFull[d] = currpoint.getDoublePosition(d) + 0.5 * dReachAlong * refGrid[d] * ds[d];
 			//keep it inside the dataset (otherwise the math box can be empty)
 			aheadFull[d] = Math.min(fullInput.max(d), Math.max(fullInput.min(d), aheadFull[d]));
 			L[d] = (int) Math.ceil(G * sigmaGridV[d]);
@@ -1243,8 +1260,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		final double dMinOrient = Math.max(dAngleThreshold, dGapConeCos);
 		final double dMinSal = dGapMinRelSal * dSalTrace;
-		//angles are measured in physical space
-		final double [] refPhys = toPhysDir(ref);
 		final double [] jumpBr = new double[3];
 		final long [] cand = new long[3];
 		final long [] best = new long[3];
@@ -1270,7 +1285,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					jumpBr[0] = dx;
 					jumpBr[1] = dy;
 					jumpBr[2] = dz;
-					final double cosCone = LinAlgHelpers.dot(toPhysDir(jumpBr), refPhys);
+					final double cosCone = LinAlgHelpers.dot(gridToPhysDir(jumpBr), ref);
 					if(cosCone < dGapConeCos)
 						continue;
 					cand[0] = currGrid[0] + dx;
@@ -1292,7 +1307,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					if(sal <= 0 || sal < dMinSal)
 						continue;
 					final double [] candVec = getVectorAtGrid(cand);
-					if(Math.abs(LinAlgHelpers.dot(toPhysDir(candVec), refPhys)) < dMinOrient)
+					if(Math.abs(LinAlgHelpers.dot(candVec, ref)) < dMinOrient)
 						continue;
 					final long [] candFull = toFullLong(cand);
 					if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( candFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
@@ -1336,7 +1351,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			final double [] jump = new double[3];
 			for (int d = 0; d < 3; d++)
 			{
-				jump[d] = best[d] - currGrid[d];
+				jump[d] = (best[d] - currGrid[d]) * gridVoxelSize[d];
 			}
 			LinAlgHelpers.normalize(jump);
 			for (int d = 0; d < 3; d++)
@@ -1506,7 +1521,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return new FinalInterval(rangeMax[0],rangeMax[1]);
 	}
 	
-	/** returns orientation vector (in grid space) at the provided full resolution location **/
+	/** returns orientation vector (unit, physical space) at the provided full resolution location **/
 	public double[] getVectorAtLocation(final RealPoint point)
 	{
 		final long [] gridPos = new long [3];
@@ -1517,7 +1532,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return getVectorAtGrid(gridPos);
 	}
 	
-	/** returns orientation vector (in grid space) at the provided grid location **/
+	/** returns orientation vector (unit, physical space) at the provided grid location.
+	 * The hessian eigenvector is a direction in grid voxel units (derivatives per voxel):
+	 * for a straight line with physical direction t it is t/gridVoxelSize (normalized),
+	 * so it is scaled back by the grid voxel size **/
 	double[] getVectorAtGrid(final long[] gridPos)
 	{
 		final double [] currDirVector = new double[3];
@@ -1533,9 +1551,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			currpos[3] = d;
 			raV.setPosition(currpos);
-			currDirVector[d] = raV.get().getRealDouble();
+			currDirVector[d] = raV.get().getRealDouble() * gridVoxelSize[d];
 		}
-		return currDirVector;
+		return normalizeSafe(currDirVector);
 	}
 	
 	ArrayList<int[]> getNeighborPixels(final double [] directionVector)
@@ -1830,10 +1848,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * Returns true if gridPos was changed. **/
 	boolean recenterOnRidge(final RealPoint currpoint, final long [] gridPos, final RandomAccess< T > raInput)
 	{
-		//orthonormal basis (u,v) perpendicular to momentum
+		//orthonormal basis (u,v) perpendicular to momentum (grid space)
+		final double [] memGrid = physToGridDir(memDirectionVector);
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(memDirectionVector, u, v);
+		SteerableLineFilter.crossSectionBasis(memGrid, u, v);
 
 		final long [] currGrid = new long[3];
 		for (int d = 0; d < 3; d++)
@@ -1866,7 +1885,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						{
 							bInside = false;
 						}
-						dForward += (testPos[d] - currGrid[d]) * memDirectionVector[d];
+						dForward += (testPos[d] - currGrid[d]) * memGrid[d];
 					}
 					//must stay inside and keep moving forward 
 					//(otherwise self-intersection check would stop tracing)

@@ -16,7 +16,8 @@ import net.imglib2.util.LinAlgHelpers;
  * - in auto-tracing: crossing existing ROIs (traced mask), stopping when merging onto them,
  *   merging with traces that continue across the junction (TraceEndMerger);
  * - in auto-tracing: moving a start that is at a junction out along one of its arms.
- * All directions and positions here are in grid coordinates unless stated otherwise. **/
+ * Positions and coasting directions here are in grid coordinates; the heading of OneClickTrace 
+ * (memDirectionVector, lastDirectionVector), eigenvectors and all angle comparisons are in physical space. **/
 class JunctionHandler < T extends RealType< T > & NativeType< T > >
 {
 	final OneClickTrace<T> oc;
@@ -101,10 +102,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	/** stop tracing in this direction once the passage queue is empty (merge found) **/
 	boolean bStopAfterQueue = false;
 
-	/** heading when entering the junction (unit) **/
+	/** heading when entering the junction (unit, grid space) **/
 	final double [] coastLineDir = new double[3];
 
-	/** current coasting direction (unit): chord from the coasting start **/
+	/** current coasting direction (unit, grid space): chord from the coasting start **/
 	final double [] coastDir = new double[3];
 
 	/** first point of the current coasting **/
@@ -220,10 +221,11 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	/** orientation coherence along the momentum in the ball centered ~sigma ahead of the current point **/
 	double getCoherenceAhead(final RealPoint currpoint)
 	{
+		final double [] memGrid = oc.physToGridDir(oc.memDirectionVector);
 		final long [] ahead = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
-			ahead[d] = Math.round(oc.toGridDouble(currpoint.getDoublePosition(d), d) + nJunctionRadius * oc.memDirectionVector[d]);
+			ahead[d] = Math.round(oc.toGridDouble(currpoint.getDoublePosition(d), d) + nJunctionRadius * memGrid[d]);
 		}
 		return getPathCoherence(ahead, oc.memDirectionVector);
 	}
@@ -232,6 +234,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	 * Saliency weighted orientation coherence along the heading m in a ball of radius ~sigma:
 	 *   C = sum( w * (v.m)^2 ) / sum( w ), w = saliency, v = local eigenvector
 	 * (= m'Tm/tr(T) of the local orientation tensor T, the sign of v does not matter).
+	 * v and m are in physical space, gridPos and the ball are in the grid.
 	 * Single filament along m: C ~ 0.9-1, crossing at 45 deg: ~0.75, at 90 deg: ~0.5.
 	 * Voxels below dCoherenceMinSalFraction of the max saliency in the ball are ignored. **/
 	double getPathCoherence(final long [] gridPos, final double [] m)
@@ -432,17 +435,25 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	/** Arms of the elongated line filter (current junction box) at ~sigma ahead of pGrid along heading:
 	 * returns the outgoing arm, closest to the heading other than the incoming one 
 	 * (the one pointing back along the heading), or null if there are fewer than 2 arms
-	 * or none points forward **/
+	 * or none points forward. 
+	 * heading and the returned arm are in physical space (the arm search itself runs in the grid) **/
 	double [] findOutgoingArm(final double [] pGrid, final double [] heading)
 	{
+		final double [] headingGrid = oc.physToGridDir(heading);
 		final double [] pAhead = pGrid.clone();
 		for (int d = 0; d < 3; d++)
 		{
-			pAhead[d] += nJunctionRadius * heading[d];
+			pAhead[d] += nJunctionRadius * headingGrid[d];
 		}
-		final ArrayList<double[]> arms = box.hessBox.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
-		if(arms.size() < 2)
+		final ArrayList<double[]> armsGrid = box.hessBox.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
+		if(armsGrid.size() < 2)
 			return null;
+		//arm directions to physical space
+		final ArrayList<double[]> arms = new ArrayList<>();
+		for(final double [] arm : armsGrid)
+		{
+			arms.add(oc.gridToPhysDir(arm));
+		}
 		//incoming arm: pointing back along the heading
 		int nIncoming = 0;
 		for (int i = 1; i < arms.size(); i++)
@@ -472,8 +483,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		bCoasting = true;
 		nCoastSteps = 0;
 		bCoastEndedByDistance = false;
-		System.arraycopy(oc.memDirectionVector, 0, coastLineDir, 0, 3);
-		System.arraycopy(oc.memDirectionVector, 0, coastDir, 0, 3);
+		//coasting runs in the grid: heading to grid space
+		final double [] memGrid = oc.physToGridDir(oc.memDirectionVector);
+		System.arraycopy(memGrid, 0, coastLineDir, 0, 3);
+		System.arraycopy(memGrid, 0, coastDir, 0, 3);
 		final long [] entryGrid = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
@@ -600,7 +613,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		{
 			System.arraycopy(coastLineDir, 0, coastDir, 0, 3);
 		}
-		System.arraycopy(coastDir, 0, oc.lastDirectionVector, 0, 3);
+		System.arraycopy(oc.gridToPhysDir(coastDir), 0, oc.lastDirectionVector, 0, 3);
 		nCoastSteps++;
 
 		//leave the junction after a fixed distance along e (the map is valid for the whole
@@ -633,8 +646,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	{
 		bCoasting = false;
 		bJunctionArmed = false;
-		System.arraycopy(coastDir, 0, oc.memDirectionVector, 0, 3);
-		System.arraycopy(coastDir, 0, oc.lastDirectionVector, 0, 3);
+		//grid -> physical space
+		final double [] coastPhys = oc.gridToPhysDir(coastDir);
+		System.arraycopy(coastPhys, 0, oc.memDirectionVector, 0, 3);
+		System.arraycopy(coastPhys, 0, oc.lastDirectionVector, 0, 3);
 	}
 
 	/** moves p in the cross-section plane (u,v) to the nearest local maximum of the map:
@@ -752,11 +767,12 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(!oc.bUseMask)
 			return false;
 		final double [] x = new double[3];
+		final double [] memGrid = oc.physToGridDir(oc.memDirectionVector);
 		for (int s = 1; s <= 2; s++)
 		{
 			for (int d = 0; d < 3; d++)
 			{
-				x[d] = oc.toGridDouble(currpoint.getDoublePosition(d), d) + s * oc.memDirectionVector[d];
+				x[d] = oc.toGridDouble(currpoint.getDoublePosition(d), d) + s * memGrid[d];
 			}
 			if(isTraced(x))
 				return true;
