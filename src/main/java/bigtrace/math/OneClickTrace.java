@@ -15,7 +15,9 @@ import bigtrace.rois.Roi3D;
 
 import net.imglib2.AbstractInterval;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.convolution.Convolution;
@@ -206,6 +208,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	@SuppressWarnings( "rawtypes" )
 	Convolution [] convObjects = new Convolution[6];
+	
+	/** margin (voxels of the convolution input, full resolution or grid) around a box 
+	 * needed by the hessian convolutions (convObjects) **/
+	final long [] convMargin = new long[3];
 	ExecutorService es = null;// = Executors.newFixedThreadPool( nThreads );
 	int nThreads;
 	
@@ -678,11 +684,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				boxFullRange[d] = boxGridHalfRange[d] * 2 + 1;
 			}
 		}
-		//make downsampled box
-		if(bDownsample)
-		{
-			gridBox = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ]);
-		}
 		//IntervalView<T> input = Views.interval(fullInput, getLocalTraceBox(fullInput,boxFullHalfRange,startPoint));
 		//dim = Intervals.dimensionsAsLongArray( input );
 		
@@ -723,6 +724,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				convObjects[count] = SeparableKernelConvolution.convolution( derivKernel );
 				convObjects[count].setExecutor(es);
 				count++;
+			}
+		}
+		
+		//input of the convolutions must include the margin around the box,
+		//otherwise the hessian near the box faces is computed from border-replicated data
+		computeConvMargin();
+		//downsampled box (with the margin)
+		if(bDownsample)
+		{
+			gridBox = ArrayImgs.floats( boxFullRange[ 0 ] + 2 * convMargin[ 0 ], boxFullRange[ 1 ] + 2 * convMargin[ 1 ], boxFullRange[ 2 ] + 2 * convMargin[ 2 ]);
+			if(bJunctions)
+			{
+				junctions.box.setGridMargin(convMargin);
 			}
 		}
 		
@@ -1312,12 +1326,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		innerTraceBox = getLocalTraceBox(fullInput,boxInnerHalfRange,currPoint);
 		//currentBox.min(minV);
 		
-		//input for convolutions (full resolution or block averaged grid)
-		final RandomAccessibleInterval<?> mathInput;
+		//input for convolutions (full resolution or block averaged grid):
+		//the data around the box are used too (convMargin), 
+		//border extension only at the borders of the data
+		final RandomAccessible<?> convSource;
 		if(!bDownsample)
 		{
 			currentBox.min(minV);
-			mathInput = currentBox;
+			convSource = Views.extendBorder(fullInput);
 		}
 		else
 		{
@@ -1326,8 +1342,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				minV[d] = Math.max(gridMin[d], toGrid(currPoint.getDoublePosition(d), d) - boxGridHalfRange[d]);
 			}
-			fillGridBox(gridBox, minV);
-			mathInput = Views.translate(gridBox, minV[0], minV[1], minV[2]);
+			final long [] gridInputMin = new long[3];
+			for(int d = 0; d < 3; d++)
+			{
+				gridInputMin[d] = minV[d] - convMargin[d];
+			}
+			fillGridBox(gridBox, gridInputMin);
+			convSource = Views.extendBorder(Views.translate(gridBox, gridInputMin));
 		}
 		
 		//IntervalView<FloatType> gradient = Views.translate(gradFloat, nShift);
@@ -1369,7 +1390,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				IntervalView< FloatType > hs2 = Views.hyperSlice( hessian, 3, count );
 				//FinalInterval test = (FinalInterval) convObjects[count].requiredSourceInterval(hs2);
 				//convObjects[count].process(Views.extendBorder(currentBox), hs2 );
-				convObjects[count].process(Views.extendBorder(mathInput), hs2 );
+				convObjects[count].process(convSource, hs2 );
 				count++;
 			}
 		}
@@ -1698,8 +1719,28 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			return fullInput;
 		}
-		fillGridBox(box.gridImg, box.boxMin);
-		return Views.translate(box.gridImg, box.boxMin[0], box.boxMin[1], box.boxMin[2]);
+		//block averaged grid of the box with the convolution margin
+		final long [] gridInputMin = box.gridInputMin();
+		fillGridBox(box.gridImg, gridInputMin);
+		return Views.translate(box.gridImg, gridInputMin);
+	}
+	
+	/** margin around a box needed by the hessian convolutions (max over the 6 derivative kernels) **/
+	void computeConvMargin()
+	{
+		final FinalInterval probe = new FinalInterval(new long[] {0, 0, 0}, new long[] {0, 0, 0});
+		for(int d = 0; d < 3; d++)
+		{
+			convMargin[d] = 0;
+		}
+		for(int c = 0; c < 6; c++)
+		{
+			final Interval req = convObjects[c].requiredSourceInterval(probe);
+			for(int d = 0; d < 3; d++)
+			{
+				convMargin[d] = Math.max(convMargin[d], Math.max(-req.min(d), req.max(d)));
+			}
+		}
 	}
 	
 	/** fills gridBox (positioned at gridMinPos in grid coordinates)

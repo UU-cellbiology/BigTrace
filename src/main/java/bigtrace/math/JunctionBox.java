@@ -33,8 +33,11 @@ public class JunctionBox
 	/** elongated line filter map: R_e smoothed along e **/
 	final ArrayImg<FloatType, FloatArray> mapImg;
 
-	/** block averaged input of the box (only used with downsampling) **/
-	final ArrayImg<FloatType, FloatArray> gridImg;
+	/** block averaged input of the box with the convolution margin (only used with downsampling) **/
+	ArrayImg<FloatType, FloatArray> gridImg;
+	
+	/** margin of gridImg around the box (convolution input) **/
+	final long [] gridMargin = new long[3];
 
 	/** point-wise access to the hessian of the box (after computeHessian) **/
 	HessianBox hessBox = null;
@@ -49,6 +52,27 @@ public class JunctionBox
 		gridImg = bDownsample ? ArrayImgs.floats( nDim, nDim, nDim ) : null;
 	}
 
+	/** sets the margin of the block averaged input around the box (needed by the convolutions) **/
+	public void setGridMargin(final long [] margin)
+	{
+		for (int d = 0; d < 3; d++)
+		{
+			gridMargin[d] = margin[d];
+		}
+		gridImg = ArrayImgs.floats( nDim + 2 * gridMargin[0], nDim + 2 * gridMargin[1], nDim + 2 * gridMargin[2] );
+	}
+	
+	/** grid position of the first voxel of the block averaged input (box minus margin) **/
+	public long [] gridInputMin()
+	{
+		final long [] out = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			out[d] = boxMin[d] - gridMargin[d];
+		}
+		return out;
+	}
+	
 	/** places the box centered at the grid position center **/
 	public void setCenter(final long [] center)
 	{

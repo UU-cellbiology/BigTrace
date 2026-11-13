@@ -397,7 +397,12 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	 * Here the heading is turned to the outgoing arm of the elongated line filter ~sigma ahead of the exit 
 	 * (hessian of a junction box centered at the exit): the arm closest to the heading, other than 
 	 * the incoming one, if it is within the directionality constrain.
-	 * At the exit of a real crossing it is the straight continuation, the heading barely changes. **/
+	 * At the exit of a real crossing it is the straight continuation, the heading barely changes.
+	 * The heading is turned only half way to the arm: the arm is a long-range average 
+	 * (rays of ~2 elongated filter lengths), on a filament that curves after the crossing 
+	 * it points further than the local direction, and right after the crossing (passage 
+	 * ends ~2.5 sigma past it) a full turn can lean the heading to the other half 
+	 * of the crossing filament (tested: full turn went onto it, half way followed the filament). **/
 	void exitPassageHeading(final RealPoint exitPoint)
 	{
 		final double [] heading = oc.memDirectionVector.clone();
@@ -413,8 +418,15 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			return;
 		if(SteerableLineFilter.dot(outArm, heading) < oc.dAngleThreshold)
 			return;
-		System.arraycopy(outArm, 0, oc.memDirectionVector, 0, 3);
-		System.arraycopy(outArm, 0, oc.lastDirectionVector, 0, 3);
+		//half way between the passage heading and the arm
+		final double [] newHeading = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			newHeading[d] = outArm[d] + heading[d];
+		}
+		LinAlgHelpers.normalize(newHeading);
+		System.arraycopy(newHeading, 0, oc.memDirectionVector, 0, 3);
+		System.arraycopy(newHeading, 0, oc.lastDirectionVector, 0, 3);
 	}
 	
 	/** Arms of the elongated line filter (current junction box) at ~sigma ahead of pGrid along heading:

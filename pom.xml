@@ -11,7 +11,7 @@
 
 	<groupId>nl.uu.science.cellbiology</groupId>
 	<artifactId>bigtrace</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.0-SNAPSHOT</version>
 
 	<name>BigTrace</name>
 	<description>Tracing of curvilinear structures in 3D</description>
