@@ -67,7 +67,7 @@ public class VisPolyLineAA
 	}
 	
 	
-	public VisPolyLineAA(final ArrayList< RealPoint > points, final float fLineThickness_,final Color color_in)
+	public VisPolyLineAA(final ArrayList< RealPoint > points, final float fLineThickness_, final Color color_in)
 	{
 		this();
 		fLineThickness = fLineThickness_;		
@@ -114,15 +114,14 @@ public class VisPolyLineAA
 		
 		nPointsN = points.size();
 		
-		vertices = new float [nPointsN*3];//assume 3D	
+		vertices = new float [nPointsN * 3];//assume 3D	
 
-		for (i=0;i<nPointsN; i++)
+		for (i = 0; i < nPointsN; i++)
 		{
-			for (j=0;j<3; j++)
+			for (j = 0; j < 3; j++)
 			{
 				vertices[i*3+j]=points.get(i).getFloatPosition(j);
-			}
-			
+			}			
 		}
 		
 		initialized = false;

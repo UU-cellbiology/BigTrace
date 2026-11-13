@@ -19,10 +19,9 @@ public class Pipe3D {
 		ArrayList<ArrayList< RealPoint >> allCountours = new ArrayList<>();
 		double [] center = new double[3];
 	
-		int nPointsNum=points.size();
-		if(nPointsNum>1)
+		int nPointsNum = points.size();
+		if(nPointsNum > 1)
 		{
-			
 			//calculate tangents at each point
 			tangents = CurveShapeInterpolation.getTangentsAverage(points);
 			double [][][] rsVect =  rotationMinimizingFrame(points, tangents, rotationMinFrameAlgorithm);
@@ -30,8 +29,7 @@ public class Pipe3D {
 			{
 				points.get(i).localize(center);
 				allCountours.add(getContourInXY( dRadius,  nSectorN, rsVect[0][i],rsVect[1][i], center));
-			}
-	
+			}	
 		}
 		return allCountours;
 		
@@ -97,7 +95,7 @@ public class Pipe3D {
 		out[0][0] = initFrame[0].clone();
 		out[1][0] = initFrame[1].clone();
 		
-		for(i = 0;i<(nPointsN-1);i++)
+		for(i = 0; i < (nPointsN - 1); i++)
 		{
 			points.get(i).localize(path[0]);
 			points.get(i+1).localize(path[1]);
@@ -212,11 +210,11 @@ public class Pipe3D {
 
 		//try to orient initial frame to XYZ
 		LinAlgHelpers.cross(ini_tangent, new double[] {0.0,0.0,1.0}, out[1]);
-		if(Math.abs(LinAlgHelpers.length(out[1]))<doublePrecision)
+		if(Math.abs(LinAlgHelpers.length(out[1])) < doublePrecision)
 		{
 			LinAlgHelpers.cross(new double[] {0.0,1.0,0.0}, ini_tangent, out[0]);
 			LinAlgHelpers.normalize(out[0]);
-			LinAlgHelpers.cross(out[0],ini_tangent, out[1]);
+			LinAlgHelpers.cross(out[0], ini_tangent, out[1]);
 			LinAlgHelpers.normalize(out[1]);
 		}
 		else

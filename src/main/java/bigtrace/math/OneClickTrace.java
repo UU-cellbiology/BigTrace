@@ -309,9 +309,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		//init math
 		getMathForCurrentPoint(startPoint);
+		System.out.println("startPoint  " + startPoint .toString());
 		if(bNewTrace)
 		{
 			final RealPoint startRefinedPoint = refinePointUsingSaliency(startPoint);
+			System.out.println("startRefinedPoint  " + startRefinedPoint .toString());
 			//masked tracing
 			//check if already traced
 			if(bUseMask)

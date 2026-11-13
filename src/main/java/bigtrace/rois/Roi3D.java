@@ -221,6 +221,15 @@ public interface Roi3D
 		}
 		return out;
 	}
+	
+	public static void scaleGlobInvInPlace(final double [] in, final double [] globCal)
+	{
+		for (int i = 0; i < in.length; i++)
+		{
+			in[ i ] = in[ i ] / globCal[ i ];
+		}
+		return;
+	}
 	/** calculates cumulative length between vert_in 3D points  **/
 	public static double getSegmentLength(final ArrayList<RealPoint> vert_in)
 	{

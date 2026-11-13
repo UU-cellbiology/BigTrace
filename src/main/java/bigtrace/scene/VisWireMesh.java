@@ -99,7 +99,7 @@ public class VisWireMesh {
 	{
 		this(btdata_);
 		
-		fLineThickness= fLineThickness_;	
+		fLineThickness = fLineThickness_;	
 		l_color = new Vector4f(color_in.getComponents(null));		
 		renderType = nRenderType;
 		setVertices(points, tangents);
@@ -197,7 +197,7 @@ public class VisWireMesh {
 		}
 		else
 		{
-			vertices = new float [nPointsN*3];//assume 3D	
+			vertices = new float [nPointsN * 3];//assume 3D	
 
 			for (int i = 0; i < nPointsN; i++)
 			{
@@ -243,7 +243,7 @@ public class VisWireMesh {
 					contour_arr.add( allContours.get(iPoint).get(i));			
 				}
 				contour_arr.add( allContours.get(iPoint).get(0));
-				VisPolyLineAA contour = new VisPolyLineAA(contour_arr,fWireLineThickness, l_color) ;
+				VisPolyLineAA contour = new VisPolyLineAA(contour_arr, fWireLineThickness, l_color) ;
 				contour.bIncludeClip = true;
 				wireLine.add( contour );
 				

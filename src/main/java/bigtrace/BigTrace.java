@@ -81,6 +81,7 @@ import bigtrace.gui.MCUBVVControls;
 import bigtrace.gui.TaskBT;
 import bigtrace.gui.VisualBoxes;
 import bigtrace.io.ViewsIO;
+import bigtrace.math.OCVisDebug;
 import bigtrace.math.OneClickTrace;
 import bigtrace.math.RoiTraceMask;
 import bigtrace.math.TraceBoxMath;
@@ -162,6 +163,11 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	
 	/** One Click tracing worker**/
 	OneClickTrace<T> oneClickTrace = null;
+	
+	/** visualize One Click tracing for debuggins **/
+	public OCVisDebug ocVisDebug = null;
+	
+	boolean bOCVisDebugEnabled = true;
 		
 	@Override
 	public void run(String arg)
@@ -190,6 +196,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		
 		btData = new BigTraceData<>(this);
 		btLoad = new BigTraceLoad<>(this);
+		
+		ocVisDebug = new OCVisDebug(this);
 			
 		if(arg.equals(""))
 		{
@@ -803,6 +811,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		{
 			//opaque run
 			roiManager.draw(gl, pvm, camview, screen_size, false);
+			if(bOCVisDebugEnabled)	
+				ocVisDebug.draw( gl, pvm, camview, screen_size, false );	
 		}						
 	}
 	
@@ -847,7 +857,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 			visualBoxes.traceBox.draw(gl, pvm, camview, screen_size, true);		
 		}
 		roiManager.draw(gl, pvm, camview, screen_size, true);
-				
+		if(bOCVisDebugEnabled)	
+			ocVisDebug.draw( gl, pvm, camview, screen_size, true );	
 		gl.glDepthMask(true);
 	
 		sceneBufTransparent.unbind( gl, false );
@@ -1547,8 +1558,8 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		new ImageJ();
 		BigTrace testI = new BigTrace(); 
 		
-		testI.run("");
-		//testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
+		//testI.run("");
+		testI.run("/home/eugene/Desktop/projects/BigTrace/BigTrace_data/ExM_MT.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/junctions/ExM_MT.tif_crop.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP.tif");
 		//testI.run("/home/eugene/Desktop/projects/BigTrace/BT_time_Oane/tracefile_3TP-3d.tif");
