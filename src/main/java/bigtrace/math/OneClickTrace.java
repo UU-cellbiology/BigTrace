@@ -779,6 +779,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		bt.ocVisDebug.stepDelay();
 	}
 	
+	/** debug visualization: the junction map stays in BVV while the passage is traced,
+	 * removed after it (raw data restored) **/
+	void visDebugJunctionMap(final boolean bInPassage)
+	{
+		if(!bLiveUpdate || !bt.bOCVisDebugEnabled || bt.ocVisDebug == null)
+			return;
+		bt.ocVisDebug.junctionMapStep(bInPassage);
+	}
+	
 	boolean checkIntersection(RealPoint currpoint)
 	{
 		
@@ -820,6 +829,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		if(bJunctions)
 		{
 			final int nStep = junctions.step(currpoint, raInput);
+			visDebugJunctionMap(nStep == JunctionHandler.STEP_POINT);
 			if(nStep == JunctionHandler.STEP_POINT)
 			{
 				return junctions.stepPoint;
@@ -2012,6 +2022,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
      	}
     	//es.shutdown();
     	releaseMultiThread();
+    	
+    	//debug visualization: junction map off, raw data back
+    	if(bt.ocVisDebug != null)
+    	{
+    		bt.ocVisDebug.hideJunctionMap();
+    	}
 
     	
     	bt.visualBoxes.bShowTraceBox = false;

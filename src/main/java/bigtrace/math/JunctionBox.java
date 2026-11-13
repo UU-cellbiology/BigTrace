@@ -4,8 +4,10 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -161,6 +163,40 @@ public class JunctionBox
 			xl[d] = x[d] - boxMin[d];
 		}
 		return SteerableLineFilter.interpolate(mapImg.update( null ).getCurrentStorageArray(), 0, dims, xl);
+	}
+
+	/** Copy of the map for display (debug visualization): full resolution voxel coordinates
+	 * (upsampled from the grid if ds is more than 1), scaled to 0-255 by its maximum, 
+	 * negative responses are 0 **/
+	public IntervalView<UnsignedByteType> getMapForDisplay(final long [] ds)
+	{
+		ArrayImg<FloatType, FloatArray> src = mapImg;
+		final long [] min = boxMin.clone();
+		if(ds[0] > 1 || ds[1] > 1 || ds[2] > 1)
+		{
+			final long [] dims = new long[3];
+			for (int d = 0; d < 3; d++)
+			{
+				min[d] = boxMin[d] * ds[d];
+				dims[d] = nDim * ds[d];
+			}
+			src = ArrayImgs.floats( dims );
+			DownsampleGrid.upsample(mapImg, boxMin, src, min, ds, 1);
+		}
+		final float [] in = src.update( null ).getCurrentStorageArray();
+		float max = 0;
+		for(final float v : in)
+		{
+			max = Math.max(max, v);
+		}
+		final double scale = max > 0 ? 255.0 / max : 0.0;
+		final ArrayImg<UnsignedByteType, ByteArray> out = ArrayImgs.unsignedBytes( src.dimension(0), src.dimension(1), src.dimension(2) );
+		final byte [] outArr = out.update( null ).getCurrentStorageArray();
+		for (int i = 0; i < in.length; i++)
+		{
+			outArr[i] = (byte) (int) Math.round(Math.max(0.0, Math.min(255.0, in[i] * scale)));
+		}
+		return Views.translate(out, min);
 	}
 
 	/** shows a copy of the map in ImageJ **/

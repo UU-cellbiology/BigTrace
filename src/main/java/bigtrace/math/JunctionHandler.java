@@ -313,6 +313,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	int planPassage(final RealPoint currpoint, final RandomAccess< T > raInput)
 	{
 		passageQueue.clear();
+		visDebugMessage("entering junction");
 		final ArrayList<RealPoint> path = new ArrayList<>();
 		//heading before the junction (restored if there is no passage)
 		final double [] memBefore = oc.memDirectionVector.clone();
@@ -332,6 +333,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		}
 		if(path.isEmpty())
 		{
+			visDebugMessage("passage rejected");
 			noPassageHeading(currpoint, memBefore, lastBefore);
 			return PASSAGE_NONE;
 		}
@@ -371,8 +373,18 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			}
 			return PASSAGE_MERGE;
 		}
+		visDebugMessage("passage rejected");
 		noPassageHeading(currpoint, memBefore, lastBefore);
 		return PASSAGE_NONE;
+	}
+	
+	/** debug visualization: message in BVV (entering a junction, passage rejected) **/
+	void visDebugMessage(final String sMessage)
+	{
+		if(oc.bLiveUpdate && oc.bt.bOCVisDebugEnabled && oc.bt.ocVisDebug != null)
+		{
+			oc.bt.ocVisDebug.showMessage(sMessage);
+		}
 	}
 	
 	/** No passage (e.g. a kink of the filament detected as a junction): the heading from before
@@ -507,6 +519,11 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		}
 		computeJunctionHessian(center);
 		box.computeMap(coastLineDir, dAlongSigma);
+		//debug visualization: the map in BVV instead of the raw data
+		if(oc.bLiveUpdate && oc.bt.bOCVisDebugEnabled && oc.bt.ocVisDebug != null)
+		{
+			oc.bt.ocVisDebug.showJunctionMap(box.getMapForDisplay(oc.ds));
+		}
 		if(oc.bShowJunctionMap && oc.bLiveUpdate)
 		{
 			box.showMap("junction map at " + Long.toString(entryGrid[0]) + "," + Long.toString(entryGrid[1])
