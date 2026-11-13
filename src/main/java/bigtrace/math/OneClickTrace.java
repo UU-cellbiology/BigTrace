@@ -282,6 +282,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	public void runTracing()
 	{
+		if(bLiveUpdate && bt.bOCVisDebugEnabled && bt.ocVisDebug != null)
+		{
+			bt.ocVisDebug.clear();
+		}
 		currentTracing = null;
 		junctions.resetTrace();
 		
@@ -519,6 +523,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		
 		nextPoint = getNextPoint(points.get(0));
+		visDebugStep(nextPoint);
 		
 		//points inside the current math box
 		while (nextPoint != null)
@@ -570,6 +575,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 
 			nextPoint = getNextPoint(points.get(points.size()-1));
+			visDebugStep(nextPoint);
 			
 			if(nextPoint != null)
 			{
@@ -755,6 +761,36 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	}
 	
 	/** checks if the point intersects already traced part of the curve**/
+	/** debug visualization (BigTrace.bOCVisDebugEnabled, live one-click tracing only):
+	 * cones at the new point for the last direction (directionality constrain)
+	 * and the history (momentum) direction (stiffness) **/
+	void visDebugStep(final RealPoint newPoint)
+	{
+		if(newPoint == null || !bLiveUpdate || !bt.bOCVisDebugEnabled || bt.ocVisDebug == null)
+			return;
+		final double [] lastPhys = gridDirToPhysical(lastDirectionVector);
+		final double [] memPhys = bUseHistory ? gridDirToPhysical(memDirectionVector) : null;
+		bt.ocVisDebug.showStep(newPoint.positionAsDoubleArray(), lastPhys, dAngleThreshold, memPhys, dScorePowStep, bt.btData.sigmaTrace);
+		bt.repaintBVV();
+		bt.ocVisDebug.stepDelay();
+	}
+	
+	/** unit direction in grid (voxel or downsampled grid) space -> unit direction in physical space **/
+	double [] gridDirToPhysical(final double [] v)
+	{
+		final double [] out = new double[3];
+		for(int d = 0; d < 3; d++)
+		{
+			out[d] = v[d] * ds[d] * bt.btData.globCal[d];
+		}
+		final double len = LinAlgHelpers.length(out);
+		if(len > 0)
+		{
+			LinAlgHelpers.scale(out, 1.0 / len, out);
+		}
+		return out;
+	}
+	
 	boolean checkIntersection(RealPoint currpoint)
 	{
 		

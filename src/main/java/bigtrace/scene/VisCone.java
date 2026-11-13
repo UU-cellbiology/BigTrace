@@ -156,7 +156,8 @@ public class VisCone
 		
 		this.mesh = new BufferMesh( nVerticesN, (int) nMeshTrianglesSize, true );
 		MeshProcessing.calculateNormals( meshOut, mesh );
-		
+		//upload the new vertices on the next draw (buffers are reused)
+		initialized = false;
 	}
 	
 	
