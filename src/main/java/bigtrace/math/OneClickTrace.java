@@ -779,6 +779,27 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		bt.ocVisDebug.stepDelay();
 	}
 	
+	/** debug visualization of gap bridging: search direction from the current point along 
+	 * the heading refGrid (grid space) up to dReachAlong grid voxels, and the jump to the landing 
+	 * grid voxel (null = not bridged) **/
+	void visDebugGapBridge(final RealPoint currpoint, final double [] refGrid, final double dReachAlong, final long [] landingGrid)
+	{
+		if(!bLiveUpdate || !bt.bOCVisDebugEnabled || bt.ocVisDebug == null)
+			return;
+		final double [] start = currpoint.positionAsDoubleArray();
+		final double [] searchEnd = new double[3];
+		final double [] landing = (landingGrid != null) ? new double[3] : null;
+		for (int d = 0; d < 3; d++)
+		{
+			searchEnd[d] = start[d] + dReachAlong * refGrid[d] * ds[d];
+			if(landing != null)
+			{
+				landing[d] = toFull(landingGrid[d], d);
+			}
+		}
+		bt.ocVisDebug.showGapBridge(start, searchEnd, landing);
+	}
+	
 	/** debug visualization: the junction map stays in BVV while the passage is traced,
 	 * removed after it (raw data restored) **/
 	void visDebugJunctionMap(final boolean bInPassage)
@@ -1341,6 +1362,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 					}
 				}
 		
+		visDebugGapBridge(currpoint, refGrid, dReachAlong, bestVec != null ? best : null);
 		if(bestVec == null)
 		{
 			return null;

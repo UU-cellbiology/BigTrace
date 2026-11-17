@@ -20,6 +20,7 @@ import bvvpg.vistools.Bvv;
 import bvvpg.vistools.BvvFunctions;
 import bvvpg.vistools.BvvStackSource;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 
 /** Debug visualization of one-click tracing (BigTrace.bOCVisDebugEnabled).
@@ -32,6 +33,9 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
  * Junction passages: the elongated line filter map of the junction box is shown as a BVV source 
  * while the passage is traced, the raw data (analysis channel) is hidden (display and alpha range 0-0), 
  * as in the semi-auto trace box mode. After the passage the map is removed and the raw data restored.
+ * Gap bridging: polylines.get(POLY_BRIDGE_SEARCH) shows the search direction (heading, up to the search reach),
+ * polylines.get(POLY_BRIDGE_JUMP) the jump to the landing point (if found), with a message in BVV. 
+ * They are hidden at the next step after a bridge, after a failed one they stay until the next tracing.
  * Updates come from the tracing thread, drawing from the render thread: both are synchronized.
  * BVV sources are added/removed on the event dispatch thread. **/
 public class OCVisDebug
@@ -50,6 +54,18 @@ public class OCVisDebug
 
 	/** number of step cones **/
 	static final int N_CONES = 2;
+	
+	/** index in polylines: gap bridging search direction (heading, up to the search reach) **/
+	public static final int POLY_BRIDGE_SEARCH = 0;
+	
+	/** index in polylines: gap bridging jump (current point to the landing point) **/
+	public static final int POLY_BRIDGE_JUMP = 1;
+	
+	/** number of polylines **/
+	static final int N_POLYLINES = 2;
+	
+	/** visibility of polylines (same indices) **/
+	final boolean [] bPolylineVisible = new boolean[N_POLYLINES];
 
 	//int nConeSurfaceRender = BigTraceData.SURFACE_SHADE;
 
@@ -63,6 +79,15 @@ public class OCVisDebug
 	/** color of the history direction cone **/
 	public Color colorHistory = Color.CYAN;
 
+	/** color of the gap bridging search direction **/
+	public Color colorBridgeSearch = Color.ORANGE;
+	
+	/** color of the gap bridging jump **/
+	public Color colorBridgeJump = Color.GREEN;
+	
+	/** thickness of the debug lines **/
+	public float fLineThickness = 3.0f;
+
 	/** cone length in units of the largest tracing SD (physical) **/
 	public double dConeLengthSD = 3.0;
 
@@ -71,6 +96,12 @@ public class OCVisDebug
 	
 	/** pause when a junction map is shown (ms), before the passage is traced; 0 = no pause **/
 	public int nJunctionMapDelayMs = 1500;
+	
+	/** pause when gap bridging is shown (ms); 0 = no pause **/
+	public int nGapBridgeDelayMs = 1500;
+	
+	/** gap bridging was shown during the current step (lines are kept until the next one) **/
+	boolean bBridgeJustShown = false;
 
 	/** junction map source in BVV, null if not shown (changed on the event dispatch thread) **/
 	volatile BvvStackSource<UnsignedByteType> bvvMap = null;
@@ -90,9 +121,20 @@ public class OCVisDebug
 
 	}
 
-	/** creates the step cones (hidden until the first step) **/
+	/** creates the step cones and lines (hidden until used) **/
 	void init()
 	{
+		for(int i = 0; i < N_POLYLINES; i++)
+		{
+			final VisLineAndPoints line = new VisLineAndPoints();
+			line.setThickness(fLineThickness);
+			polylines.add(line);
+			bPolylineVisible[i] = false;
+		}
+		polylines.get(POLY_BRIDGE_SEARCH).setLineColor(colorBridgeSearch);
+		polylines.get(POLY_BRIDGE_SEARCH).setPointColor(colorBridgeSearch);
+		polylines.get(POLY_BRIDGE_JUMP).setLineColor(colorBridgeJump);
+		polylines.get(POLY_BRIDGE_JUMP).setPointColor(colorBridgeJump);
 		for(int i = 0; i < N_CONES; i++)
 		{
 			final VisCone cone = new VisCone(bt.btData);
@@ -105,13 +147,64 @@ public class OCVisDebug
 		initialized = true;
 	}
 
-	/** hides the step cones (start of a new tracing) **/
+	/** hides the step cones and lines (start of a new tracing) **/
 	public synchronized void clear()
 	{
 		for(final VisCone cone : cones)
 		{
 			cone.bVisible = false;
 		}
+		hidePolylines();
+		bBridgeJustShown = false;
+	}
+	
+	/** hides all polylines **/
+	void hidePolylines()
+	{
+		for(int i = 0; i < bPolylineVisible.length; i++)
+		{
+			bPolylineVisible[i] = false;
+		}
+	}
+	
+	/**
+	 * Gap bridging: search direction and the jump (if found), message in BVV, pause.
+	 * @param startVoxel current point (where the gap starts), voxel coordinates
+	 * @param searchEndVoxel end of the search along the heading (search reach), voxel coordinates
+	 * @param landingVoxel landing point, voxel coordinates; null = gap not bridged
+	 */
+	public void showGapBridge(final double [] startVoxel, final double [] searchEndVoxel, final double [] landingVoxel)
+	{
+		synchronized(this)
+		{
+			if(!initialized)
+			{
+				init();
+			}
+			setLine(POLY_BRIDGE_SEARCH, startVoxel, searchEndVoxel);
+			if(landingVoxel != null)
+			{
+				setLine(POLY_BRIDGE_JUMP, startVoxel, landingVoxel);
+			}
+			else
+			{
+				bPolylineVisible[POLY_BRIDGE_JUMP] = false;
+			}
+			bBridgeJustShown = true;
+		}
+		showMessage(landingVoxel != null ? "gap bridged" : "gap not bridged");
+		bt.repaintBVV();
+		sleep(nGapBridgeDelayMs);
+	}
+	
+	/** polyline nIndex: a segment between two points (voxel coordinates), made visible **/
+	void setLine(final int nIndex, final double [] p1, final double [] p2)
+	{
+		final ArrayList<RealPoint> points = new ArrayList<>();
+		points.add(new RealPoint(p1));
+		points.add(new RealPoint(p2));
+		polylines.get(nIndex).setVertices(points);
+		bPolylineVisible[nIndex] = true;
 	}
 
 	/**
@@ -138,6 +231,16 @@ public class OCVisDebug
 			dMaxSD = Math.max(dMaxSD, sigmaTrace[d] * bt.btData.globCal[d]);
 		}
 		final double dLength = dConeLengthSD * dMaxSD;
+		
+		//gap bridging lines: kept for the step of the bridge, hidden after
+		if(bBridgeJustShown)
+		{
+			bBridgeJustShown = false;
+		}
+		else
+		{
+			hidePolylines();
+		}
 
 		//last direction: directionality constrain
 		final double dHalfLast = Math.acos(Math.min(1.0, Math.max(0.0, dAngleThreshold)));
@@ -319,9 +422,12 @@ public class OCVisDebug
 		}
 		if(!bWeightedOIT)
 		{
-			for(final VisLineAndPoints line:polylines)
+			for(int i = 0; i < polylines.size(); i++)
 			{
-				line.draw( gl, pvm, screen_size, bt.btData, bWeightedOIT );
+				if(i >= bPolylineVisible.length || bPolylineVisible[i])
+				{
+					polylines.get(i).draw( gl, pvm, screen_size, bt.btData, bWeightedOIT );
+				}
 			}
 		}
 	}
