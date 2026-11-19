@@ -16,6 +16,8 @@ import bigtrace.BigTraceData;
 import bigtrace.gui.BCsettings;
 import bigtrace.scene.VisCone;
 import bigtrace.scene.VisLineAndPoints;
+import bigtrace.scene.VisPointsScaled;
+import bigtrace.scene.VisPolygonFlat;
 import bvvpg.vistools.Bvv;
 import bvvpg.vistools.BvvFunctions;
 import bvvpg.vistools.BvvStackSource;
@@ -45,10 +47,18 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 public class OCVisDebug
 {
 	final BigTrace<?> bt;
+	
 	//cones for visualization
 	final public List<VisCone> cones = new ArrayList<>();
+	
 	//lines for visualization
 	final public List<VisLineAndPoints> polylines = new ArrayList<>();
+
+	//points for visualization
+	final public List<VisPointsScaled> points = new ArrayList<>();
+	
+	//cross-sections (planes) for visualization
+	final public List<VisPolygonFlat> polygons = new ArrayList<>();
 
 	/** index in cones: last direction, opening = directionality constrain **/
 	public static final int CONE_LAST = 0;
@@ -516,8 +526,20 @@ public class OCVisDebug
 				cone.draw( gl, pvm, vm, bt.btData, bWeightedOIT );
 			}
 		}
+		
+
 		if(!bWeightedOIT)
 		{
+			for(final VisPolygonFlat polygone: polygons)
+			{
+					polygone.draw( gl, pvm, bt.btData, bWeightedOIT );				
+			}
+			
+			for(final VisPointsScaled point: points)
+			{
+				point.draw( gl, pvm, screen_size, bt.btData, bWeightedOIT );		
+			}
+			
 			for(int i = 0; i < polylines.size(); i++)
 			{
 				if(i >= bPolylineVisible.length || bPolylineVisible[i])
