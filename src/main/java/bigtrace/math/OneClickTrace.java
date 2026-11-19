@@ -1,5 +1,6 @@
 package bigtrace.math;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
@@ -105,6 +106,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	/** junction (crossing) detection and passage, uses the momentum direction as heading **/
 	boolean bJunctions = false;
+	
+	/** junction passage: branch-first (JunctionBranchPassage) instead of the map coasting **/
+	boolean bJunctionBranchFirst = true;
+	
+	/** recent points (full resolution) of the trace in the current direction, newest last
+	 * (heading fit of the branch-first junction passage) **/
+	final ArrayDeque<double[]> dirHistory = new ArrayDeque<>();
+	
+	/** maximum length of dirHistory **/
+	static final int nDirHistoryMax = 1000;
 	
 	/** smoothed (momentum) direction of the traced path, physical space, unit length.
 	 * Built mostly from actual step vectors, so a few bad Hessian eigenvectors
@@ -487,6 +498,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			memDirectionVector[d] = lastDirectionVector[d];
 		}
 		points.add(startPoint);
+		dirHistory.clear();
+		addDirHistory(startPoint);
 		
 		//saliency reference for gap bridging
 		final long [] startGrid = new long[3];
@@ -569,6 +582,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				}
 			}
 			points.add(new RealPoint(nextPoint));
+			addDirHistory(nextPoint);
 			addIntersectionPoint(nextPoint.positionAsDoubleArray());
 			nCountPoints++;
 			//see if we are still inside reasonable 
@@ -611,6 +625,16 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return nCountPoints;
 	}
 	
+	/** adds a traced point to dirHistory (keeps at most nDirHistoryMax) **/
+	void addDirHistory(final RealPoint pt)
+	{
+		dirHistory.addLast(pt.positionAsDoubleArray());
+		if(dirHistory.size() > nDirHistoryMax)
+		{
+			dirHistory.removeFirst();
+		}
+	}
+	
 	/** initialization of parameters **/
 	@SuppressWarnings("deprecation")
 	public void init()
@@ -618,6 +642,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		setStiffness(bt.btData.dOCStiffness);
 		setJunctions(bt.btData.bOCJunctions);
+		bJunctionBranchFirst = bt.btData.bOCJunctionBranchFirst;
 
 		dAngleThreshold = bt.btData.dDirectionalityOneClick;		
 		

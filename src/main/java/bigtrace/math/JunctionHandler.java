@@ -85,6 +85,9 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	double [][] armDirections = null;
 
 	final TraceEndMerger merger = new TraceEndMerger();
+	
+	/** branch-first passage (OneClickTrace.bJunctionBranchFirst) **/
+	final JunctionBranchPassage<T> branch;
 
 	//---------- state
 
@@ -124,6 +127,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	JunctionHandler(final OneClickTrace<T> oc_)
 	{
 		oc = oc_;
+		branch = new JunctionBranchPassage<>(this);
 	}
 
 	/** sizes from the max tracing sigma (grid units), allocates the junction box **/
@@ -319,17 +323,36 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double [] memBefore = oc.memDirectionVector.clone();
 		final double [] lastBefore = oc.lastDirectionVector.clone();
 		dMapMinRatio = 1.0;
-		RealPoint pt = enterJunction(currpoint, raInput);
-		while(pt != null)
+		bCoastEndedByDistance = false;
+		//branch-first: the branch is chosen by geometry, then followed
+		int nBranch = -1;
+		if(oc.bJunctionBranchFirst)
 		{
-			path.add(pt);
-			if(!bCoasting)
-				break;
-			pt = coastStep(pt, raInput);
+			nBranch = branch.plan(currpoint, raInput, path);
+			if(nBranch == JunctionBranchPassage.GEO_OK)
+			{
+				bCoastEndedByDistance = true;
+			}
+			else
+			{
+				path.clear();
+			}
 		}
-		if(bCoasting)
+		//map coasting (also without trace history or a branch found by branch-first)
+		if(nBranch < 0 || nBranch == JunctionBranchPassage.GEO_NOFIT || nBranch == JunctionBranchPassage.GEO_NOTARGET)
 		{
-			stopCoasting();
+			RealPoint pt = enterJunction(currpoint, raInput);
+			while(pt != null)
+			{
+				path.add(pt);
+				if(!bCoasting)
+					break;
+				pt = coastStep(pt, raInput);
+			}
+			if(bCoasting)
+			{
+				stopCoasting();
+			}
 		}
 		if(path.isEmpty())
 		{
@@ -343,7 +366,11 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(bCoastEndedByDistance && !bFaded && !isNearTraced(lastGrid))
 		{
 			passageQueue.addAll(path);
-			exitPassageHeading(path.get(path.size() - 1));
+			//(branch-first: the heading is the direction of the chosen branch already)
+			if(nBranch != JunctionBranchPassage.GEO_OK)
+			{
+				exitPassageHeading(path.get(path.size() - 1));
+			}
 			return PASSAGE_OK;
 		}
 		if(isTraced(lastGrid))
@@ -381,10 +408,16 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	/** debug visualization: message in BVV (entering a junction, passage rejected) **/
 	void visDebugMessage(final String sMessage)
 	{
-		if(oc.bLiveUpdate && oc.bt.bOCVisDebugEnabled && oc.bt.ocVisDebug != null)
+		if(isVisDebug())
 		{
 			oc.bt.ocVisDebug.showMessage(sMessage);
 		}
+	}
+	
+	/** debug visualization is on (live one-click tracing) **/
+	boolean isVisDebug()
+	{
+		return oc.bLiveUpdate && oc.bt.bOCVisDebugEnabled && oc.bt.ocVisDebug != null;
 	}
 	
 	/** No passage (e.g. a kink of the filament detected as a junction): the heading from before

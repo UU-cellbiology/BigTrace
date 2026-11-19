@@ -115,4 +115,97 @@ public class SteerableLineFilter
 			}
 		}
 	}
+
+	/** eigen decomposition of the symmetric 3x3 matrix h (xx,xy,xz,yy,yz,zz) by Jacobi rotations:
+	 * eigenvalues in w, eigenvectors in the columns of V (V[component][index]) **/
+	public static void eigenSym3(final double [] h, final double [] w, final double [][] V)
+	{
+		final double [][] a = new double [][] {{h[0], h[1], h[2]}, {h[1], h[3], h[4]}, {h[2], h[4], h[5]}};
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				V[i][j] = (i == j) ? 1.0 : 0.0;
+			}
+		}
+		final double dScale = Math.abs(h[0]) + Math.abs(h[3]) + Math.abs(h[5]) + Math.abs(h[1]) + Math.abs(h[2]) + Math.abs(h[4]);
+		final int [][] pairs = new int [][] {{0, 1}, {0, 2}, {1, 2}};
+		for (int nSweep = 0; nSweep < 50; nSweep++)
+		{
+			final double off = a[0][1] * a[0][1] + a[0][2] * a[0][2] + a[1][2] * a[1][2];
+			if(off <= 1e-24 * dScale * dScale || dScale == 0)
+				break;
+			for(final int [] pq : pairs)
+			{
+				final int p = pq[0];
+				final int q = pq[1];
+				if(a[p][q] == 0)
+					continue;
+				final double theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q]);
+				final double t = Math.signum(theta == 0 ? 1.0 : theta) / (Math.abs(theta) + Math.sqrt(theta * theta + 1.0));
+				final double c = 1.0 / Math.sqrt(t * t + 1.0);
+				final double s = t * c;
+				for (int k = 0; k < 3; k++)
+				{
+					final double akp = a[k][p];
+					final double akq = a[k][q];
+					a[k][p] = c * akp - s * akq;
+					a[k][q] = s * akp + c * akq;
+				}
+				for (int k = 0; k < 3; k++)
+				{
+					final double apk = a[p][k];
+					final double aqk = a[q][k];
+					a[p][k] = c * apk - s * aqk;
+					a[q][k] = s * apk + c * aqk;
+				}
+				for (int k = 0; k < 3; k++)
+				{
+					final double vkp = V[k][p];
+					final double vkq = V[k][q];
+					V[k][p] = c * vkp - s * vkq;
+					V[k][q] = s * vkp + c * vkq;
+				}
+			}
+		}
+		for (int i = 0; i < 3; i++)
+		{
+			w[i] = a[i][i];
+		}
+	}
+
+	/** line saliency and direction from the hessian h (xx,xy,xz,yy,yz,zz),
+	 * the same as EigenValVecSymmDecomposition.computeVectorWeight:
+	 * direction = eigenvector of the smallest |eigenvalue| (written to vecOut, unit, may be null),
+	 * saliency = minus the sum of the two other eigenvalues if both are not positive, otherwise 0 **/
+	public static double saliency(final double [] h, final double [] vecOut)
+	{
+		final double [] w = new double[3];
+		final double [][] V = new double[3][3];
+		eigenSym3(h, w, V);
+		int index = 0;
+		for (int i = 1; i < 3; i++)
+		{
+			if(Math.abs(w[i]) < Math.abs(w[index]))
+				index = i;
+		}
+		if(vecOut != null)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				vecOut[d] = V[d][index];
+			}
+			normalize(vecOut);
+		}
+		double dWeight = 0.0;
+		for (int i = 0; i < 3; i++)
+		{
+			if(i == index)
+				continue;
+			if(w[i] > 0)
+				return 0.0;
+			dWeight -= w[i];
+		}
+		return dWeight;
+	}
 }

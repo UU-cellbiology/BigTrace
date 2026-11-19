@@ -34,6 +34,34 @@ public class HessianBox
 		nVol = dims[0] * dims[1] * dims[2];
 	}
 
+	/** trilinearly interpolated hessian (6 components) at the grid position x into h,
+	 * false outside of the box **/
+	public boolean hessianAt(final double [] x, final double [] h)
+	{
+		final double [] xl = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			xl[d] = x[d] - boxMin[d];
+		}
+		for (int c = 0; c < 6; c++)
+		{
+			h[c] = SteerableLineFilter.interpolate(hess, c * nVol, dims, xl);
+			if(Double.isNaN(h[c]))
+				return false;
+		}
+		return true;
+	}
+
+	/** line saliency (SteerableLineFilter.saliency) at the grid position x, 
+	 * direction (grid space, unit) to vecOut (may be null); NaN outside of the box **/
+	public double saliencyAt(final double [] x, final double [] vecOut)
+	{
+		final double [] h = new double[6];
+		if(!hessianAt(x, h))
+			return Double.NaN;
+		return SteerableLineFilter.saliency(h, vecOut);
+	}
+
 	/** steered line filter (SteerableLineFilter.lineResponse) at the grid position x
 	 * from the trilinearly interpolated hessian. Returns NaN outside of the box **/
 	public double lineResponse(final double [] x, final double [] e)

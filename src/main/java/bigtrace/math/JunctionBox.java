@@ -170,7 +170,33 @@ public class JunctionBox
 	 * negative responses are 0 **/
 	public IntervalView<UnsignedByteType> getMapForDisplay(final long [] ds)
 	{
-		ArrayImg<FloatType, FloatArray> src = mapImg;
+		return toDisplay(mapImg, ds);
+	}
+	
+	/** Line saliency of the box (from its hessian, as in the math box) for display 
+	 * (debug visualization of the branch-first junction passage), same format as getMapForDisplay **/
+	public IntervalView<UnsignedByteType> getSaliencyForDisplay(final long [] ds)
+	{
+		final ArrayImg<FloatType, FloatArray> salImg = ArrayImgs.floats( nDim, nDim, nDim );
+		final float [] hess = hessImg.update( null ).getCurrentStorageArray();
+		final float [] sal = salImg.update( null ).getCurrentStorageArray();
+		final int nVol = nDim * nDim * nDim;
+		final double [] h = new double[6];
+		for (int i = 0; i < nVol; i++)
+		{
+			for (int c = 0; c < 6; c++)
+			{
+				h[c] = hess[i + c * nVol];
+			}
+			sal[i] = (float) SteerableLineFilter.saliency(h, null);
+		}
+		return toDisplay(salImg, ds);
+	}
+	
+	/** box image (grid) -> full resolution, 0-255 by its maximum, negative values 0 **/
+	IntervalView<UnsignedByteType> toDisplay(final ArrayImg<FloatType, FloatArray> img, final long [] ds)
+	{
+		ArrayImg<FloatType, FloatArray> src = img;
 		final long [] min = boxMin.clone();
 		if(ds[0] > 1 || ds[1] > 1 || ds[2] > 1)
 		{
@@ -181,7 +207,7 @@ public class JunctionBox
 				dims[d] = nDim * ds[d];
 			}
 			src = ArrayImgs.floats( dims );
-			DownsampleGrid.upsample(mapImg, boxMin, src, min, ds, 1);
+			DownsampleGrid.upsample(img, boxMin, src, min, ds, 1);
 		}
 		final float [] in = src.update( null ).getCurrentStorageArray();
 		float max = 0;

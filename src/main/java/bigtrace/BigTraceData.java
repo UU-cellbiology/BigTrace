@@ -338,6 +338,12 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	 * then uses stiffness of at least 0.1 (OneClickTrace.dJunctionMinStiffness) **/
 	public boolean bOCJunctions;
 	
+	/** one-click junction passage "branch-first": the outgoing branch is chosen by geometry 
+	 * (extrapolated own path, brightness only as a threshold), then followed (JunctionBranchPassage);
+	 * falls back to the map coasting without enough trace history or a branch found.
+	 * (no UI/macro yet, for testing) **/
+	public boolean bOCJunctionBranchFirst = true;
+	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
 

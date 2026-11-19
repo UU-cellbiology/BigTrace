@@ -36,6 +36,10 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
  * Gap bridging: polylines.get(POLY_BRIDGE_SEARCH) shows the search direction (heading, up to the search reach),
  * polylines.get(POLY_BRIDGE_JUMP) the jump to the landing point (if found), with a message in BVV. 
  * They are hidden at the next step after a bridge, after a failed one they stay until the next tracing.
+ * Branch-first junction passage (JunctionBranchPassage): the junction box saliency is shown instead of the map,
+ * polylines.get(POLY_BRANCH_HEADING) is the extrapolated heading (up to the cross-section of the target),
+ * polylines.get(POLY_BRANCH_TARGET) the target with its line direction (+-1 SD), 
+ * polylines.get(POLY_BRANCH_PATH) the planned passage curve. They stay while the passage is traced.
  * Updates come from the tracing thread, drawing from the render thread: both are synchronized.
  * BVV sources are added/removed on the event dispatch thread. **/
 public class OCVisDebug
@@ -61,8 +65,17 @@ public class OCVisDebug
 	/** index in polylines: gap bridging jump (current point to the landing point) **/
 	public static final int POLY_BRIDGE_JUMP = 1;
 	
+	/** index in polylines: branch-first passage, extrapolated heading **/
+	public static final int POLY_BRANCH_HEADING = 2;
+	
+	/** index in polylines: branch-first passage, chosen target and its direction **/
+	public static final int POLY_BRANCH_TARGET = 3;
+	
+	/** index in polylines: branch-first passage, planned curve **/
+	public static final int POLY_BRANCH_PATH = 4;
+	
 	/** number of polylines **/
-	static final int N_POLYLINES = 2;
+	static final int N_POLYLINES = 5;
 	
 	/** visibility of polylines (same indices) **/
 	final boolean [] bPolylineVisible = new boolean[N_POLYLINES];
@@ -84,6 +97,14 @@ public class OCVisDebug
 	
 	/** color of the gap bridging jump **/
 	public Color colorBridgeJump = Color.GREEN;
+	
+	/** colors of the branch-first passage: heading, target, planned curve **/
+	public Color colorBranchHeading = Color.WHITE;
+	public Color colorBranchTarget = Color.RED;
+	public Color colorBranchPath = Color.MAGENTA;
+	
+	/** pause when the branch-first plan is shown (ms); 0 = no pause **/
+	public int nBranchPlanDelayMs = 1500;
 	
 	/** thickness of the debug lines **/
 	public float fLineThickness = 3.0f;
@@ -135,6 +156,12 @@ public class OCVisDebug
 		polylines.get(POLY_BRIDGE_SEARCH).setPointColor(colorBridgeSearch);
 		polylines.get(POLY_BRIDGE_JUMP).setLineColor(colorBridgeJump);
 		polylines.get(POLY_BRIDGE_JUMP).setPointColor(colorBridgeJump);
+		polylines.get(POLY_BRANCH_HEADING).setLineColor(colorBranchHeading);
+		polylines.get(POLY_BRANCH_HEADING).setPointColor(colorBranchHeading);
+		polylines.get(POLY_BRANCH_TARGET).setLineColor(colorBranchTarget);
+		polylines.get(POLY_BRANCH_TARGET).setPointColor(colorBranchTarget);
+		polylines.get(POLY_BRANCH_PATH).setLineColor(colorBranchPath);
+		polylines.get(POLY_BRANCH_PATH).setPointColor(colorBranchPath);
 		for(int i = 0; i < N_CONES; i++)
 		{
 			final VisCone cone = new VisCone(bt.btData);
@@ -165,6 +192,68 @@ public class OCVisDebug
 		{
 			bPolylineVisible[i] = false;
 		}
+	}
+	
+	/** hides the gap bridging lines **/
+	void hideBridgeLines()
+	{
+		bPolylineVisible[POLY_BRIDGE_SEARCH] = false;
+		bPolylineVisible[POLY_BRIDGE_JUMP] = false;
+	}
+	
+	/** hides the branch-first passage lines **/
+	synchronized void hideBranchLines()
+	{
+		bPolylineVisible[POLY_BRANCH_HEADING] = false;
+		bPolylineVisible[POLY_BRANCH_TARGET] = false;
+		bPolylineVisible[POLY_BRANCH_PATH] = false;
+	}
+	
+	/** true if a branch-first line is shown **/
+	synchronized boolean isBranchShown()
+	{
+		return bPolylineVisible[POLY_BRANCH_HEADING] || bPolylineVisible[POLY_BRANCH_TARGET] || bPolylineVisible[POLY_BRANCH_PATH];
+	}
+	
+	/**
+	 * Branch-first junction passage plan, then pause (nBranchPlanDelayMs). All in voxel coordinates.
+	 * @param entryVoxel current point (junction entry)
+	 * @param headingEndVoxel end of the extrapolated heading (cross-section of the target or the last searched one)
+	 * @param curveVoxel planned passage curve; null = no target found
+	 * @param targetA target - 1 SD along its direction (null = no target)
+	 * @param targetB target + 1 SD along its direction
+	 */
+	public void showBranchPlan(final double [] entryVoxel, final double [] headingEndVoxel, final ArrayList<double[]> curveVoxel,
+			final double [] targetA, final double [] targetB)
+	{
+		synchronized(this)
+		{
+			if(!initialized)
+			{
+				init();
+			}
+			setLine(POLY_BRANCH_HEADING, entryVoxel, headingEndVoxel);
+			if(curveVoxel != null && targetA != null)
+			{
+				setLine(POLY_BRANCH_TARGET, targetA, targetB);
+				final ArrayList<RealPoint> points = new ArrayList<>();
+				for(final double [] p : curveVoxel)
+				{
+					points.add(new RealPoint(p));
+				}
+				polylines.get(POLY_BRANCH_PATH).setVertices(points);
+				bPolylineVisible[POLY_BRANCH_PATH] = true;
+			}
+			else
+			{
+				bPolylineVisible[POLY_BRANCH_TARGET] = false;
+				bPolylineVisible[POLY_BRANCH_PATH] = false;
+			}
+			//kept for the step of the junction (as the map)
+			bMapJustShown = true;
+		}
+		bt.repaintBVV();
+		sleep(nBranchPlanDelayMs);
 	}
 	
 	/**
@@ -239,7 +328,7 @@ public class OCVisDebug
 		}
 		else
 		{
-			hidePolylines();
+			hideBridgeLines();
 		}
 
 		//last direction: directionality constrain
@@ -278,6 +367,12 @@ public class OCVisDebug
 	 * replacing the previous one. The first time the raw data (analysis channel) is hidden **/
 	public void showJunctionMap(final RandomAccessibleInterval<UnsignedByteType> map)
 	{
+		showJunctionMap(map, "junction map");
+	}
+	
+	/** as showJunctionMap(map), with the name of the BVV source **/
+	public void showJunctionMap(final RandomAccessibleInterval<UnsignedByteType> map, final String sName)
+	{
 		runOnEDT(() -> 
 		{
 			if(bvvMap != null)
@@ -295,7 +390,7 @@ public class OCVisDebug
 					raw.setAlphaRange(0.0, 0.0);
 				}
 			}
-			final BvvStackSource<UnsignedByteType> src = BvvFunctions.show(map, "junction map", Bvv.options().addTo(bt.bvvHandle));
+			final BvvStackSource<UnsignedByteType> src = BvvFunctions.show(map, sName, Bvv.options().addTo(bt.bvvHandle));
 			src.setRenderType(bt.btData.nRenderMethod);
 			src.setLUT( "Fire" );
 			src.setDisplayRangeBounds(0, 255);
@@ -329,7 +424,7 @@ public class OCVisDebug
 	 * after it (or one step after a junction without passage) it is removed **/
 	public void junctionMapStep(final boolean bInPassage)
 	{
-		if(bvvMap == null)
+		if(bvvMap == null && !isBranchShown())
 			return;
 		if(bInPassage || bMapJustShown)
 		{
@@ -339,10 +434,11 @@ public class OCVisDebug
 		hideJunctionMap();
 	}
 	
-	/** removes the junction map from BVV and restores the raw data **/
+	/** removes the junction map from BVV and restores the raw data (and the branch-first lines) **/
 	public void hideJunctionMap()
 	{
 		bMapJustShown = false;
+		hideBranchLines();
 		runOnEDT(() ->
 		{
 			if(bvvMap == null)
