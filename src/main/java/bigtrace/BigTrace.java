@@ -167,7 +167,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 	/** visualize One Click tracing for debuggins **/
 	public OCVisDebug ocVisDebug = null;
 	
-	public boolean bOCVisDebugEnabled = false;
+	public boolean bOCVisDebugEnabled = true;
 		
 	@Override
 	public void run(String arg)
