@@ -11,6 +11,7 @@ import javax.swing.SwingUtilities;
 
 import org.joml.Matrix4fc;
 
+import bdv.viewer.animate.MessageOverlayAnimator;
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
 import bigtrace.gui.BCsettings;
@@ -198,11 +199,15 @@ public class OCVisDebug
 	
 	/** brightness/alpha of the raw data (analysis channel) before it was hidden **/
 	final BCsettings bcRaw = new BCsettings();
+	
+	/** text animation duration in ms **/
+	long nTextMsgDuration = 5000;
+	
+	final MessageOverlayAnimator msgAnim = new MessageOverlayAnimator(nTextMsgDuration);
 
 	public OCVisDebug(final BigTrace<?> bt)
 	{
 		this.bt = bt;
-
 	}
 
 	/** creates the step cones and lines (hidden until used) **/
@@ -263,6 +268,9 @@ public class OCVisDebug
 		points.get(POINTS_BRANCH_REJECTED).setColor(colorBranchRejected);
 		points.get(POINTS_COAST_END).setColor(colorCoastEnd);
 		points.get(POINTS_COAST_END).setRenderType(Roi3D.SURFACE);
+		
+		
+		bt.bvvViewer.addOverlayAnimator(msgAnim);
 		initialized = true;
 	}
 
@@ -587,7 +595,11 @@ public class OCVisDebug
 	{
 		if(bt.bvvViewer != null)
 		{
-			bt.bvvViewer.showMessage(sMessage);
+
+			msgAnim.add( sMessage );
+
+			//bt.bvvViewer.addOverlayAnimator( new ColorTextOverlayAnimator( "No data loaded", 5000, TextPosition.CENTER, BVBSettings.canvasOverlayColor )  );
+			//bt.bvvViewer.showMessage(sMessage);
 		}
 	}
 	

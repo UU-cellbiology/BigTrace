@@ -20,7 +20,8 @@ import net.imglib2.type.numeric.RealType;
  *    (junction box hessian) with saliency >= dRelSaliency x running saliency of the trace (OneClickTrace.dSalTrace),
  *    orientation within dCandidateMinCos of the heading (looser than the directionality constrain: a turning filament
  *    crosses the cross-section obliquely) and offset <= dTargetMaxOffsetSD tracing SDs
- *    (Mahalanobis, per axis) from the extrapolated point are candidates (in the first cross-section with any);
+ *    (Mahalanobis, per axis) from the extrapolated point are candidates (in the first cross-section with any;
+ *    if there is none up to dSearchMaxSD, going back from dSearchStartSD towards dSearchMinSD);
  * 3) a cubic Hermite curve from the current point (heading) to each candidate (its orientation) is planned,
  *    the target is the candidate whose curve turns the least in total (sum of the turning angles along it),
  *    e.g. a parallel filament nearby needs an S-shaped curve and turns more than the traced one;
@@ -63,8 +64,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** ... every dSearchStepSD ... **/
 	double dSearchStepSD = 1.0;
 
-	/** ... up to this distance (limited by the junction box) **/
+	/** ... up to this distance (limited by the junction box); if none of these has candidates,
+	 * the cross-sections closer than dSearchStartSD are searched, going back down to dSearchMinSD 
+	 * (a filament turning at the junction leaves the cross-sections far ahead) **/
 	double dSearchMaxSD = 12.0;
+
+	/** closest cross-section searched (in tracing SDs), see dSearchMaxSD **/
+	double dSearchMinSD = 2.0;
 
 	/** maximum offset of the target from the extrapolated heading (tracing SDs, per axis) **/
 	double dTargetMaxOffsetSD = 4.5;
@@ -220,7 +226,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		//3) curves to the candidates, the least turning one
 		chooseLeastTurning(cands);
-		jh.visDebugMessage(String.format("branch-first: %d candidate(s), chosen turns %.0f deg", altCurves.size() + 1, dChosenTurnDeg));
+		jh.visDebugMessage(String.format("branch-first: %d candidate(s) at %.0f SD, chosen turns %.0f deg", altCurves.size() + 1, dTargetDist / dLenSD, dChosenTurnDeg));
 		visDebugPlan(true);
 
 		//4) follow the curve
@@ -572,20 +578,32 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return true;
 	}
 
-	/** candidates: in the first cross-section (perpendicular to the straight heading) with any; 
+	/** candidates: in the first cross-section (perpendicular to the straight heading) with any, 
+	 * from dSearchStartSD to dSearchMaxSD; if there is none, the closer cross-sections from dSearchStartSD 
+	 * back to dSearchMinSD (the farthest one with candidates); 
 	 * each: position (3), offset (1), |cos| (1), oriented direction (3), see ridgesInSection **/
 	ArrayList<double[]> findCandidates(final double dMinSal)
+	{
+		//ahead
+		final ArrayList<double[]> cands = findCandidates(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+		if(!cands.isEmpty())
+			return cands;
+		//closer (going back towards the junction)
+		return findCandidates(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+	}
+
+	/** candidates in the first cross-section with any, at distances dFromSD, +dStepSD, ... to dToSD (tracing SDs) **/
+	ArrayList<double[]> findCandidates(final double dMinSal, final double dFromSD, final double dToSD, final double dStepSD)
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
 		SteerableLineFilter.crossSectionBasis(t0, u, v);
 		final double [] c0 = new double[3];
-		secCenter = null;
 		secRadiusSD = dTargetMaxOffsetSD;
-		secCandidates.clear();
-		secRejected.clear();
 		final ArrayList<double[]> rejected = new ArrayList<>();
-		for (double dDist = dSearchStartSD; dDist <= dSearchMaxSD + 1e-6; dDist += dSearchStepSD)
+		if(dStepSD == 0)
+			return new ArrayList<>();
+		for (double dDist = dFromSD; (dStepSD > 0) ? (dDist <= dToSD + 1e-6) : (dDist >= dToSD - 1e-6); dDist += dStepSD)
 		{
 			for (int d = 0; d < 3; d++)
 			{
