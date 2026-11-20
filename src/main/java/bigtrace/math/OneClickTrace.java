@@ -117,6 +117,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * (heading fit of the branch-first junction passage) **/
 	final ArrayDeque<double[]> dirHistory = new ArrayDeque<>();
 	
+	/** the last point returned by getNextPoint is a junction passage point (not checked for self intersection) **/
+	boolean bLastFromPassage = false;
+	
 	/** maximum length of dirHistory **/
 	static final int nDirHistoryMax = 1000;
 	
@@ -604,7 +607,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			nextPoint = getNextPoint(points.get(points.size()-1));
 			visDebugStep(nextPoint);
 			
-			if(nextPoint != null)
+			//(passage points through a junction are not checked: a planned passage, e.g. through
+			//a bend in z, can come close to the points just traced; they are still recorded)
+			if(nextPoint != null && !bLastFromPassage)
 			{
 				if(checkIntersection(nextPoint))
 				{
@@ -886,6 +891,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			final int nStep = junctions.step(currpoint, raInput);
 			visDebugJunctionMap(nStep == JunctionHandler.STEP_POINT);
+			bLastFromPassage = (nStep == JunctionHandler.STEP_POINT);
 			if(nStep == JunctionHandler.STEP_POINT)
 			{
 				return junctions.stepPoint;

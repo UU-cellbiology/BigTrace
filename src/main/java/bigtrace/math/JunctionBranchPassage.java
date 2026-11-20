@@ -26,7 +26,9 @@ import net.imglib2.type.numeric.RealType;
  *    the target is the candidate whose curve turns the least in total (sum of the turning angles along it),
  *    e.g. a parallel filament nearby needs an S-shaped curve and turns more than the traced one;
  * 4) passage: the curve to the target is followed
- *    step by step: in each cross-section the saliency maximum closest to the curve (within dFollowSD SDs) is taken,
+ *    step by step: in each cross-section the saliency maximum (within dFollowSD SDs of the curve) closest to the curve
+ *    shifted by the current offset of the followed ridge from it (continuity: it does not switch between maxima)
+ *    is taken; only points moving forward, at least dMinPointSpacing apart, are added;
  *    with none the step is "blind" on the curve; more than dMaxBlindSD of blind steps in a row: passage lost.
  * Without enough trace history (NOFIT) or a target (NOTARGET) the map coasting is used.
  * After the map coasting, planToCoastEnd() refines its end point (nearest ridge centre in its 3D vicinity, dRefineSD)
@@ -40,7 +42,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	final OneClickTrace<T> oc;
 
 	/** length of the trace history for the heading fit (in tracing SDs) **/
-	double dFitLengthSD = 8.0;
+	double dFitLengthSD = 6.0;
 
 	/** weight of the smoothed (momentum) direction in the heading (0 = only the fit, 1 = only the momentum) **/
 	double dHeadingMomentumWeight = 0.5;
@@ -87,6 +89,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** while following the passage curve: maximum offset of the ridge from it (tracing SDs, per axis) **/
 	double dFollowSD = 1.5;
+
+	/** minimum distance between successive passage points (full resolution voxels) **/
+	double dMinPointSpacing = 0.5;
 
 	/** maximum length of blind steps in a row (tracing SDs) **/
 	double dMaxBlindSD = 5.0;
@@ -334,6 +339,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final double [] p = new double[3];
 		final double [] t = new double[3];
 		final double [] q = new double[3];
+		final double [] pPred = new double[3];
+		//offset of the followed ridge from the curve (continuity: the ridge closest to curve + offset is taken)
+		final double [] off = new double[3];
+		//last output point (physical), for the forward progress
+		double [] qLast = p0.clone();
 		final ArrayList<RealPoint> pts = new ArrayList<>();
 		double s = 0;
 		double dBlind = 0;
@@ -350,14 +360,22 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				return GEO_LOST;
 			}
 			curvePoint(s, p, t);
-			if(nearestRidge(p, t, dFollowSD, dMinSal, q))
+			for (int d = 0; d < 3; d++)
+			{
+				pPred[d] = p[d] + off[d];
+			}
+			if(nearestRidge(p, t, dFollowSD, dMinSal, pPred, q))
 			{
 				bLastOk = true;
 				dBlind = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					off[d] = q[d] - p[d];
+				}
 			}
 			else
 			{
-				System.arraycopy(p, 0, q, 0, 3);
+				System.arraycopy(pPred, 0, q, 0, 3);
 				bLastOk = false;
 				dBlind += dStep;
 				if(dBlind > dMaxBlindSD * dLenSD)
@@ -382,8 +400,20 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				return GEO_LOST;
 			}
-			pts.add(new RealPoint(outPos));
 			System.arraycopy(t, 0, tEnd, 0, 3);
+			//only points moving forward along the curve and at least dMinPointSpacing voxels from the previous one
+			double dAdvance = 0;
+			double dSpacing = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				dAdvance += (q[d] - qLast[d]) * t[d];
+				final double dv = (q[d] - qLast[d]) / vox[d] * oc.ds[d];
+				dSpacing += dv * dv;
+			}
+			if(dAdvance <= 0 || Math.sqrt(dSpacing) < dMinPointSpacing)
+				continue;
+			pts.add(new RealPoint(outPos));
+			qLast = q.clone();
 		}
 		if(pts.isEmpty())
 			return GEO_LOST;
@@ -857,6 +887,32 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					out.add(new double [] {pos[0], pos[1], pos[2], dOff, cs, sign * dir[0], sign * dir[1], sign * dir[2]});
 				}
 		return out;
+	}
+
+	/** ridge in the cross-section at p perpendicular to t, within dMaxOffsetSD of p, closest to pRef 
+	 * (offset in SDs, per axis); its position to q, false if there is none **/
+	boolean nearestRidge(final double [] p, final double [] t, final double dMaxOffsetSD, final double dMinSal, final double [] pRef, final double [] q)
+	{
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		SteerableLineFilter.crossSectionBasis(t, u, v);
+		final ArrayList<double[]> cands = ridgesInSection(p, t, u, v, dMaxOffsetSD, dMinSal);
+		double dBest = Double.MAX_VALUE;
+		for(final double [] c : cands)
+		{
+			double dd = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				final double r = (c[d] - pRef[d]) / sd[d];
+				dd += r * r;
+			}
+			if(dd < dBest)
+			{
+				dBest = dd;
+				System.arraycopy(c, 0, q, 0, 3);
+			}
+		}
+		return dBest < Double.MAX_VALUE;
 	}
 
 	/** nearest (offset in SDs) ridge in the cross-section at p perpendicular to t, within dMaxOffsetSD;

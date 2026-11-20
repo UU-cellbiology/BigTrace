@@ -177,7 +177,7 @@ public class OCVisDebug
 	public double dConeLengthSD = 3.0;
 
 	/** pause after every step (ms), to watch the tracing step by step; 0 = no pause **/
-	public int nStepDelayMs = 100;
+	public int nStepDelayMs = 0;
 	
 	/** pause when a junction map is shown (ms), before the passage is traced; 0 = no pause **/
 	public int nJunctionMapDelayMs = 1500;
