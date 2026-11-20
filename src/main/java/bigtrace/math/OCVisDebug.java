@@ -45,7 +45,10 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
  * polylines.get(POLY_BRANCH_PATH) the planned passage curve,
  * polygons.get(POLYGON_BRANCH_SECTION) the searched region of the cross-section with the target (or the last searched one),
  * points.get(POINTS_BRANCH_CANDIDATES) the candidates found there, points.get(POINTS_BRANCH_REJECTED) the saliency maxima
- * rejected there (saliency below the threshold or orientation outside the constrain). They stay while the passage is traced.
+ * rejected there (saliency below the threshold or orientation outside the constrain),
+ * polylines from POLY_BRANCH_ALT_FIRST (N_BRANCH_ALT of them) the curves planned to the other candidates (not chosen, 
+ * they turn more), points.get(POINTS_COAST_END) the end of the map coasting when it is refined. 
+ * They stay while the passage is traced.
  * Updates come from the tracing thread, drawing from the render thread: both are synchronized.
  * BVV sources are added/removed on the event dispatch thread. **/
 public class OCVisDebug
@@ -88,8 +91,14 @@ public class OCVisDebug
 	/** index in polylines: branch-first passage, planned curve **/
 	public static final int POLY_BRANCH_PATH = 4;
 	
+	/** first index in polylines: branch-first passage, curves to the other (not chosen) candidates **/
+	public static final int POLY_BRANCH_ALT_FIRST = 5;
+	
+	/** maximum number of shown curves to the other candidates **/
+	public static final int N_BRANCH_ALT = 7;
+	
 	/** number of polylines **/
-	static final int N_POLYLINES = 5;
+	static final int N_POLYLINES = POLY_BRANCH_ALT_FIRST + N_BRANCH_ALT;
 	
 	/** visibility of polylines (same indices) **/
 	final boolean [] bPolylineVisible = new boolean[N_POLYLINES];
@@ -109,8 +118,11 @@ public class OCVisDebug
 	/** index in points: branch-first passage, rejected saliency maxima in the cross-section **/
 	public static final int POINTS_BRANCH_REJECTED = 1;
 	
+	/** index in points: end point of the map coasting (when refined) **/
+	public static final int POINTS_COAST_END = 2;
+	
 	/** number of point sets **/
-	static final int N_POINTS = 2;
+	static final int N_POINTS = 3;
 	
 	/** visibility of point sets (same indices) **/
 	final boolean [] bPointsVisible = new boolean[N_POINTS];
@@ -137,6 +149,12 @@ public class OCVisDebug
 	public Color colorBranchHeading = Color.WHITE;
 	public Color colorBranchTarget = Color.RED;
 	public Color colorBranchPath = Color.MAGENTA;
+	
+	/** color of the curves to the other (not chosen) candidates **/
+	public Color colorBranchAlt = new Color(140, 60, 140);
+	
+	/** color of the end point of the map coasting **/
+	public Color colorCoastEnd = Color.ORANGE;
 	
 	/** pause when the branch-first plan is shown (ms); 0 = no pause **/
 	public int nBranchPlanDelayMs = 1500;
@@ -207,6 +225,11 @@ public class OCVisDebug
 		polylines.get(POLY_BRANCH_TARGET).setPointColor(colorBranchTarget);
 		polylines.get(POLY_BRANCH_PATH).setLineColor(colorBranchPath);
 		polylines.get(POLY_BRANCH_PATH).setPointColor(colorBranchPath);
+		for(int i = 0; i < N_BRANCH_ALT; i++)
+		{
+			polylines.get(POLY_BRANCH_ALT_FIRST + i).setLineColor(colorBranchAlt);
+			polylines.get(POLY_BRANCH_ALT_FIRST + i).setPointColor(colorBranchAlt);
+		}
 		for(int i = 0; i < N_CONES; i++)
 		{
 			final VisCone cone = new VisCone(bt.btData);
@@ -238,6 +261,8 @@ public class OCVisDebug
 		points.get(POINTS_BRANCH_CANDIDATES).setColor(colorBranchCandidates);
 		points.get(POINTS_BRANCH_CANDIDATES).setRenderType(Roi3D.SURFACE);
 		points.get(POINTS_BRANCH_REJECTED).setColor(colorBranchRejected);
+		points.get(POINTS_COAST_END).setColor(colorCoastEnd);
+		points.get(POINTS_COAST_END).setRenderType(Roi3D.SURFACE);
 		initialized = true;
 	}
 
@@ -285,13 +310,19 @@ public class OCVisDebug
 		bPolygonVisible[POLYGON_BRANCH_SECTION] = false;
 		bPointsVisible[POINTS_BRANCH_CANDIDATES] = false;
 		bPointsVisible[POINTS_BRANCH_REJECTED] = false;
+		bPointsVisible[POINTS_COAST_END] = false;
+		for(int i = 0; i < N_BRANCH_ALT; i++)
+		{
+			bPolylineVisible[POLY_BRANCH_ALT_FIRST + i] = false;
+		}
 	}
 	
 	/** true if a branch-first line (or cross-section, points) is shown **/
 	synchronized boolean isBranchShown()
 	{
 		return bPolylineVisible[POLY_BRANCH_HEADING] || bPolylineVisible[POLY_BRANCH_TARGET] || bPolylineVisible[POLY_BRANCH_PATH]
-				|| bPolygonVisible[POLYGON_BRANCH_SECTION] || bPointsVisible[POINTS_BRANCH_CANDIDATES] || bPointsVisible[POINTS_BRANCH_REJECTED];
+				|| bPolygonVisible[POLYGON_BRANCH_SECTION] || bPointsVisible[POINTS_BRANCH_CANDIDATES] || bPointsVisible[POINTS_BRANCH_REJECTED]
+				|| bPointsVisible[POINTS_COAST_END];
 	}
 	
 	/**
@@ -305,10 +336,13 @@ public class OCVisDebug
 	 * (or the last searched one); null = none
 	 * @param candidatesVoxel candidates (possible branches) in that cross-section
 	 * @param rejectedVoxel saliency maxima rejected there (saliency or orientation)
+	 * @param altCurvesVoxel curves planned to the other (not chosen) candidates; may be null
+	 * @param coastEndVoxel end point of the map coasting (refined passage); null = none
 	 */
 	public void showBranchPlan(final double [] entryVoxel, final double [] headingEndVoxel, final ArrayList<double[]> curveVoxel,
 			final double [] targetA, final double [] targetB, final ArrayList<double[]> sectionVoxel,
-			final ArrayList<double[]> candidatesVoxel, final ArrayList<double[]> rejectedVoxel)
+			final ArrayList<double[]> candidatesVoxel, final ArrayList<double[]> rejectedVoxel,
+			final ArrayList<ArrayList<double[]>> altCurvesVoxel, final double [] coastEndVoxel)
 	{
 		synchronized(this)
 		{
@@ -342,6 +376,27 @@ public class OCVisDebug
 			}
 			setPoints(POINTS_BRANCH_CANDIDATES, candidatesVoxel);
 			setPoints(POINTS_BRANCH_REJECTED, rejectedVoxel);
+			//curves to the other candidates
+			for(int i = 0; i < N_BRANCH_ALT; i++)
+			{
+				final int nInd = POLY_BRANCH_ALT_FIRST + i;
+				if(altCurvesVoxel != null && i < altCurvesVoxel.size() && altCurvesVoxel.get(i).size() >= 2)
+				{
+					polylines.get(nInd).setVertices(toRealPoints(altCurvesVoxel.get(i)));
+					bPolylineVisible[nInd] = true;
+				}
+				else
+				{
+					bPolylineVisible[nInd] = false;
+				}
+			}
+			//end of the map coasting
+			final ArrayList<double[]> coastEnd = new ArrayList<>();
+			if(coastEndVoxel != null)
+			{
+				coastEnd.add(coastEndVoxel);
+			}
+			setPoints(POINTS_COAST_END, coastEnd);
 			//kept for the step of the junction (as the map)
 			bMapJustShown = true;
 		}

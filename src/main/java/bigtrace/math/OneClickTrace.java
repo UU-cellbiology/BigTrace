@@ -110,6 +110,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** junction passage: branch-first (JunctionBranchPassage) instead of the map coasting **/
 	boolean bJunctionBranchFirst = true;
 	
+	/** junction passage by the map coasting: refined end and planned passage (JunctionBranchPassage.planToCoastEnd) **/
+	boolean bJunctionCoastRefine = true;
+	
 	/** recent points (full resolution) of the trace in the current direction, newest last
 	 * (heading fit of the branch-first junction passage) **/
 	final ArrayDeque<double[]> dirHistory = new ArrayDeque<>();
@@ -643,6 +646,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		setStiffness(bt.btData.dOCStiffness);
 		setJunctions(bt.btData.bOCJunctions);
 		bJunctionBranchFirst = bt.btData.bOCJunctionBranchFirst;
+		bJunctionCoastRefine = bt.btData.bOCJunctionCoastRefine;
 
 		dAngleThreshold = bt.btData.dDirectionalityOneClick;		
 		

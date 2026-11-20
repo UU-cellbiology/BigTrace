@@ -86,8 +86,12 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 
 	final TraceEndMerger merger = new TraceEndMerger();
 	
-	/** branch-first passage (OneClickTrace.bJunctionBranchFirst) **/
+	/** branch-first passage (OneClickTrace.bJunctionBranchFirst), also refines the end of the map coasting
+	 * (OneClickTrace.bJunctionCoastRefine) **/
 	final JunctionBranchPassage<T> branch;
+	
+	/** the passage of the map coasting was replaced by the refined one (planPassage) **/
+	boolean bCoastRefined = false;
 
 	//---------- state
 
@@ -324,6 +328,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double [] lastBefore = oc.lastDirectionVector.clone();
 		dMapMinRatio = 1.0;
 		bCoastEndedByDistance = false;
+		bCoastRefined = false;
 		//branch-first: the branch is chosen by geometry, then followed
 		int nBranch = -1;
 		if(oc.bJunctionBranchFirst)
@@ -353,6 +358,20 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			{
 				stopCoasting();
 			}
+			//the map coasting tends to cut bends and end beside the filament:
+			//its end is refined to the nearest ridge and the passage to it planned and followed (as branch-first)
+			if(oc.bJunctionCoastRefine && bCoastEndedByDistance && dMapMinRatio >= dPassageFadeFraction && !path.isEmpty())
+			{
+				final ArrayList<RealPoint> refined = new ArrayList<>();
+				final int nRefine = branch.planToCoastEnd(currpoint, path.get(path.size() - 1).positionAsDoubleArray(), 
+						coastDir.clone(), raInput, refined);
+				if(nRefine == JunctionBranchPassage.GEO_OK)
+				{
+					path.clear();
+					path.addAll(refined);
+					bCoastRefined = true;
+				}
+			}
 		}
 		if(path.isEmpty())
 		{
@@ -366,8 +385,8 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(bCoastEndedByDistance && !bFaded && !isNearTraced(lastGrid))
 		{
 			passageQueue.addAll(path);
-			//(branch-first: the heading is the direction of the chosen branch already)
-			if(nBranch != JunctionBranchPassage.GEO_OK)
+			//(branch-first or refined coasting: the heading is the direction at the target already)
+			if(nBranch != JunctionBranchPassage.GEO_OK && !bCoastRefined)
 			{
 				exitPassageHeading(path.get(path.size() - 1));
 			}

@@ -344,6 +344,11 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	 * (no UI/macro yet, for testing) **/
 	public boolean bOCJunctionBranchFirst = true;
 	
+	/** one-click junction passage by the map coasting: its end is refined to the nearest ridge and 
+	 * the passage to it is planned and followed as in branch-first (JunctionBranchPassage.planToCoastEnd).
+	 * (no UI/macro yet, for testing) **/
+	public boolean bOCJunctionCoastRefine = true;
+	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
 

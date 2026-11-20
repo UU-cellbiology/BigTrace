@@ -13,17 +13,24 @@ import net.imglib2.type.numeric.RealType;
  * The elongated line filter map used by the coasting (JunctionHandler) follows the strongest response,
  * so at a shallow crossing (or filaments overlapping in z) the trace goes onto the brighter branch.
  * Here the branch is chosen by geometry, brightness is only a threshold:
- * 1) heading: quadratic fit of the trace's own recent path (dFitLengthSD), its tangent at the current point;
+ * 1) heading: slope of a straight line fit of the trace's own recent path (dFitLengthSD), blended with
+ *    the smoothed (momentum) direction of the trace (dHeadingMomentumWeight);
  * 2) target: cross-sections perpendicular to the straight extrapolation of the heading at
  *    dSearchStartSD, +dSearchStepSD, ... up to dSearchMaxSD; in each, local maxima of line saliency
  *    (junction box hessian) with saliency >= dRelSaliency x running saliency of the trace (OneClickTrace.dSalTrace),
- *    orientation within the directionality constrain of the heading and offset <= dTargetMaxOffsetSD tracing SDs
- *    (Mahalanobis, per axis) from the extrapolated point are candidates. The first cross-section with candidates gives
- *    the target: the lowest cost = offset (SDs) + dTargetAngleWeight x (1 - |cos| orientation vs heading);
- * 3) passage: cubic Hermite curve from the current point (heading) to the target (its orientation), followed
+ *    orientation within dCandidateMinCos of the heading (looser than the directionality constrain: a turning filament
+ *    crosses the cross-section obliquely) and offset <= dTargetMaxOffsetSD tracing SDs
+ *    (Mahalanobis, per axis) from the extrapolated point are candidates (in the first cross-section with any);
+ * 3) a cubic Hermite curve from the current point (heading) to each candidate (its orientation) is planned,
+ *    the target is the candidate whose curve turns the least in total (sum of the turning angles along it),
+ *    e.g. a parallel filament nearby needs an S-shaped curve and turns more than the traced one;
+ * 4) passage: the curve to the target is followed
  *    step by step: in each cross-section the saliency maximum closest to the curve (within dFollowSD SDs) is taken,
  *    with none the step is "blind" on the curve; more than dMaxBlindSD of blind steps in a row: passage lost.
  * Without enough trace history (NOFIT) or a target (NOTARGET) the map coasting is used.
+ * After the map coasting, planToCoastEnd() refines its end point (nearest ridge centre in its 3D vicinity, dRefineSD)
+ * and the passage to it is planned and followed the same way (3-4): the map coasting tends to cut bends
+ * and end beside the filament.
  * Geometry is done in physical space; lengths are in units of the largest tracing SD in grid voxels times
  * the smallest grid voxel size (as the coasting distance of JunctionHandler), offsets per axis in tracing SDs. **/
 class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
@@ -33,6 +40,22 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** length of the trace history for the heading fit (in tracing SDs) **/
 	double dFitLengthSD = 8.0;
+
+	/** weight of the smoothed (momentum) direction in the heading (0 = only the fit, 1 = only the momentum) **/
+	double dHeadingMomentumWeight = 0.5;
+
+	/** maximum number of candidates with a planned curve (the lowest cost ones) **/
+	int nMaxPlanned = 8;
+
+	/** end of the map coasting: radius of the vicinity (ellipsoid, tracing SDs per axis) searched for the ridge **/
+	double dRefineSD = 3.0;
+
+	/** end of the map coasting: minimum |cos| between the ridge direction and the passage chord **/
+	double dRefineMinCos = 0.5;
+
+	/** end of the map coasting: the ridge must be ahead, its projection on the passage chord at least
+	 * this fraction of the chord length **/
+	double dRefineMinAhead = 0.5;
 
 	/** the target is searched in cross-sections from this distance (in tracing SDs) ... **/
 	double dSearchStartSD = 6.0;
@@ -46,7 +69,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** maximum offset of the target from the extrapolated heading (tracing SDs, per axis) **/
 	double dTargetMaxOffsetSD = 4.5;
 
-	/** weight of the orientation difference in the target cost **/
+	/** candidates: minimum |cos| between their line direction and the heading (60 deg); the least turning
+	 * curve decides among them. Following the curve uses the directionality constrain vs the curve direction **/
+	double dCandidateMinCos = 0.5;
+
+	/** weight of the orientation difference in the candidate cost (order of the candidates to plan) **/
 	double dTargetAngleWeight = 4.0;
 
 	/** minimum saliency of candidates, fraction of the running saliency of the trace **/
@@ -95,10 +122,23 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** tangent at the end of the followed passage **/
 	final double [] tEnd = new double[3];
 
+	/** total turning of the chosen curve (degrees) **/
+	double dChosenTurnDeg = 0;
+
+	/** (debug visualization) curves planned to the other candidates and their total turning (degrees) **/
+	final ArrayList<double[][]> altCurves = new ArrayList<>();
+	final ArrayList<Double> altTurnDeg = new ArrayList<>();
+
+	/** (debug visualization) end point of the map coasting (physical), null if not refined **/
+	double [] coastEnd = null;
+
 	//---------- debug visualization: the cross-section of the target (or the last one searched)
 
 	/** center of the cross-section (physical), null if none was searched **/
 	double [] secCenter = null;
+
+	/** searched radius in the cross-section (tracing SDs, per axis) **/
+	double secRadiusSD = 0;
 
 	/** basis of the cross-section plane **/
 	final double [] secU = new double[3];
@@ -116,10 +156,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		oc = jh_.oc;
 	}
 
-	/** Plans and follows the passage from currpoint, its points (full resolution) are added to outPath.
-	 * Returns GEO_OK (heading of OneClickTrace set to the passage end), GEO_NOFIT/GEO_NOTARGET
-	 * (nothing done, use the map coasting) or GEO_LOST (no passage). **/
-	int plan(final RealPoint currpoint, final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath)
+	/** grid voxel size, SDs, length unit and step for the current tracing parameters, clears the plan **/
+	void setupGeometry()
 	{
 		double dMinVox = Double.MAX_VALUE;
 		for (int d = 0; d < 3; d++)
@@ -131,6 +169,21 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		dLenSD = jh.dMaxSigmaGrid * dMinVox;
 		dStep = dMinVox;
 		curve = null;
+		curveS = null;
+		altCurves.clear();
+		altTurnDeg.clear();
+		coastEnd = null;
+		secCenter = null;
+		secCandidates.clear();
+		secRejected.clear();
+	}
+
+	/** Plans and follows the passage from currpoint, its points (full resolution) are added to outPath.
+	 * Returns GEO_OK (heading of OneClickTrace set to the passage end), GEO_NOFIT/GEO_NOTARGET 
+	 * (nothing done, use the map coasting) or GEO_LOST (no passage). **/
+	int plan(final RealPoint currpoint, final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath)
+	{
+		setupGeometry();
 
 		//1) heading from the trace's own path
 		if(!fitHeading(currpoint))
@@ -157,22 +210,125 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			oc.bt.ocVisDebug.showJunctionMap(jh.box.getSaliencyForDisplay(oc.ds), "junction saliency");
 		}
 
-		//2) target
-		if(!findTarget(dMinSal))
+		//2) candidates
+		final ArrayList<double[]> cands = findCandidates(dMinSal);
+		if(cands.isEmpty())
 		{
 			jh.visDebugMessage("branch-first: no branch found, map coasting");
 			visDebugPlan(false);
 			return GEO_NOTARGET;
 		}
-		buildCurve();
-		jh.visDebugMessage("branch-first: branch chosen");
+		//3) curves to the candidates, the least turning one
+		chooseLeastTurning(cands);
+		jh.visDebugMessage(String.format("branch-first: %d candidate(s), chosen turns %.0f deg", altCurves.size() + 1, dChosenTurnDeg));
 		visDebugPlan(true);
 
-		//3) follow the curve
+		//4) follow the curve
+		return follow(raInput, outPath, dMinSal, "branch-first");
+	}
+
+	/** After the map coasting (ending at endFull, full resolution, with direction endDirGrid, grid space):
+	 * the end is refined to the nearest ridge centre in its vicinity (ridgesInVicinity), then the passage from 
+	 * currpoint to it is planned and followed as in plan(). Points (full resolution) are added to outPath.
+	 * Returns GEO_OK (heading of OneClickTrace set to the passage end), GEO_NOTARGET (no ridge at the end,
+	 * nothing done) or GEO_LOST (the curve could not be followed, nothing changed in OneClickTrace). **/
+	int planToCoastEnd(final RealPoint currpoint, final double [] endFull, final double [] endDirGrid, 
+			final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath)
+	{
+		setupGeometry();
+		//heading: fit, or the momentum if the trace is too short
+		if(!fitHeading(currpoint))
+		{
+			System.arraycopy(oc.memDirectionVector, 0, t0, 0, 3);
+			SteerableLineFilter.normalize(t0);
+		}
+		final double dOwnSal = oc.dSalTrace;
+		if(!(dOwnSal > 0))
+		{
+			return GEO_NOTARGET;
+		}
+		final double dMinSal = dRelSaliency * dOwnSal;
+		final double [] endPhys = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			endPhys[d] = oc.toGridDouble(endFull[d], d) * vox[d];
+		}
+		final double [] endDir = oc.gridToPhysDir(endDirGrid);
+		coastEnd = endPhys.clone();
+		//junction box between the current point and the end (closer to the end: covers the vicinity search)
+		final long [] center = new long[3];
+		double dDist = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			center[d] = Math.round((p0[d] + 0.6 * (endPhys[d] - p0[d])) / vox[d]);
+			dDist += (endPhys[d] - p0[d]) * (endPhys[d] - p0[d]);
+		}
+		dTargetDist = Math.sqrt(dDist);
+		jh.computeJunctionHessian(center);
+
+		//chord of the passage (ahead direction), the coasting direction if degenerate
+		final double [] chord = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			chord[d] = endPhys[d] - p0[d];
+		}
+		if(!(SteerableLineFilter.dot(chord, chord) > 0))
+		{
+			System.arraycopy(endDir, 0, chord, 0, 3);
+		}
+		SteerableLineFilter.normalize(chord);
+
+		//ridge centres in the vicinity of the end
+		final ArrayList<double[]> rejected = new ArrayList<>();
+		final ArrayList<double[]> cands = ridgesInVicinity(endPhys, dRefineSD, dMinSal, chord, dRefineMinAhead * dTargetDist, dRefineMinCos, rejected);
+		//(debug visualization: middle cross-section of the searched ellipsoid)
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		SteerableLineFilter.crossSectionBasis(chord, u, v);
+		secCenter = endPhys.clone();
+		secRadiusSD = dRefineSD;
+		System.arraycopy(u, 0, secU, 0, 3);
+		System.arraycopy(v, 0, secV, 0, 3);
+		for(final double [] c : cands)
+		{
+			secCandidates.add(new double [] {c[0], c[1], c[2]});
+		}
+		secRejected.addAll(rejected);
+		if(cands.isEmpty())
+		{
+			jh.visDebugMessage("map coasting: no ridge near the end, map path kept");
+			visDebugPlan(false);
+			return GEO_NOTARGET;
+		}
+		//the nearest one
+		double [] best = null;
+		for(final double [] c : cands)
+		{
+			if(best == null || c[3] < best[3])
+				best = c;
+		}
+		for (int d = 0; d < 3; d++)
+		{
+			p1[d] = best[d];
+			t1[d] = best[5 + d];
+		}
+		buildCurve();
+		dChosenTurnDeg = Math.toDegrees(totalTurning(curve));
+		jh.visDebugMessage(String.format("map coasting: end refined (%.1f SD), passage turns %.0f deg", best[3], dChosenTurnDeg));
+		visDebugPlan(true);
+		return follow(raInput, outPath, dMinSal, "map coasting");
+	}
+
+	/** Follows the planned curve step by step: the nearest ridge in the cross-section (within dFollowSD),
+	 * otherwise a blind step on the curve. Points (full resolution) are added to outPath;
+	 * GEO_OK: heading of OneClickTrace set to the curve direction at the end, GEO_LOST: nothing changed. **/
+	int follow(final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath, final double dMinSal, final String sName)
+	{
 		final double dCurveEnd = curveS[curveS.length - 1];
 		final double [] p = new double[3];
 		final double [] t = new double[3];
 		final double [] q = new double[3];
+		final ArrayList<RealPoint> pts = new ArrayList<>();
 		double s = 0;
 		double dBlind = 0;
 		boolean bLastOk = true;
@@ -184,7 +340,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			//past the end: a bit further to find the ridge again
 			if(s > dCurveEnd + dLenSD)
 			{
-				jh.visDebugMessage("branch-first: passage lost");
+				jh.visDebugMessage(sName + ": passage lost");
 				return GEO_LOST;
 			}
 			curvePoint(s, p, t);
@@ -200,7 +356,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				dBlind += dStep;
 				if(dBlind > dMaxBlindSD * dLenSD)
 				{
-					jh.visDebugMessage("branch-first: passage lost");
+					jh.visDebugMessage(sName + ": passage lost");
 					return GEO_LOST;
 				}
 			}
@@ -220,11 +376,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				return GEO_LOST;
 			}
-			outPath.add(new RealPoint(outPos));
+			pts.add(new RealPoint(outPos));
 			System.arraycopy(t, 0, tEnd, 0, 3);
 		}
-		if(outPath.isEmpty())
+		if(pts.isEmpty())
 			return GEO_LOST;
+		outPath.addAll(pts);
 		//heading after the passage
 		System.arraycopy(tEnd, 0, oc.memDirectionVector, 0, 3);
 		System.arraycopy(tEnd, 0, oc.lastDirectionVector, 0, 3);
@@ -235,8 +392,83 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return GEO_OK;
 	}
 
-	/** heading: quadratic fit X(s) = a + b s + c s^2 of the trace history (physical) over the last
-	 * dFitLengthSD of arc length (s <= 0 at the current point), tangent b at the current point **/
+	/** plans the curves to the candidates (up to nMaxPlanned with the lowest cost), the target (p1, t1, curve)
+	 * is the one turning the least; the other curves are kept for the debug visualization **/
+	void chooseLeastTurning(final ArrayList<double[]> cands)
+	{
+		//candidate: position (3), offset (1), |cos| (1), oriented direction (3); order by cost
+		cands.sort((a, b) -> Double.compare(a[3] + dTargetAngleWeight * (1.0 - a[4]), b[3] + dTargetAngleWeight * (1.0 - b[4])));
+		final int nPlan = Math.min(cands.size(), Math.max(1, nMaxPlanned));
+		final ArrayList<double[][]> curves = new ArrayList<>();
+		final ArrayList<double[]> curvesS = new ArrayList<>();
+		final ArrayList<Double> turns = new ArrayList<>();
+		int nBest = 0;
+		for (int i = 0; i < nPlan; i++)
+		{
+			final double [] c = cands.get(i);
+			for (int d = 0; d < 3; d++)
+			{
+				p1[d] = c[d];
+				t1[d] = c[5 + d];
+			}
+			buildCurve();
+			final double turn = totalTurning(curve);
+			curves.add(curve);
+			curvesS.add(curveS);
+			turns.add(turn);
+			if(turn < turns.get(nBest))
+				nBest = i;
+		}
+		final double [] c = cands.get(nBest);
+		for (int d = 0; d < 3; d++)
+		{
+			p1[d] = c[d];
+			t1[d] = c[5 + d];
+		}
+		curve = curves.get(nBest);
+		curveS = curvesS.get(nBest);
+		dChosenTurnDeg = Math.toDegrees(turns.get(nBest));
+		altCurves.clear();
+		altTurnDeg.clear();
+		for (int i = 0; i < nPlan; i++)
+		{
+			if(i != nBest)
+			{
+				altCurves.add(curves.get(i));
+				altTurnDeg.add(Math.toDegrees(turns.get(i)));
+			}
+		}
+	}
+
+	/** total turning of a dense polyline: sum of the angles between successive segments (radians) **/
+	static double totalTurning(final double [][] pts)
+	{
+		double sum = 0;
+		final double [] a = new double[3];
+		final double [] b = new double[3];
+		boolean bHasPrev = false;
+		for (int k = 1; k < pts.length; k++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				b[d] = pts[k][d] - pts[k - 1][d];
+			}
+			if(!(SteerableLineFilter.dot(b, b) > 0))
+				continue;
+			SteerableLineFilter.normalize(b);
+			if(bHasPrev)
+			{
+				sum += Math.acos(Math.max(-1.0, Math.min(1.0, SteerableLineFilter.dot(a, b))));
+			}
+			System.arraycopy(b, 0, a, 0, 3);
+			bHasPrev = true;
+		}
+		return sum;
+	}
+
+	/** heading: slope b of a straight line fit X(s) = a + b s of the trace history (physical) over the last
+	 * dFitLengthSD of arc length (s <= 0 at the current point), blended with the smoothed (momentum) direction 
+	 * (dHeadingMomentumWeight). Sets p0 (current point) also when it fails (too short history). **/
 	boolean fitHeading(final RealPoint currpoint)
 	{
 		for (int d = 0; d < 3; d++)
@@ -278,32 +510,38 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final int n = pts.size();
 		if(n < nMinFitPoints || -s < 2.0 * dStep)
 			return false;
-		//normal equations of the quadratic fit (shared matrix for the 3 coordinates)
-		final double [][] A = new double[3][3];
-		final double [][] B = new double[3][3];
+		//least squares slope
+		double sMean = 0;
+		final double [] xMean = new double[3];
 		for (int i = 0; i < n; i++)
 		{
-			final double si = sArr.get(i);
-			final double [] pw = new double [] {1.0, si, si * si};
-			for (int r = 0; r < 3; r++)
+			sMean += sArr.get(i);
+			for (int d = 0; d < 3; d++)
 			{
-				for (int c = 0; c < 3; c++)
-				{
-					A[r][c] += pw[r] * pw[c];
-				}
-				for (int d = 0; d < 3; d++)
-				{
-					B[r][d] += pw[r] * pts.get(i)[d];
-				}
+				xMean[d] += pts.get(i)[d];
 			}
 		}
-		final double [][] coef = solve3(A, B);
-		if(coef == null)
-			return false;
-		//tangent at s = 0 is the coefficient b
+		sMean /= n;
 		for (int d = 0; d < 3; d++)
 		{
-			t0[d] = coef[1][d];
+			xMean[d] /= n;
+		}
+		double sVar = 0;
+		final double [] cov = new double[3];
+		for (int i = 0; i < n; i++)
+		{
+			final double ds = sArr.get(i) - sMean;
+			sVar += ds * ds;
+			for (int d = 0; d < 3; d++)
+			{
+				cov[d] += ds * (pts.get(i)[d] - xMean[d]);
+			}
+		}
+		if(!(sVar > 0))
+			return false;
+		for (int d = 0; d < 3; d++)
+		{
+			t0[d] = cov[d] / sVar;
 		}
 		final double len = Math.sqrt(SteerableLineFilter.dot(t0, t0));
 		if(!(len > 0))
@@ -313,75 +551,37 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			t0[d] /= len;
 		}
 		//forward (along the momentum)
-		if(SteerableLineFilter.dot(t0, oc.memDirectionVector) < 0)
+		final double [] mem = oc.memDirectionVector.clone();
+		SteerableLineFilter.normalize(mem);
+		if(SteerableLineFilter.dot(t0, mem) < 0)
 		{
 			for (int d = 0; d < 3; d++)
 			{
 				t0[d] = -t0[d];
 			}
 		}
+		//blend with the momentum
+		if(dHeadingMomentumWeight > 0 && SteerableLineFilter.dot(mem, mem) > 0)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				t0[d] = (1.0 - dHeadingMomentumWeight) * t0[d] + dHeadingMomentumWeight * mem[d];
+			}
+			SteerableLineFilter.normalize(t0);
+		}
 		return true;
 	}
 
-	/** solves A X = B (3x3, B with 3 columns) by Gaussian elimination with pivoting, null if singular **/
-	static double [][] solve3(final double [][] Ain, final double [][] Bin)
-	{
-		final double [][] A = new double[3][];
-		final double [][] B = new double[3][];
-		for (int r = 0; r < 3; r++)
-		{
-			A[r] = Ain[r].clone();
-			B[r] = Bin[r].clone();
-		}
-		for (int c = 0; c < 3; c++)
-		{
-			int piv = c;
-			for (int r = c + 1; r < 3; r++)
-			{
-				if(Math.abs(A[r][c]) > Math.abs(A[piv][c]))
-					piv = r;
-			}
-			if(Math.abs(A[piv][c]) < 1e-300)
-				return null;
-			double [] tmp = A[c]; A[c] = A[piv]; A[piv] = tmp;
-			tmp = B[c]; B[c] = B[piv]; B[piv] = tmp;
-			for (int r = 0; r < 3; r++)
-			{
-				if(r == c)
-					continue;
-				final double f = A[r][c] / A[c][c];
-				for (int k = 0; k < 3; k++)
-				{
-					A[r][k] -= f * A[c][k];
-					B[r][k] -= f * B[c][k];
-				}
-			}
-		}
-		final double [][] X = new double[3][3];
-		for (int r = 0; r < 3; r++)
-		{
-			for (int k = 0; k < 3; k++)
-			{
-				X[r][k] = B[r][k] / A[r][r];
-			}
-		}
-		final double dCond = Math.abs(A[0][0]) + Math.abs(A[1][1]) + Math.abs(A[2][2]);
-		for (int r = 0; r < 3; r++)
-		{
-			if(Math.abs(A[r][r]) < 1e-12 * dCond)
-				return null;
-		}
-		return X;
-	}
-
-	/** target: first cross-section (perpendicular to the straight heading) with candidates, lowest cost **/
-	boolean findTarget(final double dMinSal)
+	/** candidates: in the first cross-section (perpendicular to the straight heading) with any; 
+	 * each: position (3), offset (1), |cos| (1), oriented direction (3), see ridgesInSection **/
+	ArrayList<double[]> findCandidates(final double dMinSal)
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
 		SteerableLineFilter.crossSectionBasis(t0, u, v);
 		final double [] c0 = new double[3];
 		secCenter = null;
+		secRadiusSD = dTargetMaxOffsetSD;
 		secCandidates.clear();
 		secRejected.clear();
 		final ArrayList<double[]> rejected = new ArrayList<>();
@@ -395,7 +595,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				break;
 			dTargetDist = dDist * dLenSD;
 			rejected.clear();
-			final ArrayList<double[]> cands = ridgesInSection(c0, t0, u, v, dTargetMaxOffsetSD, dMinSal, rejected);
+			final ArrayList<double[]> cands = ridgesInSection(c0, t0, u, v, dTargetMaxOffsetSD, dMinSal, dCandidateMinCos, rejected);
 			//(debug visualization) this cross-section
 			secCenter = c0.clone();
 			System.arraycopy(u, 0, secU, 0, 3);
@@ -407,25 +607,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			}
 			secRejected.clear();
 			secRejected.addAll(rejected);
-			double dBestCost = Double.MAX_VALUE;
-			for(final double [] c : cands)
-			{
-				//c: position (3), offset (1), |cos| (1), oriented direction (3)
-				final double cost = c[3] + dTargetAngleWeight * (1.0 - c[4]);
-				if(cost < dBestCost)
-				{
-					dBestCost = cost;
-					for (int d = 0; d < 3; d++)
-					{
-						p1[d] = c[d];
-						t1[d] = c[5 + d];
-					}
-				}
-			}
-			if(dBestCost < Double.MAX_VALUE)
-				return true;
+			if(!cands.isEmpty())
+				return cands;
 		}
-		return false;
+		return new ArrayList<>();
 	}
 
 	/** true if the physical point is inside the junction box **/
@@ -447,13 +632,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	ArrayList<double[]> ridgesInSection(final double [] c0, final double [] t, final double [] u, final double [] v,
 			final double dMaxOffsetSD, final double dMinSal)
 	{
-		return ridgesInSection(c0, t, u, v, dMaxOffsetSD, dMinSal, null);
+		return ridgesInSection(c0, t, u, v, dMaxOffsetSD, dMinSal, oc.dAngleThreshold, null);
 	}
 
-	/** as ridgesInSection above; rejectedOut (may be null) gets positions (physical) of the local maxima 
+	/** as ridgesInSection above, with the minimum |cos| of the line orientation vs t dMinCos; 
+	 * rejectedOut (may be null) gets positions (physical) of the local maxima 
 	 * within dMaxOffsetSD rejected by saliency (below dMinSal) or orientation **/
 	ArrayList<double[]> ridgesInSection(final double [] c0, final double [] t, final double [] u, final double [] v,
-			final double dMaxOffsetSD, final double dMinSal, final ArrayList<double[]> rejectedOut)
+			final double dMaxOffsetSD, final double dMinSal, final double dMinCos, final ArrayList<double[]> rejectedOut)
 	{
 		final ArrayList<double[]> out = new ArrayList<>();
 		double dMaxSD = 0;
@@ -537,7 +723,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 						dir[d] = -dir[d];
 					}
 				}
-				if(cs < oc.dAngleThreshold)
+				if(cs < dMinCos)
 				{
 					if(rejectedOut != null)
 					{
@@ -548,6 +734,110 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				out.add(new double [] {x[0], x[1], x[2], off[i][j], cs, dir[0], dir[1], dir[2]});
 			}
 		}
+		return out;
+	}
+
+	/** Ridge centre voxels (grid voxels of the junction box) in the vicinity of cPhys: ellipsoid of dRadiusSD 
+	 * tracing SDs (per axis). A ridge centre has saliency >= dMinSal and not smaller than any of its 26 neighbours 
+	 * lying across its own line direction (|cos(offset, direction)| <= 0.5, physical). Accepted: ahead of p0
+	 * (projection of (x - p0) on dirAhead >= dMinAhead) and |cos| of the line direction vs dirAhead >= dMinCos.
+	 * Each result: position (3, physical), offset in SDs, |cos|, line direction oriented along dirAhead (3, physical);
+	 * rejectedOut (may be null) gets the positions of the ridge centres failing "ahead" or the orientation **/
+	ArrayList<double[]> ridgesInVicinity(final double [] cPhys, final double dRadiusSD, final double dMinSal, 
+			final double [] dirAhead, final double dMinAhead, final double dMinCos, final ArrayList<double[]> rejectedOut)
+	{
+		final ArrayList<double[]> out = new ArrayList<>();
+		//grid range (+1 voxel for the neighbours)
+		final long [] lo = new long[3];
+		final int [] dim = new int[3];
+		for (int d = 0; d < 3; d++)
+		{
+			lo[d] = (long) Math.floor((cPhys[d] - dRadiusSD * sd[d]) / vox[d]) - 1;
+			final long hi = (long) Math.ceil((cPhys[d] + dRadiusSD * sd[d]) / vox[d]) + 1;
+			dim[d] = (int) (hi - lo[d] + 1);
+		}
+		final int nVol = dim[0] * dim[1] * dim[2];
+		final double [] sal = new double[nVol];
+		final double [][] dirs = new double[nVol][];
+		final double [] xg = new double[3];
+		final double [] vecGrid = new double[3];
+		int n = 0;
+		for (int z = 0; z < dim[2]; z++)
+			for (int y = 0; y < dim[1]; y++)
+				for (int x = 0; x < dim[0]; x++)
+				{
+					xg[0] = lo[0] + x;
+					xg[1] = lo[1] + y;
+					xg[2] = lo[2] + z;
+					final double val = jh.box.hessBox.saliencyAt(xg, vecGrid);
+					sal[n] = Double.isNaN(val) ? Double.NEGATIVE_INFINITY : val;
+					dirs[n] = Double.isNaN(val) ? null : oc.gridToPhysDir(vecGrid);
+					n++;
+				}
+		final double [] off = new double[3];
+		final double [] pos = new double[3];
+		for (int z = 1; z < dim[2] - 1; z++)
+			for (int y = 1; y < dim[1] - 1; y++)
+				for (int x = 1; x < dim[0] - 1; x++)
+				{
+					final int i = (z * dim[1] + y) * dim[0] + x;
+					final double val = sal[i];
+					if(!(val >= dMinSal) || val <= 0 || dirs[i] == null)
+						continue;
+					pos[0] = (lo[0] + x) * vox[0];
+					pos[1] = (lo[1] + y) * vox[1];
+					pos[2] = (lo[2] + z) * vox[2];
+					double dOff = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						final double r = (pos[d] - cPhys[d]) / sd[d];
+						dOff += r * r;
+					}
+					dOff = Math.sqrt(dOff);
+					if(dOff > dRadiusSD)
+						continue;
+					//ridge centre: maximum across its own direction
+					final double [] dir = dirs[i];
+					boolean bMax = true;
+					for (int dz = -1; dz <= 1 && bMax; dz++)
+						for (int dy = -1; dy <= 1 && bMax; dy++)
+							for (int dx = -1; dx <= 1; dx++)
+							{
+								if(dx == 0 && dy == 0 && dz == 0)
+									continue;
+								off[0] = dx * vox[0];
+								off[1] = dy * vox[1];
+								off[2] = dz * vox[2];
+								final double len = Math.sqrt(SteerableLineFilter.dot(off, off));
+								if(Math.abs(SteerableLineFilter.dot(off, dir)) > 0.5 * len)
+									continue;
+								if(sal[((z + dz) * dim[1] + y + dy) * dim[0] + x + dx] > val)
+								{
+									bMax = false;
+									break;
+								}
+							}
+					if(!bMax)
+						continue;
+					//ahead and orientation
+					double dAhead = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						dAhead += (pos[d] - p0[d]) * dirAhead[d];
+					}
+					double cs = SteerableLineFilter.dot(dir, dirAhead);
+					final double sign = cs < 0 ? -1.0 : 1.0;
+					cs = Math.abs(cs);
+					if(dAhead < dMinAhead || cs < dMinCos)
+					{
+						if(rejectedOut != null)
+						{
+							rejectedOut.add(pos.clone());
+						}
+						continue;
+					}
+					out.add(new double [] {pos[0], pos[1], pos[2], dOff, cs, sign * dir[0], sign * dir[1], sign * dir[2]});
+				}
 		return out;
 	}
 
@@ -642,8 +932,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return out;
 	}
 
-	/** debug visualization: extrapolated heading (up to the target cross-section), target with its direction,
-	 * passage curve (bTarget false: only the heading up to the last searched cross-section) **/
+	/** debug visualization: extrapolated heading (up to the target cross-section or the coasting end), 
+	 * target with its direction, passage curve and the curves to the other candidates, 
+	 * the cross-section with candidates and rejected maxima, the end of the map coasting
+	 * (bTarget false: no target, curves) **/
 	void visDebugPlan(final boolean bTarget)
 	{
 		if(!jh.isVisDebug())
@@ -654,18 +946,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			hEnd[d] = p0[d] + dTargetDist * t0[d];
 		}
 		ArrayList<double[]> curveFull = null;
+		final ArrayList<ArrayList<double[]>> altFull = new ArrayList<>();
 		double [] tgtA = null;
 		double [] tgtB = null;
 		if(bTarget)
 		{
-			curveFull = new ArrayList<>();
 			//every ~half SD along the curve
 			final int nStride = Math.max(1, (int) Math.round(0.5 * dLenSD / Math.max(curveS[1] - curveS[0], 1e-12)));
-			for (int k = 0; k < curve.length; k += nStride)
-			{
-				curveFull.add(physToFull(curve[k]));
-			}
-			curveFull.add(physToFull(curve[curve.length - 1]));
+			curveFull = curveToFull(curve, nStride);
 			final double [] a = new double[3];
 			final double [] b = new double[3];
 			for (int d = 0; d < 3; d++)
@@ -675,6 +963,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			}
 			tgtA = physToFull(a);
 			tgtB = physToFull(b);
+			for(final double [][] alt : altCurves)
+			{
+				altFull.add(curveToFull(alt, nStride));
+			}
 		}
 		//cross-section: outline of the searched region (offset = dTargetMaxOffsetSD SDs, an ellipse in the plane),
 		//accepted candidates and rejected saliency maxima
@@ -696,7 +988,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					w[d] = Math.cos(phi) * secU[d] + Math.sin(phi) * secV[d];
 					dNorm += (w[d] / sd[d]) * (w[d] / sd[d]);
 				}
-				final double r = dTargetMaxOffsetSD / Math.sqrt(dNorm);
+				final double r = secRadiusSD / Math.sqrt(dNorm);
 				for (int d = 0; d < 3; d++)
 				{
 					x[d] = secCenter[d] + r * w[d];
@@ -712,6 +1004,19 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				rejFull.add(physToFull(c));
 			}
 		}
-		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull);
+		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull,
+				altFull, coastEnd != null ? physToFull(coastEnd) : null);
+	}
+
+	/** every nStride-th point of a dense curve (and its last one) in full resolution voxel coordinates **/
+	ArrayList<double[]> curveToFull(final double [][] c, final int nStride)
+	{
+		final ArrayList<double[]> out = new ArrayList<>();
+		for (int k = 0; k < c.length; k += nStride)
+		{
+			out.add(physToFull(c[k]));
+		}
+		out.add(physToFull(c[c.length - 1]));
+		return out;
 	}
 }
