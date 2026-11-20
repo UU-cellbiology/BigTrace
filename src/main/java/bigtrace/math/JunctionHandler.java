@@ -209,6 +209,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(bJunction)
 		{
 			final int nPassage = planPassage(currpoint, raInput);
+			if(oc.bt.bOCVisDebugEnabled)
+			{
+				System.out.println("Junction found at " + currpoint.toString());
+			}
 			if(nPassage == PASSAGE_OK)
 			{
 				stepPoint = passageQueue.poll();
