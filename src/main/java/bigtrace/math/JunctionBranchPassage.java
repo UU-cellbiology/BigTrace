@@ -95,6 +95,21 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** tangent at the end of the followed passage **/
 	final double [] tEnd = new double[3];
 
+	//---------- debug visualization: the cross-section of the target (or the last one searched)
+
+	/** center of the cross-section (physical), null if none was searched **/
+	double [] secCenter = null;
+
+	/** basis of the cross-section plane **/
+	final double [] secU = new double[3];
+	final double [] secV = new double[3];
+
+	/** accepted candidates (positions, physical) in the cross-section **/
+	final ArrayList<double[]> secCandidates = new ArrayList<>();
+
+	/** saliency maxima in the cross-section rejected by saliency or orientation (positions, physical) **/
+	final ArrayList<double[]> secRejected = new ArrayList<>();
+
 	JunctionBranchPassage(final JunctionHandler<T> jh_)
 	{
 		jh = jh_;
@@ -366,16 +381,32 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final double [] v = new double[3];
 		SteerableLineFilter.crossSectionBasis(t0, u, v);
 		final double [] c0 = new double[3];
+		secCenter = null;
+		secCandidates.clear();
+		secRejected.clear();
+		final ArrayList<double[]> rejected = new ArrayList<>();
 		for (double dDist = dSearchStartSD; dDist <= dSearchMaxSD + 1e-6; dDist += dSearchStepSD)
 		{
 			for (int d = 0; d < 3; d++)
 			{
 				c0[d] = p0[d] + dDist * dLenSD * t0[d];
 			}
-			dTargetDist = dDist * dLenSD;
 			if(!insideBox(c0))
 				break;
-			final ArrayList<double[]> cands = ridgesInSection(c0, t0, u, v, dTargetMaxOffsetSD, dMinSal);
+			dTargetDist = dDist * dLenSD;
+			rejected.clear();
+			final ArrayList<double[]> cands = ridgesInSection(c0, t0, u, v, dTargetMaxOffsetSD, dMinSal, rejected);
+			//(debug visualization) this cross-section
+			secCenter = c0.clone();
+			System.arraycopy(u, 0, secU, 0, 3);
+			System.arraycopy(v, 0, secV, 0, 3);
+			secCandidates.clear();
+			for(final double [] c : cands)
+			{
+				secCandidates.add(new double [] {c[0], c[1], c[2]});
+			}
+			secRejected.clear();
+			secRejected.addAll(rejected);
 			double dBestCost = Double.MAX_VALUE;
 			for(final double [] c : cands)
 			{
@@ -415,6 +446,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * line direction oriented along t (3, physical) **/
 	ArrayList<double[]> ridgesInSection(final double [] c0, final double [] t, final double [] u, final double [] v,
 			final double dMaxOffsetSD, final double dMinSal)
+	{
+		return ridgesInSection(c0, t, u, v, dMaxOffsetSD, dMinSal, null);
+	}
+
+	/** as ridgesInSection above; rejectedOut (may be null) gets positions (physical) of the local maxima 
+	 * within dMaxOffsetSD rejected by saliency (below dMinSal) or orientation **/
+	ArrayList<double[]> ridgesInSection(final double [] c0, final double [] t, final double [] u, final double [] v,
+			final double dMaxOffsetSD, final double dMinSal, final ArrayList<double[]> rejectedOut)
 	{
 		final ArrayList<double[]> out = new ArrayList<>();
 		double dMaxSD = 0;
@@ -459,7 +498,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			for (int j = 1; j < nW - 1; j++)
 			{
 				final double val = sal[i][j];
-				if(!(val >= dMinSal) || val <= 0 || off[i][j] > dMaxOffsetSD)
+				if(!(val > 0) || off[i][j] > dMaxOffsetSD || (rejectedOut == null && val < dMinSal))
 					continue;
 				boolean bMax = true;
 				for (int di = -1; di <= 1 && bMax; di++)
@@ -482,6 +521,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					x[d] = c0[d] + a * u[d] + b * v[d];
 					xg[d] = x[d] / vox[d];
 				}
+				if(val < dMinSal)
+				{
+					rejectedOut.add(x.clone());
+					continue;
+				}
 				jh.box.hessBox.saliencyAt(xg, vecGrid);
 				final double [] dir = oc.gridToPhysDir(vecGrid);
 				double cs = SteerableLineFilter.dot(dir, t);
@@ -494,7 +538,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					}
 				}
 				if(cs < oc.dAngleThreshold)
+				{
+					if(rejectedOut != null)
+					{
+						rejectedOut.add(x.clone());
+					}
 					continue;
+				}
 				out.add(new double [] {x[0], x[1], x[2], off[i][j], cs, dir[0], dir[1], dir[2]});
 			}
 		}
@@ -626,6 +676,42 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			tgtA = physToFull(a);
 			tgtB = physToFull(b);
 		}
-		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB);
+		//cross-section: outline of the searched region (offset = dTargetMaxOffsetSD SDs, an ellipse in the plane),
+		//accepted candidates and rejected saliency maxima
+		ArrayList<double[]> sectionFull = null;
+		final ArrayList<double[]> candFull = new ArrayList<>();
+		final ArrayList<double[]> rejFull = new ArrayList<>();
+		if(secCenter != null)
+		{
+			sectionFull = new ArrayList<>();
+			final int nOutline = 48;
+			final double [] w = new double[3];
+			final double [] x = new double[3];
+			for (int k = 0; k < nOutline; k++)
+			{
+				final double phi = 2.0 * Math.PI * k / nOutline;
+				double dNorm = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					w[d] = Math.cos(phi) * secU[d] + Math.sin(phi) * secV[d];
+					dNorm += (w[d] / sd[d]) * (w[d] / sd[d]);
+				}
+				final double r = dTargetMaxOffsetSD / Math.sqrt(dNorm);
+				for (int d = 0; d < 3; d++)
+				{
+					x[d] = secCenter[d] + r * w[d];
+				}
+				sectionFull.add(physToFull(x));
+			}
+			for(final double [] c : secCandidates)
+			{
+				candFull.add(physToFull(c));
+			}
+			for(final double [] c : secRejected)
+			{
+				rejFull.add(physToFull(c));
+			}
+		}
+		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull);
 	}
 }

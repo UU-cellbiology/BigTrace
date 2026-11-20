@@ -14,6 +14,7 @@ import org.joml.Matrix4fc;
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
 import bigtrace.gui.BCsettings;
+import bigtrace.rois.Roi3D;
 import bigtrace.scene.VisCone;
 import bigtrace.scene.VisLineAndPoints;
 import bigtrace.scene.VisPointsScaled;
@@ -41,7 +42,10 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
  * Branch-first junction passage (JunctionBranchPassage): the junction box saliency is shown instead of the map,
  * polylines.get(POLY_BRANCH_HEADING) is the extrapolated heading (up to the cross-section of the target),
  * polylines.get(POLY_BRANCH_TARGET) the target with its line direction (+-1 SD), 
- * polylines.get(POLY_BRANCH_PATH) the planned passage curve. They stay while the passage is traced.
+ * polylines.get(POLY_BRANCH_PATH) the planned passage curve,
+ * polygons.get(POLYGON_BRANCH_SECTION) the searched region of the cross-section with the target (or the last searched one),
+ * points.get(POINTS_BRANCH_CANDIDATES) the candidates found there, points.get(POINTS_BRANCH_REJECTED) the saliency maxima
+ * rejected there (saliency below the threshold or orientation outside the constrain). They stay while the passage is traced.
  * Updates come from the tracing thread, drawing from the render thread: both are synchronized.
  * BVV sources are added/removed on the event dispatch thread. **/
 public class OCVisDebug
@@ -89,6 +93,27 @@ public class OCVisDebug
 	
 	/** visibility of polylines (same indices) **/
 	final boolean [] bPolylineVisible = new boolean[N_POLYLINES];
+	
+	/** index in polygons: branch-first passage, searched region of the cross-section with the target **/
+	public static final int POLYGON_BRANCH_SECTION = 0;
+	
+	/** number of polygons **/
+	static final int N_POLYGONS = 1;
+	
+	/** visibility of polygons (same indices) **/
+	final boolean [] bPolygonVisible = new boolean[N_POLYGONS];
+	
+	/** index in points: branch-first passage, candidates (possible branches) in the cross-section **/
+	public static final int POINTS_BRANCH_CANDIDATES = 0;
+	
+	/** index in points: branch-first passage, rejected saliency maxima in the cross-section **/
+	public static final int POINTS_BRANCH_REJECTED = 1;
+	
+	/** number of point sets **/
+	static final int N_POINTS = 2;
+	
+	/** visibility of point sets (same indices) **/
+	final boolean [] bPointsVisible = new boolean[N_POINTS];
 
 	//int nConeSurfaceRender = BigTraceData.SURFACE_SHADE;
 
@@ -115,6 +140,16 @@ public class OCVisDebug
 	
 	/** pause when the branch-first plan is shown (ms); 0 = no pause **/
 	public int nBranchPlanDelayMs = 1500;
+	
+	/** color, line thickness and render type (Roi3D.OUTLINE, WIRE, SURFACE) of the branch-first cross-section **/
+	public Color colorBranchSection = new Color(100, 180, 255);
+	public float fSectionThickness = 2.0f;
+	public int nSectionRenderType = Roi3D.WIRE;
+	
+	/** colors and size (in smallest voxel sizes) of the branch-first candidates (filled) and rejected maxima (rings) **/
+	public Color colorBranchCandidates = Color.YELLOW;
+	public Color colorBranchRejected = Color.GRAY;
+	public float fBranchPointSize = 6.0f;
 	
 	/** thickness of the debug lines **/
 	public float fLineThickness = 3.0f;
@@ -181,6 +216,28 @@ public class OCVisDebug
 		}
 		cones.get(CONE_LAST).setColor(colorLast);
 		cones.get(CONE_HISTORY).setColor(colorHistory);
+		for(int i = 0; i < N_POLYGONS; i++)
+		{
+			final VisPolygonFlat polygon = new VisPolygonFlat(bt.btData);
+			polygon.setRenderType(nSectionRenderType);
+			polygon.setThickness(fSectionThickness);
+			polygon.setColor(colorBranchSection);
+			polygons.add(polygon);
+			bPolygonVisible[i] = false;
+		}
+		for(int i = 0; i < N_POINTS; i++)
+		{
+			final VisPointsScaled pts = new VisPointsScaled();
+			pts.bLastSquared = false;
+			pts.setSize(fBranchPointSize);
+			pts.setRenderType(Roi3D.WIRE);
+			points.add(pts);
+			bPointsVisible[i] = false;
+		}
+		//candidates: filled disks, rejected maxima: rings
+		points.get(POINTS_BRANCH_CANDIDATES).setColor(colorBranchCandidates);
+		points.get(POINTS_BRANCH_CANDIDATES).setRenderType(Roi3D.SURFACE);
+		points.get(POINTS_BRANCH_REJECTED).setColor(colorBranchRejected);
 		initialized = true;
 	}
 
@@ -192,6 +249,14 @@ public class OCVisDebug
 			cone.bVisible = false;
 		}
 		hidePolylines();
+		for(int i = 0; i < bPolygonVisible.length; i++)
+		{
+			bPolygonVisible[i] = false;
+		}
+		for(int i = 0; i < bPointsVisible.length; i++)
+		{
+			bPointsVisible[i] = false;
+		}
 		bBridgeJustShown = false;
 	}
 	
@@ -211,18 +276,22 @@ public class OCVisDebug
 		bPolylineVisible[POLY_BRIDGE_JUMP] = false;
 	}
 	
-	/** hides the branch-first passage lines **/
+	/** hides the branch-first passage lines, cross-section and points **/
 	synchronized void hideBranchLines()
 	{
 		bPolylineVisible[POLY_BRANCH_HEADING] = false;
 		bPolylineVisible[POLY_BRANCH_TARGET] = false;
 		bPolylineVisible[POLY_BRANCH_PATH] = false;
+		bPolygonVisible[POLYGON_BRANCH_SECTION] = false;
+		bPointsVisible[POINTS_BRANCH_CANDIDATES] = false;
+		bPointsVisible[POINTS_BRANCH_REJECTED] = false;
 	}
 	
-	/** true if a branch-first line is shown **/
+	/** true if a branch-first line (or cross-section, points) is shown **/
 	synchronized boolean isBranchShown()
 	{
-		return bPolylineVisible[POLY_BRANCH_HEADING] || bPolylineVisible[POLY_BRANCH_TARGET] || bPolylineVisible[POLY_BRANCH_PATH];
+		return bPolylineVisible[POLY_BRANCH_HEADING] || bPolylineVisible[POLY_BRANCH_TARGET] || bPolylineVisible[POLY_BRANCH_PATH]
+				|| bPolygonVisible[POLYGON_BRANCH_SECTION] || bPointsVisible[POINTS_BRANCH_CANDIDATES] || bPointsVisible[POINTS_BRANCH_REJECTED];
 	}
 	
 	/**
@@ -232,9 +301,14 @@ public class OCVisDebug
 	 * @param curveVoxel planned passage curve; null = no target found
 	 * @param targetA target - 1 SD along its direction (null = no target)
 	 * @param targetB target + 1 SD along its direction
+	 * @param sectionVoxel outline of the searched region in the cross-section of the target 
+	 * (or the last searched one); null = none
+	 * @param candidatesVoxel candidates (possible branches) in that cross-section
+	 * @param rejectedVoxel saliency maxima rejected there (saliency or orientation)
 	 */
 	public void showBranchPlan(final double [] entryVoxel, final double [] headingEndVoxel, final ArrayList<double[]> curveVoxel,
-			final double [] targetA, final double [] targetB)
+			final double [] targetA, final double [] targetB, final ArrayList<double[]> sectionVoxel,
+			final ArrayList<double[]> candidatesVoxel, final ArrayList<double[]> rejectedVoxel)
 	{
 		synchronized(this)
 		{
@@ -246,12 +320,7 @@ public class OCVisDebug
 			if(curveVoxel != null && targetA != null)
 			{
 				setLine(POLY_BRANCH_TARGET, targetA, targetB);
-				final ArrayList<RealPoint> points = new ArrayList<>();
-				for(final double [] p : curveVoxel)
-				{
-					points.add(new RealPoint(p));
-				}
-				polylines.get(POLY_BRANCH_PATH).setVertices(points);
+				polylines.get(POLY_BRANCH_PATH).setVertices(toRealPoints(curveVoxel));
 				bPolylineVisible[POLY_BRANCH_PATH] = true;
 			}
 			else
@@ -259,11 +328,48 @@ public class OCVisDebug
 				bPolylineVisible[POLY_BRANCH_TARGET] = false;
 				bPolylineVisible[POLY_BRANCH_PATH] = false;
 			}
+			//cross-section
+			if(sectionVoxel != null && sectionVoxel.size() >= 3)
+			{
+				final VisPolygonFlat polygon = polygons.get(POLYGON_BRANCH_SECTION);
+				polygon.setRenderType(nSectionRenderType);
+				polygon.setVertices(toRealPoints(sectionVoxel));
+				bPolygonVisible[POLYGON_BRANCH_SECTION] = true;
+			}
+			else
+			{
+				bPolygonVisible[POLYGON_BRANCH_SECTION] = false;
+			}
+			setPoints(POINTS_BRANCH_CANDIDATES, candidatesVoxel);
+			setPoints(POINTS_BRANCH_REJECTED, rejectedVoxel);
 			//kept for the step of the junction (as the map)
 			bMapJustShown = true;
 		}
 		bt.repaintBVV();
 		sleep(nBranchPlanDelayMs);
+	}
+	
+	/** point set nIndex: the points (voxel coordinates), visible if there are any **/
+	void setPoints(final int nIndex, final ArrayList<double[]> pointsVoxel)
+	{
+		if(pointsVoxel == null || pointsVoxel.isEmpty())
+		{
+			bPointsVisible[nIndex] = false;
+			return;
+		}
+		points.get(nIndex).setVertices(toRealPoints(pointsVoxel));
+		bPointsVisible[nIndex] = true;
+	}
+	
+	/** double [] positions to RealPoints **/
+	static ArrayList<RealPoint> toRealPoints(final ArrayList<double[]> in)
+	{
+		final ArrayList<RealPoint> out = new ArrayList<>();
+		for(final double [] p : in)
+		{
+			out.add(new RealPoint(p));
+		}
+		return out;
 	}
 	
 	/**
@@ -530,14 +636,20 @@ public class OCVisDebug
 
 		if(!bWeightedOIT)
 		{
-			for(final VisPolygonFlat polygone: polygons)
+			for(int i = 0; i < polygons.size(); i++)
 			{
-					polygone.draw( gl, pvm, bt.btData, bWeightedOIT );				
+				if(i >= bPolygonVisible.length || bPolygonVisible[i])
+				{
+					polygons.get(i).draw( gl, pvm, bt.btData, bWeightedOIT );
+				}
 			}
 			
-			for(final VisPointsScaled point: points)
+			for(int i = 0; i < points.size(); i++)
 			{
-				point.draw( gl, pvm, screen_size, bt.btData, bWeightedOIT );		
+				if(i >= bPointsVisible.length || bPointsVisible[i])
+				{
+					points.get(i).draw( gl, pvm, screen_size, bt.btData, bWeightedOIT );
+				}
 			}
 			
 			for(int i = 0; i < polylines.size(); i++)

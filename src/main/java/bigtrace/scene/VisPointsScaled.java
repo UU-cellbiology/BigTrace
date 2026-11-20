@@ -52,6 +52,8 @@ public class VisPointsScaled
 	private int nPointsN;
 	
 	private boolean initialized;
+	
+	public boolean bLastSquared = true;
 
 	public VisPointsScaled()
 	{
@@ -272,8 +274,11 @@ public class VisPointsScaled
 		else
 		{
 			gl.glDrawArrays( GL.GL_POINTS, 0, nPointsN);
-			progSquare.use( context );
-			gl.glDrawArrays( GL.GL_POINTS, nPointsN - 1, 1);
+			if(bLastSquared)
+			{
+				progSquare.use( context );
+				gl.glDrawArrays( GL.GL_POINTS, nPointsN - 1, 1);
+			}
 		}
 		gl.glBindVertexArray( 0 );
 	}
