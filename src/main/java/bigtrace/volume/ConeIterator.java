@@ -1,4 +1,4 @@
-package debug;
+package bigtrace.volume;
 
 import net.imglib2.util.LinAlgHelpers;
 
