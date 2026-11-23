@@ -19,26 +19,6 @@ public class SteerableLineFilter
 		return -0.5 * (h[0] + h[3] + h[5] - eHe) - Math.abs(eHe);
 	}
 
-	/** orthonormal basis (u,v) of the plane perpendicular to the unit direction dir **/
-	public static void crossSectionBasis(final double [] dir, final double [] u, final double [] v)
-	{
-		//pick the axis least aligned with dir
-		int nMinAxis = 0;
-		for (int d = 1; d < 3; d++)
-		{
-			if(Math.abs(dir[d]) < Math.abs(dir[nMinAxis]))
-			{
-				nMinAxis = d;
-			}
-		}
-		final double [] axis = new double[3];
-		axis[nMinAxis] = 1.0;
-		LinAlgHelpers.cross(dir, axis, u);
-		LinAlgHelpers.normalize(u);
-		LinAlgHelpers.cross(dir, u, v);
-		LinAlgHelpers.normalize(v);
-	}
-
 	/** trilinear interpolation in a float array holding 3D volumes (x fastest),
 	 * of the volume starting at nOffset, at the local continuous position xl.
 	 * Returns NaN outside of [0, dims-1] **/

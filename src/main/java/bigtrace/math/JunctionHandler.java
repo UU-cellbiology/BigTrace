@@ -9,6 +9,8 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
 
+import bigtrace.geometry.Pipe3D;
+
 /** Junction (crossing) handling of OneClickTrace (OneClickTrace.bJunctions, uses its momentum direction as heading):
  * - detection of a junction ahead (orientation coherence along the momentum, with hysteresis);
  * - planned junction passage: coasting along the elongated steerable line filter map
@@ -606,7 +608,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double [] p = toGrid(currpoint);
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(coastLineDir, u, v);
+		Pipe3D.crossSectionBasis(coastLineDir, u, v);
 		//step one grid voxel along e and re-center in the cross-section (sub-voxel)
 		final double [] q = new double[3];
 		for (int d = 0; d < 3; d++)
@@ -817,7 +819,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			return false;
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(coastLineDir, u, v);
+		Pipe3D.crossSectionBasis(coastLineDir, u, v);
 		final double r = dPassageClearFactor * dMaxSigmaGrid;
 		final double [] x = new double[3];
 		for (int k = 0; k < 5; k++)

@@ -10,6 +10,8 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
 
+import bigtrace.geometry.Pipe3D;
+
 /** "Branch-first" junction passage of one-click tracing (OneClickTrace.bJunctionBranchFirst).
  * The elongated line filter map used by the coasting (JunctionHandler) follows the strongest response,
  * so at a shallow crossing (or filaments overlapping in z) the trace goes onto the brighter branch.
@@ -296,7 +298,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		//(debug visualization: middle cross-section of the searched ellipsoid)
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(chord, u, v);
+		Pipe3D.crossSectionBasis(chord, u, v);
 		secCenter = endPhys.clone();
 		secRadiusSD = dRefineSD;
 		System.arraycopy(u, 0, secU, 0, 3);
@@ -628,7 +630,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(t0, u, v);
+		Pipe3D.crossSectionBasis(t0, u, v);
 		final double [] c0 = new double[3];
 		secRadiusSD = dTargetMaxOffsetSD;
 		final ArrayList<double[]> rejected = new ArrayList<>();
@@ -896,7 +898,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(t, u, v);
+		Pipe3D.crossSectionBasis(t, u, v);
 		final ArrayList<double[]> cands = ridgesInSection(p, t, u, v, dMaxOffsetSD, dMinSal);
 		double dBest = Double.MAX_VALUE;
 		for(final double [] c : cands)
@@ -922,7 +924,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(t, u, v);
+		Pipe3D.crossSectionBasis(t, u, v);
 		final ArrayList<double[]> cands = ridgesInSection(p, t, u, v, dMaxOffsetSD, dMinSal);
 		double dBest = Double.MAX_VALUE;
 		for(final double [] c : cands)

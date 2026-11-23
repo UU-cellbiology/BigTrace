@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 
 import bigtrace.BigTrace;
 import bigtrace.BigTraceData;
+import bigtrace.geometry.Pipe3D;
 import bigtrace.BigTraceBGTask;
 import bigtrace.volume.VolumeMisc;
 import bigtrace.rois.LineTrace3D;
@@ -1924,7 +1925,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] memGrid = physToGridDir(memDirectionVector);
 		final double [] u = new double[3];
 		final double [] v = new double[3];
-		SteerableLineFilter.crossSectionBasis(memGrid, u, v);
+		Pipe3D.crossSectionBasis(memGrid, u, v);
 
 		final long [] currGrid = new long[3];
 		for (int d = 0; d < 3; d++)

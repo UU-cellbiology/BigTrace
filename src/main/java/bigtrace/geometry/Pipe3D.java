@@ -204,27 +204,31 @@ public class Pipe3D {
 	
 	/** given initial tangent vector, builds another two of the frame,
 	 * trying to align them in the XYZ direction **/
-	public static double [][] getInitialFrame(double [] ini_tangent)
+	public static double [][] getInitialFrame(final double [] ini_tangent)
 	{
-		double [][] out  = new double [2][3];
+		final double [][] out  = new double [2][3];
 
-		//try to orient initial frame to XYZ
-		LinAlgHelpers.cross(ini_tangent, new double[] {0.0,0.0,1.0}, out[1]);
-		if(Math.abs(LinAlgHelpers.length(out[1])) < doublePrecision)
-		{
-			LinAlgHelpers.cross(new double[] {0.0,1.0,0.0}, ini_tangent, out[0]);
-			LinAlgHelpers.normalize(out[0]);
-			LinAlgHelpers.cross(out[0], ini_tangent, out[1]);
-			LinAlgHelpers.normalize(out[1]);
-		}
-		else
-		{
-			LinAlgHelpers.normalize(out[1]);
-			LinAlgHelpers.cross(out[1], ini_tangent, out[0]);
-			LinAlgHelpers.normalize(out[0]);
-		}
+		crossSectionBasis(ini_tangent, out[0], out[1]);
 
 		return out;
+	}
+	
+	/** orthonormal basis (u,v) of the plane perpendicular to the unit direction dir **/
+	public static void crossSectionBasis(final double [] dir, final double [] u, final double [] v)
+	{
+		//try to orient initial frame to XYZ
+		LinAlgHelpers.cross(dir, new double[] {0.0,0.0,1.0}, v);
+		if(Math.abs(LinAlgHelpers.length(v)) < doublePrecision)
+		{
+			LinAlgHelpers.cross(new double[] {0.0,1.0,0.0}, dir, u);
+			LinAlgHelpers.normalize(u);
+			LinAlgHelpers.cross(u, dir, v);
+			LinAlgHelpers.normalize(v);
+			return;
+		}
+		LinAlgHelpers.normalize(v);
+		LinAlgHelpers.cross(v, dir, u);
+		LinAlgHelpers.normalize(u);
 	}
 	
 	
