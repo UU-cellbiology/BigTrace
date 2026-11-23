@@ -4,56 +4,63 @@ import net.imglib2.util.LinAlgHelpers;
 
 public class ConeIterator
 {
-	final double []  vDirection;
+	/** normalized direction**/
+	final double [] vDirNorm;
+	/** position of the tip **/
 	final double [] vPosition;
+	/** angle at the tip **/
 	final double fConeAngle;
-	final double[] c;
+	/** cone height **/
 	final double h; 
+
+	final double[] c;
 	final double[] qConeSDF;
-	final double [] qRot;
+	final double[] w = new double[2];
+	
+	double along;
+	double radial;
 	
 	boolean bOnlySlanted = true;
 	
 	public ConeIterator(final double [] vDirection_, final double [] vPosition_, final double fConeAngle_)
 	{
+		h = LinAlgHelpers.length( vDirection_ );
 		fConeAngle = fConeAngle_ * 0.5;
-		vDirection = new double [3];
+		vDirNorm = new double [3];
 		vPosition = new double [3];
 		for(int d = 0; d < 3; d++)
 		{
-			vDirection[d] = vDirection_[d];
+			vDirNorm[d] = vDirection_[d];
 			vPosition[d] = vPosition_[d];			
 		}
 		c = new double[] {Math.sin( fConeAngle ), Math.cos( fConeAngle )};
-		h = LinAlgHelpers.length( vDirection );
+	
+		LinAlgHelpers.normalize( vDirNorm );
 		qConeSDF = new double []  { h * c[ 0 ] / c[ 1 ], -h };
-		double [] orientDef = new double [] {0,-1.0, 0};
-		qRot = rotationBetween(vDirection, orientDef);
+
 	}
 	
 	public boolean isOnTheCone(final double p [])
 	{
 		double [] pIn = new double [3];
-		for(int d = 0; d < 3; d++)
-		{
-			pIn[d] = p[d];
-		}
-		LinAlgHelpers.subtract( pIn, vPosition,  pIn );
 
-		LinAlgHelpers.quaternionApply( qRot, pIn, pIn);
+		LinAlgHelpers.subtract( p, vPosition,  pIn );
+
+		//LinAlgHelpers.quaternionApply( qRot, pIn, pIn);
 		if(Math.abs(sdCone(pIn)) < 0.5)
 			return true;
 		return false;
 	}
-	
+	/** modified from https://iquilezles.org/articles/distfunctions/ **/
 	double sdCone( final double[] p)
 	{
+		w[1] = (-1) * LinAlgHelpers.dot( p, vDirNorm ); //along
+		w[0] = Math.sqrt( Math.max( 0, LinAlgHelpers.squareLength( p) - w[1] * w[1] ) ); // radial
 
 		if(bOnlySlanted)
 		{
-			return udConeSide(p);
+			return udConeSide();
 		}
-		final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
 
 		final double[] a = new double[ 2 ];
 		LinAlgHelpers.scale( qConeSDF, clamp( LinAlgHelpers.dot( w, qConeSDF ) / LinAlgHelpers.squareLength( qConeSDF ), 0.0, 1.0 ), a );
@@ -73,9 +80,10 @@ public class ConeIterator
 	}
 	
 	/** unsigned distance to the lateral surface of the cone (no base cap) **/
-	double udConeSide( final double[] p )
+	double udConeSide( )
 	{
-		final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
+
+		//final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
 		final double t = clamp( LinAlgHelpers.dot( w, qConeSDF ) / LinAlgHelpers.squareLength( qConeSDF ), 0.0, 1.0 );
 		final double dx = w[ 0 ] - qConeSDF[ 0 ] * t;
 		final double dy = w[ 1 ] - qConeSDF[ 1 ] * t;

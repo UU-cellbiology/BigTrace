@@ -5,17 +5,12 @@ import java.awt.Color;
 import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.LinAlgHelpers;
 
 import org.joml.Matrix4f;
 
 import bigtrace.BigTrace;
-import bigtrace.BigTraceData;
 import bigtrace.scene.VisCone;
 import bvvpg.core.VolumeViewerPanel;
 import bvvpg.core.util.MatrixMath;
@@ -69,6 +64,7 @@ public class DebugConeSampling
 		
 		final BvvSource source = BvvFunctions.show( showRAI, "CONE" );
 		source.setDisplayRange( 0, 255 );
+		//source.setVoxelRenderInterpolation( 0 );
 		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
 		
 		
