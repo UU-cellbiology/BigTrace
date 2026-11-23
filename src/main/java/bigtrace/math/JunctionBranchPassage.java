@@ -30,11 +30,14 @@ import bigtrace.volume.ConeCursor;
  *    crosses the cross-section obliquely) and offset <= dTargetMaxOffsetSD tracing SDs
  *    (Mahalanobis, per axis) from the extrapolated point are candidates (in the first cross-section with any;
  *    if there is none up to dSearchMaxSD, going back from dSearchStartSD towards dSearchMinSD);
- * 3) a cubic Hermite curve from the current point (heading) to each candidate (its orientation) is planned,
+ * 3) a cubic Hermite curve from the current point (heading) to each candidate is planned; its end direction 
+ *    is fitted along the candidate's ridge (followed dT1FitSD each way, ridgeDirection), not the eigenvector at 
+ *    the candidate alone (biased near the junction or a gap end),
  *    the target is the candidate whose curve turns the least in total (sum of the turning angles along it),
  *    e.g. a parallel filament nearby needs an S-shaped curve and turns more than the traced one;
  * 4) passage: the curve to the target is followed
- *    step by step: in each cross-section the saliency maximum (within dFollowSD SDs of the curve) closest to the curve
+ *    step by step: in each cross-section the saliency maximum (within dFollowSD SDs of the curve, orientation within
+ *    dFollowMinCos of the curve) closest to the curve
  *    shifted by the current offset of the followed ridge from it (continuity: it does not switch between maxima)
  *    is taken; only points moving forward, at least dMinPointSpacing apart, are added;
  *    with none the step is "blind" on the curve; more than dMaxBlindSD of blind steps in a row: passage lost.
@@ -98,6 +101,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** while following the passage curve: maximum offset of the ridge from it (tracing SDs, per axis) **/
 	double dFollowSD = 1.5;
 
+	/** while following the passage curve (and the target's ridge for t1): minimum |cos| between the ridge 
+	 * direction and the curve direction (looser than the directionality constrain: the filament can bend
+	 * more sharply than the curve, e.g. a short S-bend right after the junction; the continuity of the offset 
+	 * keeps it on the same ridge) **/
+	double dFollowMinCos = 0.5;
+
 	/** minimum distance between successive passage points (full resolution voxels) **/
 	double dMinPointSpacing = 0.5;
 
@@ -114,6 +123,21 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** cone search: candidates closer than this (tracing SDs, per axis) to a stronger one are merged
 	 * (a filament crosses the cone surface over several voxels) **/
 	double dCandidateMergeSD = 1.5;
+
+	/** cone search: a saliency maximum on the cone surface is snapped to the ridge centre within this radius
+	 * (tracing SDs, per axis) in the cross-section perpendicular to its line direction **/
+	double dConeSnapSD = 1.0;
+
+	/** end direction of the passage curve (t1): the target's ridge is followed this far each way (tracing SDs)
+	 * and the direction is fitted to it (the eigenvector at a single point is biased near a junction or a gap);
+	 * 0 = the eigenvector at the target **/
+	double dT1FitSD = 1.5;
+
+	/** while following the target's ridge for t1: maximum offset from the predicted point (tracing SDs, per axis) **/
+	double dT1FollowSD = 1.0;
+
+	/** (debug) change of t1 of the chosen target by the ridge fit (degrees) **/
+	double dT1FitDeg = 0;
 
 	/** bending cone of the last computeBendCone (physical): apex (end of the straight heading), 
 	 * vector from the apex to the base center, full opening angle (0 = no bending), 
@@ -267,11 +291,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			return GEO_NOTARGET;
 		}
 		//3) curves to the candidates, the least turning one
-		chooseLeastTurning(cands);
+		chooseLeastTurning(cands, dMinSal);
 		final String sMode = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_BOTH) ? 
 				String.format("cone %.0f SD + section %.0f SD", dConeDist / dLenSD, dTargetDist / dLenSD) 
 				: (bConeSearch ? String.format("cone %.0f SD", dConeDist / dLenSD) : String.format("section %.0f SD", dTargetDist / dLenSD));
-		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s), chosen turns %.0f deg", sMode, altCurves.size() + 1, dChosenTurnDeg));
+		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s), chosen turns %.0f deg, end direction fit %.0f deg", 
+				sMode, altCurves.size() + 1, dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 
 		//4) follow the curve
@@ -359,6 +384,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			if(best == null || c[3] < best[3])
 				best = c;
 		}
+		dT1FitDeg = fitCandidateDirection(best, dMinSal);
 		for (int d = 0; d < 3; d++)
 		{
 			p1[d] = best[d];
@@ -366,7 +392,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		buildCurve();
 		dChosenTurnDeg = Math.toDegrees(totalTurning(curve));
-		jh.visDebugMessage(String.format("map coasting: end refined (%.1f SD), passage turns %.0f deg", best[3], dChosenTurnDeg));
+		jh.visDebugMessage(String.format("map coasting: end refined (%.1f SD), passage turns %.0f deg, end direction fit %.0f deg", 
+				best[3], dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 		return follow(raInput, outPath, dMinSal, "map coasting");
 	}
@@ -405,7 +432,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				pPred[d] = p[d] + off[d];
 			}
-			if(nearestRidge(p, t, dFollowSD, dMinSal, pPred, q))
+			if(nearestRidge(p, t, dFollowSD, dMinSal, dFollowMinCos, pPred, q))
 			{
 				bLastOk = true;
 				dBlind = 0;
@@ -470,8 +497,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** plans the curves to the candidates (up to nMaxPlanned with the lowest cost), the target (p1, t1, curve)
-	 * is the one turning the least; the other curves are kept for the debug visualization **/
-	void chooseLeastTurning(final ArrayList<double[]> cands)
+	 * is the one turning the least; the other curves are kept for the debug visualization.
+	 * The end direction of each curve is fitted along the candidate's ridge (fitCandidateDirection) **/
+	void chooseLeastTurning(final ArrayList<double[]> cands, final double dMinSal)
 	{
 		//candidate: position (3), offset (1), |cos| (1), oriented direction (3); order by cost
 		cands.sort((a, b) -> Double.compare(a[3] + dTargetAngleWeight * (1.0 - a[4]), b[3] + dTargetAngleWeight * (1.0 - b[4])));
@@ -479,10 +507,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final ArrayList<double[][]> curves = new ArrayList<>();
 		final ArrayList<double[]> curvesS = new ArrayList<>();
 		final ArrayList<Double> turns = new ArrayList<>();
+		final double [] fitDeg = new double[nPlan];
 		int nBest = 0;
 		for (int i = 0; i < nPlan; i++)
 		{
 			final double [] c = cands.get(i);
+			fitDeg[i] = fitCandidateDirection(c, dMinSal);
 			for (int d = 0; d < 3; d++)
 			{
 				p1[d] = c[d];
@@ -505,6 +535,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		curve = curves.get(nBest);
 		curveS = curvesS.get(nBest);
 		dChosenTurnDeg = Math.toDegrees(turns.get(nBest));
+		dT1FitDeg = fitDeg[nBest];
 		altCurves.clear();
 		altTurnDeg.clear();
 		for (int i = 0; i < nPlan; i++)
@@ -756,11 +787,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** Candidates on the surface (shell) of the current bending cone (computeBendCone), voxels of the junction box 
-	 * visited by ConeCursor: ridge centres (saliency >= dMinSal and a maximum across their own line direction among
-	 * the 26 neighbours, as in ridgesInVicinity) with |cos| of the line direction vs the heading >= dCandidateMinCos; 
-	 * of those closer than dCandidateMergeSD the strongest one is kept. Each: position (3, physical), 
-	 * offset from the cone apex (SDs), |cos|, line direction oriented along the heading (3), saliency.
-	 * rejectedOut (may be null) gets positions of the ridge centres with the orientation outside the limit.
+	 * visited by ConeCursor. A filament crossing the surface leaves a slice (blob, or a stripe if it crosses obliquely)
+	 * of saliency on it: its maximum within the surface (saliency >= dMinSal, no stronger shell voxel closer than 
+	 * dCandidateMergeSD) is snapped to the ridge centre (nearestRidge within dConeSnapSD, cross-section perpendicular
+	 * to its line direction; the thin shell mostly misses the centre itself), then |cos| of the line direction
+	 * at the centre vs the heading >= dCandidateMinCos; maxima snapped to the same ridge are merged. 
+	 * Each: position (3, physical), offset from the cone apex (SDs), |cos|, line direction oriented along 
+	 * the heading (3), saliency. rejectedOut (may be null) gets positions of the maxima not snapped to a ridge
+	 * or with the orientation outside the limit.
 	 * Without bending (zero opening angle) the cross-section at the apex is used. **/
 	ArrayList<double[]> ridgesOnCone(final double dMinSal, final ArrayList<double[]> rejectedOut)
 	{
@@ -784,11 +818,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		final ConeCursor<FloatType> cc = new ConeCursor<>(ra, coneApex, coneAxis, coneFullAngle, vox, 
 				new FinalRealInterval(bbMin, bbMax), true, 0.5 * dMaxVox);
-		//saliency and direction (physical) per grid voxel, cached (neighbours are shared)
+		//1) shell voxels above the saliency threshold: slices of the filaments crossing the surface
+		//(the shell is thin, the ridge centre itself is mostly off it, so no 3D ridge centre test here)
 		final HashMap<Long, double[]> cache = new HashMap<>();
-		final ArrayList<double[]> ridges = new ArrayList<>();
+		final ArrayList<double[]> shell = new ArrayList<>();
 		final long [] g = new long[3];
-		final double [] off = new double[3];
 		while(cc.hasNext())
 		{
 			cc.fwd();
@@ -800,34 +834,27 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			final double val = e[0];
 			if(!(val >= dMinSal) || val <= 0)
 				continue;
-			final double [] dir = new double [] {e[1], e[2], e[3]};
-			//ridge centre: maximum across its own direction
-			boolean bMax = true;
-			for (int dz = -1; dz <= 1 && bMax; dz++)
-				for (int dy = -1; dy <= 1 && bMax; dy++)
-					for (int dx = -1; dx <= 1; dx++)
-					{
-						if(dx == 0 && dy == 0 && dz == 0)
-							continue;
-						off[0] = dx * vox[0];
-						off[1] = dy * vox[1];
-						off[2] = dz * vox[2];
-						final double len = Math.sqrt(LinAlgHelpers.dot(off, off));
-						if(Math.abs(LinAlgHelpers.dot(off, dir)) > 0.5 * len)
-							continue;
-						if(salAtVoxel(g[0] + dx, g[1] + dy, g[2] + dz, cache)[0] > val)
-						{
-							bMax = false;
-							break;
-						}
-					}
-			if(!bMax)
-				continue;
-			final double [] pos = new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2]};
-			double cs = LinAlgHelpers.dot(dir, t0);
-			final double sign = cs < 0 ? -1.0 : 1.0;
-			cs = Math.abs(cs);
-			if(cs < dCandidateMinCos)
+			shell.add(new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2], val, e[1], e[2], e[3]});
+		}
+		//2) maxima of the slices within the surface: the strongest, none stronger closer than dCandidateMergeSD
+		shell.sort((a, b) -> Double.compare(b[3], a[3]));
+		final ArrayList<double[]> maxima = new ArrayList<>();
+		for(final double [] s : shell)
+		{
+			if(!isCloseTo(s, maxima, dCandidateMergeSD))
+				maxima.add(s);
+		}
+		//3) each maximum snapped to the ridge centre (cross-section perpendicular to its line direction, within dConeSnapSD),
+		//orientation vs the heading at the ridge centre
+		final ArrayList<double[]> ridges = new ArrayList<>();
+		final double [] q = new double[3];
+		final double [] xg = new double[3];
+		final double [] vecGrid = new double[3];
+		for(final double [] m : maxima)
+		{
+			final double [] pos = new double [] {m[0], m[1], m[2]};
+			final double [] dirM = new double [] {m[4], m[5], m[6]};
+			if(!nearestRidge(pos, dirM, dConeSnapSD, dMinSal, q))
 			{
 				if(rejectedOut != null)
 				{
@@ -835,38 +862,187 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				}
 				continue;
 			}
+			for (int d = 0; d < 3; d++)
+			{
+				xg[d] = q[d] / vox[d];
+			}
+			final double val = jh.box.hessBox.saliencyAt(xg, vecGrid);
+			if(Double.isNaN(val))
+				continue;
+			final double [] dir = oc.gridToPhysDir(vecGrid);
+			double cs = LinAlgHelpers.dot(dir, t0);
+			final double sign = cs < 0 ? -1.0 : 1.0;
+			cs = Math.abs(cs);
+			if(cs < dCandidateMinCos)
+			{
+				if(rejectedOut != null)
+				{
+					rejectedOut.add(q.clone());
+				}
+				continue;
+			}
 			double dOff = 0;
 			for (int d = 0; d < 3; d++)
 			{
-				final double r = (pos[d] - coneApex[d]) / sd[d];
+				final double r = (q[d] - coneApex[d]) / sd[d];
 				dOff += r * r;
 			}
-			ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+			ridges.add(new double [] {q[0], q[1], q[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
 		}
-		//one per filament crossing the surface: the strongest of the close ones
+		//4) maxima snapped to the same ridge: the strongest one
 		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
 		final ArrayList<double[]> out = new ArrayList<>();
 		for(final double [] c : ridges)
 		{
-			boolean bClose = false;
-			for(final double [] o : out)
-			{
-				double dd = 0;
-				for (int d = 0; d < 3; d++)
-				{
-					final double r = (c[d] - o[d]) / sd[d];
-					dd += r * r;
-				}
-				if(dd < dCandidateMergeSD * dCandidateMergeSD)
-				{
-					bClose = true;
-					break;
-				}
-			}
-			if(!bClose)
+			if(!isCloseTo(c, out, dCandidateMergeSD))
 				out.add(c);
 		}
 		return out;
+	}
+
+	/** true if the point x (first 3 values, physical) is closer than dRadiusSD (tracing SDs, per axis)
+	 * to any of the points in list (first 3 values) **/
+	boolean isCloseTo(final double [] x, final ArrayList<double[]> list, final double dRadiusSD)
+	{
+		for(final double [] o : list)
+		{
+			double dd = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				final double r = (x[d] - o[d]) / sd[d];
+				dd += r * r;
+			}
+			if(dd < dRadiusSD * dRadiusSD)
+				return true;
+		}
+		return false;
+	}
+
+	/** Direction of the ridge at c (physical): the ridge is followed both ways from c (dT1FitSD each,
+	 * cross-sections perpendicular to the current direction every dStep, ridge closest to the predicted point
+	 * within dT1FollowSD, stops at a gap) and the principal axis of the ridge points (incl. c) is fitted.
+	 * Robust to the bias of the single eigenvector near a junction or a gap end.
+	 * dirInit: initial direction (unit, physical); the result (to out) is oriented along it.
+	 * Returns false (out not changed) if the ridge is too short (less than 3 points or 0.5 tracing SD extent). **/
+	boolean ridgeDirection(final double [] c, final double [] dirInit, final double dMinSal, final double [] out)
+	{
+		final ArrayList<double[]> pts = new ArrayList<>();
+		pts.add(c.clone());
+		final double [] p = new double[3];
+		final double [] t = new double[3];
+		final double [] pPred = new double[3];
+		final double [] q = new double[3];
+		final double dMaxS = dT1FitSD * dLenSD;
+		for (int side = 1; side >= -1; side -= 2)
+		{
+			System.arraycopy(c, 0, p, 0, 3);
+			for (int d = 0; d < 3; d++)
+			{
+				t[d] = side * dirInit[d];
+			}
+			for (double s = dStep; s <= dMaxS + 1e-9; s += dStep)
+			{
+				for (int d = 0; d < 3; d++)
+				{
+					pPred[d] = p[d] + dStep * t[d];
+				}
+				if(!insideBox(pPred) || !nearestRidge(pPred, t, dT1FollowSD, dMinSal, dFollowMinCos, pPred, q))
+					break;
+				pts.add(q.clone());
+				System.arraycopy(q, 0, p, 0, 3);
+				//direction: the chord from c (once long enough), smoother than the step
+				final double [] ch = new double[3];
+				for (int d = 0; d < 3; d++)
+				{
+					ch[d] = q[d] - c[d];
+				}
+				final double len = Math.sqrt(LinAlgHelpers.dot(ch, ch));
+				if(len > 0.5 * dLenSD && LinAlgHelpers.dot(ch, t) > 0)
+				{
+					for (int d = 0; d < 3; d++)
+					{
+						t[d] = ch[d] / len;
+					}
+				}
+			}
+		}
+		final int n = pts.size();
+		if(n < 3)
+			return false;
+		//principal axis: power iteration on the covariance, from dirInit
+		final double [] mean = new double[3];
+		for(final double [] x : pts)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				mean[d] += x[d] / n;
+			}
+		}
+		final double [][] cov = new double[3][3];
+		for(final double [] x : pts)
+		{
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 3; j++)
+				{
+					cov[i][j] += (x[i] - mean[i]) * (x[j] - mean[j]);
+				}
+		}
+		final double [] a = dirInit.clone();
+		final double [] b = new double[3];
+		for (int it = 0; it < 50; it++)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				b[i] = cov[i][0] * a[0] + cov[i][1] * a[1] + cov[i][2] * a[2];
+			}
+			final double len = Math.sqrt(LinAlgHelpers.dot(b, b));
+			if(!(len > 0))
+				return false;
+			for (int i = 0; i < 3; i++)
+			{
+				a[i] = b[i] / len;
+			}
+		}
+		//extent along the axis
+		double sMin = Double.MAX_VALUE;
+		double sMax = -Double.MAX_VALUE;
+		for(final double [] x : pts)
+		{
+			double s = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				s += (x[d] - mean[d]) * a[d];
+			}
+			sMin = Math.min(sMin, s);
+			sMax = Math.max(sMax, s);
+		}
+		if(sMax - sMin < 0.5 * dLenSD)
+			return false;
+		final double sign = LinAlgHelpers.dot(a, dirInit) < 0 ? -1.0 : 1.0;
+		for (int d = 0; d < 3; d++)
+		{
+			out[d] = sign * a[d];
+		}
+		return true;
+	}
+
+	/** t1 of a candidate (c[5..7], oriented line direction) replaced by the direction fitted along its ridge
+	 * (ridgeDirection, if successful); returns the change in degrees (0 if not fitted) **/
+	double fitCandidateDirection(final double [] c, final double dMinSal)
+	{
+		if(!(dT1FitSD > 0))
+			return 0;
+		final double [] pos = new double [] {c[0], c[1], c[2]};
+		final double [] dir = new double [] {c[5], c[6], c[7]};
+		final double [] fit = new double[3];
+		if(!ridgeDirection(pos, dir, dMinSal, fit))
+			return 0;
+		final double cs = Math.max(-1.0, Math.min(1.0, LinAlgHelpers.dot(fit, dir)));
+		for (int d = 0; d < 3; d++)
+		{
+			c[5 + d] = fit[d];
+		}
+		return Math.toDegrees(Math.acos(cs));
 	}
 
 	/** saliency and line direction (physical, unit) at the grid voxel: {saliency, dx, dy, dz}, 
@@ -1160,14 +1336,15 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return out;
 	}
 
-	/** ridge in the cross-section at p perpendicular to t, within dMaxOffsetSD of p, closest to pRef 
-	 * (offset in SDs, per axis); its position to q, false if there is none **/
-	boolean nearestRidge(final double [] p, final double [] t, final double dMaxOffsetSD, final double dMinSal, final double [] pRef, final double [] q)
+	/** ridge in the cross-section at p perpendicular to t, within dMaxOffsetSD of p, |cos| of its direction vs t 
+	 * at least dMinCos, closest to pRef (offset in SDs, per axis); its position to q, false if there is none **/
+	boolean nearestRidge(final double [] p, final double [] t, final double dMaxOffsetSD, final double dMinSal, final double dMinCos,
+			final double [] pRef, final double [] q)
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
 		Pipe3D.crossSectionBasis(t, u, v);
-		final ArrayList<double[]> cands = ridgesInSection(p, t, u, v, dMaxOffsetSD, dMinSal);
+		final ArrayList<double[]> cands = ridgesInSection(p, t, u, v, dMaxOffsetSD, dMinSal, dMinCos, null);
 		double dBest = Double.MAX_VALUE;
 		for(final double [] c : cands)
 		{
