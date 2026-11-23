@@ -96,6 +96,16 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** minimum distance between successive passage points (full resolution voxels) **/
 	double dMinPointSpacing = 0.5;
 
+	/** (debug visualization) bending cone: the filament can turn by the directionality constrain angle 
+	 * every dBendStepSD tracing SDs **/
+	double dBendStepSD = 1.0;
+
+	/** (debug visualization) bending cone: maximum total turn of the maximally bending path (degrees) **/
+	double dMaxTotalBendDeg = 90.0;
+
+	/** (debug visualization) number of maximally bending paths shown (rotated around the heading) **/
+	int nBendPathsShown = 4;
+
 	/** maximum length of blind steps in a row (tracing SDs) **/
 	double dMaxBlindSD = 5.0;
 
@@ -1081,8 +1091,105 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				rejFull.add(physToFull(c));
 			}
 		}
+		//bending cone (branch-first only)
+		if(coastEnd == null)
+		{
+			visDebugBendCone(dSearchStartSD * dLenSD);
+		}
 		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull,
 				altFull, coastEnd != null ? physToFull(coastEnd) : null);
+	}
+
+	/** Maximally bending path of length dLength (physical) from p0: it turns by the directionality constrain angle
+	 * acos(dAngleThreshold) every dBendStepSD tracing SDs, always to the same side in the plane of the heading t0 
+	 * and the unit vector n (perpendicular to t0); the total turn is at most dMaxTotalBendDeg. Points (physical), from p0 **/
+	ArrayList<double[]> maxBendPath(final double dLength, final double [] n)
+	{
+		final ArrayList<double[]> out = new ArrayList<>();
+		final double dStepLen = Math.max(1e-12, dBendStepSD * dLenSD);
+		final int nSteps = Math.max(1, (int) Math.round(dLength / dStepLen));
+		final double dL = dLength / nSteps;
+		final double dTurn = Math.acos(Math.max(-1.0, Math.min(1.0, oc.dAngleThreshold)));
+		final double dMaxTurn = Math.toRadians(dMaxTotalBendDeg);
+		final double [] x = p0.clone();
+		out.add(x.clone());
+		for (int k = 1; k <= nSteps; k++)
+		{
+			final double a = Math.min(k * dTurn, dMaxTurn);
+			for (int d = 0; d < 3; d++)
+			{
+				x[d] += dL * (Math.cos(a) * t0[d] + Math.sin(a) * n[d]);
+			}
+			out.add(x.clone());
+		}
+		return out;
+	}
+
+	/** Debug visualization of the bending cone: apex at the end of the straight heading (length dLength),
+	 * base circle through the ends of the maximally bending paths (maxBendPath) rotated around the heading;
+	 * the cone surface is where the filament can be after dLength with a limited bending, 
+	 * from straight on (apex) to the maximal bend (base). Also nBendPathsShown of the paths. **/
+	void visDebugBendCone(final double dLength)
+	{
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(t0, u, v);
+		final ArrayList<ArrayList<double[]>> pathsFull = new ArrayList<>();
+		double [] end = null;
+		for (int i = 0; i < nBendPathsShown; i++)
+		{
+			final double phi = 2.0 * Math.PI * i / nBendPathsShown;
+			final double [] n = new double[3];
+			for (int d = 0; d < 3; d++)
+			{
+				n[d] = Math.cos(phi) * u[d] + Math.sin(phi) * v[d];
+			}
+			final ArrayList<double[]> path = maxBendPath(dLength, n);
+			if(end == null)
+			{
+				end = path.get(path.size() - 1);
+			}
+			final ArrayList<double[]> pathFull = new ArrayList<>();
+			for(final double [] p : path)
+			{
+				pathFull.add(physToFull(p));
+			}
+			pathsFull.add(pathFull);
+		}
+		if(end == null)
+		{
+			final ArrayList<double[]> path = maxBendPath(dLength, u);
+			end = path.get(path.size() - 1);
+		}
+		//axial and radial position of the maximally bent end
+		double dAxial = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dAxial += (end[d] - p0[d]) * t0[d];
+		}
+		double dRadial = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			final double r = end[d] - p0[d] - dAxial * t0[d];
+			dRadial += r * r;
+		}
+		dRadial = Math.sqrt(dRadial);
+		//cone: apex at the straight end, axis (apex -> base center) back along the heading
+		final double dHeight = dLength - dAxial;
+		final double [] apexFull = new double[3];
+		final double [] axis = new double[3];
+		final double [] apex = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			apex[d] = p0[d] + dLength * t0[d];
+			axis[d] = -dHeight * t0[d];
+		}
+		System.arraycopy(physToFull(apex), 0, apexFull, 0, 3);
+		final double dFullAngle = (dHeight > 1e-12 && dRadial > 1e-12) ? 2.0 * Math.atan2(dRadial, dHeight) : 0.0;
+		oc.bt.ocVisDebug.setBendCone(apexFull, axis, dFullAngle, pathsFull);
+		jh.visDebugMessage(String.format("bending cone: %.0f deg per %.1f SD over %.0f SD, max. bent end %.1f SD ahead, %.1f SD aside, cone half angle %.0f deg",
+				Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, oc.dAngleThreshold)))), dBendStepSD, dLength / dLenSD,
+				dAxial / dLenSD, dRadial / dLenSD, Math.toDegrees(0.5 * dFullAngle)));
 	}
 
 	/** every nStride-th point of a dense curve (and its last one) in full resolution voxel coordinates **/

@@ -3,7 +3,6 @@ package debug;
 import java.awt.Color;
 
 import net.imglib2.img.Img;
-import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
@@ -63,17 +62,6 @@ public class DebugConeSampling
 				new double[] { 0.1082600, 0.1082600,  0.2600000 }, showRAI, true, 0.5 );
 		while ( cc.hasNext() )
 			cc.next().set( 255 );
-//		ArrayCursor< FloatType > cU = showRAI.cursor();
-//		double [] pos = new double[3];
-//		while(cU.hasNext())
-//		{
-//			cU.fwd();
-//			cU.localize( pos );
-//			if(coneIterator.isOnTheCone( pos ))
-//				cU.get().set( 255);
-//
-//		}
-		
 
 		//AffineTransform3D scale = new AffineTransform3D();
 		//scale.scale( 0.1082600, 0.1082600, 0.2600000 );
