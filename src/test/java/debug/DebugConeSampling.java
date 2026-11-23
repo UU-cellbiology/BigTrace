@@ -37,7 +37,7 @@ public class DebugConeSampling
 
 //		ArrayImg< UnsignedByteType, ByteArray > showRAI = ArrayImgs.unsignedBytes( 100, 100, 100 );
 		
-		double fConeAngle  = 45.;
+		double fConeAngle  = 45.*Math.PI/180.;
 		double [] direction = new double[3];
 		double [] position = new double[3];
 		
@@ -56,27 +56,13 @@ public class DebugConeSampling
 		
 		ArrayCursor< FloatType > cU = showRAI.cursor();
 		double [] pos = new double[3];
-		double [] c = new double[] {Math.sin( fConeAngle*Math.PI/180. ), Math.cos( fConeAngle*Math.PI/180. )};
-		double maxD = -1;
-		double minD = 1000000;
 		while(cU.hasNext())
 		{
 			cU.fwd();
 			cU.localize( pos );
-//			for(int d = 0; d < 3; d++)
-//			{
-//				pos[d]-=40.;
-//			}
-//			float val = sdCone(pos, c, 40. );
-//			maxD = Math.max( maxD, val );
-//			minD = Math.min( minD, val );
 			if(coneIterator.isOnTheCone( pos ))
 				cU.get().set( 255);
 
-//			if(Math.abs(val) < 0.5)
-	//		{
-		//		cU.get().set( 255);
-			//}
 		}
 		
 
@@ -98,33 +84,4 @@ public class DebugConeSampling
 		} );
 	}
 	
-	/** from https://iquilezles.org/articles/distfunctions/ **/
-	public static float sdCone( final double[] p, final double[] c, final double h )
-	{
-
-		final double[] q = { h * c[ 0 ] / c[ 1 ], -h };
-
-		final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
-
-		final double[] a = new double[ 2 ];
-		LinAlgHelpers.scale( q, clamp( LinAlgHelpers.dot( w, q ) / LinAlgHelpers.squareLength( q ), 0.0, 1.0 ), a );
-		LinAlgHelpers.subtract( w, a, a );
-
-		final double[] b = {
-				w[ 0 ] - q[ 0 ] * clamp( w[ 0 ] / q[ 0 ], 0.0, 1.0 ),
-				w[ 1 ] - q[ 1 ] };
-
-		final double k = Math.signum( q[ 1 ] );
-		final double d = Math.min( LinAlgHelpers.squareLength( a ), LinAlgHelpers.squareLength( b ) );
-		final double s = Math.max(
-				k * ( w[ 0 ] * q[ 1 ] - w[ 1 ] * q[ 0 ] ),
-				k * ( w[ 1 ] - q[ 1 ] ) );
-
-		return ( float ) ( Math.sqrt( d ) * Math.signum( s ) );
-	}
-
-	private static double clamp( final double x, final double min, final double max )
-	{
-		return Math.max( min, Math.min( max, x ) );
-	}
 }

@@ -4,16 +4,15 @@ import net.imglib2.util.LinAlgHelpers;
 
 public class ConeIterator
 {
-	double []  vDirection;
-	
-	double [] vPosition;
-	
-	double fConeAngle;
+	final double []  vDirection;
+	final double [] vPosition;
+	final double fConeAngle;
 	final double[] c;
 	final double h; 
 	final double[] qConeSDF;
-	
 	final double [] qRot;
+	
+	boolean bOnlySlanted = true;
 	
 	public ConeIterator(final double [] vDirection_, final double [] vPosition_, final double fConeAngle_)
 	{
@@ -25,7 +24,7 @@ public class ConeIterator
 			vDirection[d] = vDirection_[d];
 			vPosition[d] = vPosition_[d];			
 		}
-		c = new double[] {Math.sin( fConeAngle * Math.PI/180. ), Math.cos( fConeAngle*Math.PI/180. )};
+		c = new double[] {Math.sin( fConeAngle ), Math.cos( fConeAngle )};
 		h = LinAlgHelpers.length( vDirection );
 		qConeSDF = new double []  { h * c[ 0 ] / c[ 1 ], -h };
 		double [] orientDef = new double [] {0,-1.0, 0};
@@ -47,9 +46,13 @@ public class ConeIterator
 		return false;
 	}
 	
-	float sdCone( final double[] p)
+	double sdCone( final double[] p)
 	{
 
+		if(bOnlySlanted)
+		{
+			return udConeSide(p);
+		}
 		final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
 
 		final double[] a = new double[ 2 ];
@@ -66,11 +69,21 @@ public class ConeIterator
 				k * ( w[ 0 ] * qConeSDF[ 1 ] - w[ 1 ] * qConeSDF[ 0 ] ),
 				k * ( w[ 1 ] - qConeSDF[ 1 ] ) );
 
-		return ( float ) ( Math.sqrt( d ) * Math.signum( s ) );
+		return  Math.sqrt( d ) * Math.signum( s ) ;
+	}
+	
+	/** unsigned distance to the lateral surface of the cone (no base cap) **/
+	double udConeSide( final double[] p )
+	{
+		final double[] w = { Math.sqrt( p[ 0 ] * p[ 0 ] + p[ 2 ] * p[ 2 ] ), p[ 1 ] };
+		final double t = clamp( LinAlgHelpers.dot( w, qConeSDF ) / LinAlgHelpers.squareLength( qConeSDF ), 0.0, 1.0 );
+		final double dx = w[ 0 ] - qConeSDF[ 0 ] * t;
+		final double dy = w[ 1 ] - qConeSDF[ 1 ] * t;
+		return Math.sqrt( dx * dx + dy * dy );
 	}
 	
 	/** from https://iquilezles.org/articles/distfunctions/ **/
-	public static float sdCone( final double[] p, final double[] c, final double h )
+	public static double sdCone( final double[] p, final double[] c, final double h )
 	{
 
 		final double[] qIn = { h * c[ 0 ] / c[ 1 ], -h };
@@ -91,7 +104,7 @@ public class ConeIterator
 				k * ( w[ 0 ] * qIn[ 1 ] - w[ 1 ] * qIn[ 0 ] ),
 				k * ( w[ 1 ] - qIn[ 1 ] ) );
 
-		return ( float ) ( Math.sqrt( d ) * Math.signum( s ) );
+		return  Math.sqrt( d ) * Math.signum( s ) ;
 	}
 
 	private static double clamp( final double x, final double min, final double max )
