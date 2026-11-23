@@ -1,11 +1,17 @@
 package bigtrace.math;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.Views;
 
 /** Hessian (6 components) of a box of the tracing grid, stored in a 4D float ArrayImg
  * (x, y, z, component), with point-wise (trilinear) evaluation of the steerable line filter,
@@ -13,41 +19,32 @@ import net.imglib2.util.LinAlgHelpers;
  * All positions are continuous grid coordinates. **/
 public class HessianBox
 {
-	final float [] hess;
-
-	final int [] dims = new int[3];
-
-	final int nVol;
-
-	/** grid position of the first voxel of the box **/
-	final long [] boxMin = new long[3];
+	/** interpolators per hessian component **/
+	final List <RealRandomAccess< FloatType >>  raH = new ArrayList<>() ;
 
 	/** wraps a hessian image (dims x 6); boxMin_ is the grid position of its first voxel
 	 * (only the first 3 values are used) **/
 	public HessianBox(final ArrayImg<FloatType, FloatArray> hessImg, final long [] boxMin_)
 	{
-		hess = hessImg.update( null ).getCurrentStorageArray();
-		for (int d = 0; d < 3; d++)
+		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
+		
+		for(int c = 0; c < 6; c++)
 		{
-			dims[d] = (int) hessImg.dimension(d);
-			boxMin[d] = boxMin_[d];
+			raH.add( Views.interpolate( 
+				Views.extendValue(
+						Views.translate(
+								Views.hyperSlice( hessImg, 3, c ), boxMin_), Float.NaN), nInterpolatorFactory).realRandomAccess() );
 		}
-		nVol = dims[0] * dims[1] * dims[2];
+
 	}
 
 	/** trilinearly interpolated hessian (6 components) at the grid position x into h,
 	 * false outside of the box **/
 	public boolean hessianAt(final double [] x, final double [] h)
 	{
-		final double [] xl = new double[3];
-		for (int d = 0; d < 3; d++)
-		{
-			xl[d] = x[d] - boxMin[d];
-		}
-		
 		for (int c = 0; c < 6; c++)
 		{
-			h[c] = SteerableLineFilter.interpolate(hess, c * nVol, dims, xl);
+			h[c] = 	raH.get( c ).setPositionAndGet( x ).get();
 			if(Double.isNaN(h[c]))
 				return false;
 		}
@@ -68,16 +65,11 @@ public class HessianBox
 	 * from the trilinearly interpolated hessian. Returns NaN outside of the box **/
 	public double lineResponse(final double [] x, final double [] e)
 	{
-		final double [] xl = new double[3];
-		for (int d = 0; d < 3; d++)
-		{
-			xl[d] = x[d] - boxMin[d];
-		}
 		final double [] h = new double[6];
 		
 		for (int c = 0; c < 6; c++)
 		{
-			h[c] = SteerableLineFilter.interpolate(hess, c * nVol, dims, xl);
+			h[c] = 	raH.get( c ).setPositionAndGet( x ).get();
 			if(Double.isNaN(h[c]))
 				return Double.NaN;
 		}
