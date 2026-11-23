@@ -120,8 +120,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** branch-first candidate search: on the surface of the bending cone (ConeCursor) **/
 	public static final int BRANCH_SEARCH_CONE = 1;
 	
+	/** branch-first candidate search: candidates of both (cone and cross-sections) pooled together **/
+	public static final int BRANCH_SEARCH_BOTH = 2;
+	
 	/** branch-first candidate search mode (a constant for now) **/
-	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_CONE;
+	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_BOTH;
 	
 	/** recent points (full resolution) of the trace in the current direction, newest last
 	 * (heading fit of the branch-first junction passage) **/

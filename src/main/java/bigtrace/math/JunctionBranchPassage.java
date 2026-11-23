@@ -69,7 +69,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	double dRefineMinAhead = 0.5;
 
 	/** the target is searched in cross-sections from this distance (in tracing SDs) ... **/
-	double dSearchStartSD = 8.0;
+	double dSearchStartSD = 9.0;
 
 	/** ... every dSearchStepSD ... **/
 	double dSearchStepSD = 1.0;
@@ -124,8 +124,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	double coneAxial = 0;
 	double coneRadial = 0;
 
-	/** the candidates were searched on the bending cone (BRANCH_SEARCH_CONE), for the debug visualization **/
+	/** the candidates were searched on the bending cone (BRANCH_SEARCH_CONE or BOTH), for the debug visualization **/
 	boolean bConeSearch = false;
+
+	/** length of the bending cone where the candidates were searched (physical), for the debug visualization **/
+	double dConeDist = 0;
 
 	/** maximum length of blind steps in a row (tracing SDs) **/
 	double dMaxBlindSD = 5.0;
@@ -265,8 +268,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		//3) curves to the candidates, the least turning one
 		chooseLeastTurning(cands);
-		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s) at %.0f SD, chosen turns %.0f deg", bConeSearch ? "cone" : "section",
-				altCurves.size() + 1, dTargetDist / dLenSD, dChosenTurnDeg));
+		final String sMode = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_BOTH) ? 
+				String.format("cone %.0f SD + section %.0f SD", dConeDist / dLenSD, dTargetDist / dLenSD) 
+				: (bConeSearch ? String.format("cone %.0f SD", dConeDist / dLenSD) : String.format("section %.0f SD", dTargetDist / dLenSD));
+		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s), chosen turns %.0f deg", sMode, altCurves.size() + 1, dChosenTurnDeg));
 		visDebugPlan(true);
 
 		//4) follow the curve
@@ -650,21 +655,69 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * each: position (3), offset (1), |cos| (1), oriented direction (3), see ridgesInSection **/
 	ArrayList<double[]> findCandidates(final double dMinSal)
 	{
-		bConeSearch = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_CONE);
+		final int nMode = OneClickTrace.BRANCH_SEARCH_MODE;
+		bConeSearch = (nMode == OneClickTrace.BRANCH_SEARCH_CONE || nMode == OneClickTrace.BRANCH_SEARCH_BOTH);
+		final boolean bSectionSearch = (nMode != OneClickTrace.BRANCH_SEARCH_CONE);
+		//on the bending cone: ahead, then closer
+		ArrayList<double[]> coneCands = new ArrayList<>();
+		final ArrayList<double[]> coneCandPos = new ArrayList<>();
+		final ArrayList<double[]> coneRejected = new ArrayList<>();
 		if(bConeSearch)
 		{
-			//on the bending cone: ahead, then closer
-			final ArrayList<double[]> cands = findCandidatesCone(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
-			if(!cands.isEmpty())
-				return cands;
-			return findCandidatesCone(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+			coneCands = findCandidatesCone(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+			if(coneCands.isEmpty())
+			{
+				coneCands = findCandidatesCone(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+			}
+			dConeDist = dTargetDist;
+			coneCandPos.addAll(secCandidates);
+			coneRejected.addAll(secRejected);
+			if(!bSectionSearch)
+				return coneCands;
 		}
-		//ahead
-		final ArrayList<double[]> cands = findCandidates(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
-		if(!cands.isEmpty())
-			return cands;
-		//closer (going back towards the junction)
-		return findCandidates(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+		//cross-sections: ahead, then closer (going back towards the junction)
+		ArrayList<double[]> secCands = findCandidates(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+		if(secCands.isEmpty())
+		{
+			secCands = findCandidates(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+		}
+		if(!bConeSearch)
+			return secCands;
+		//both: pooled, a cross-section candidate close to a cone candidate is dropped
+		final ArrayList<double[]> out = new ArrayList<>(coneCands);
+		final ArrayList<double[]> secPos = new ArrayList<>();
+		for(final double [] c : secCands)
+		{
+			boolean bClose = false;
+			for(final double [] o : coneCands)
+			{
+				double dd = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					final double r = (c[d] - o[d]) / sd[d];
+					dd += r * r;
+				}
+				if(dd < dCandidateMergeSD * dCandidateMergeSD)
+				{
+					bClose = true;
+					break;
+				}
+			}
+			if(!bClose)
+			{
+				out.add(c);
+				secPos.add(new double [] {c[0], c[1], c[2]});
+			}
+		}
+		//(debug visualization) candidates and rejected maxima of both
+		final ArrayList<double[]> secRej = new ArrayList<>(secRejected);
+		secCandidates.clear();
+		secCandidates.addAll(coneCandPos);
+		secCandidates.addAll(secPos);
+		secRejected.clear();
+		secRejected.addAll(coneRejected);
+		secRejected.addAll(secRej);
+		return out;
 	}
 
 	/** Candidates on the surface of the bending cone (computeBendCone) of length dFromSD, +dStepSD, ... to dToSD
@@ -1299,7 +1352,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		//branch-first, cone search: the bending cone searched (no cross-section); otherwise no cone
 		if(coastEnd == null && bConeSearch)
 		{
-			visDebugBendCone(dTargetDist);
+			visDebugBendCone(dConeDist);
 		}
 		else
 		{
