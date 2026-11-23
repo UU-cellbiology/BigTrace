@@ -19,11 +19,10 @@ import net.imglib2.view.Views;
  * All positions are continuous grid coordinates. **/
 public class HessianBox
 {
-	/** interpolators per hessian component **/
-	final List <RealRandomAccess< FloatType >>  raH = new ArrayList<>() ;
+	/** interpolators per hessian component (6 of them) **/
+	final List <RealRandomAccess< FloatType >>  raH = new ArrayList<>();
 
-	/** wraps a hessian image (dims x 6); boxMin_ is the grid position of its first voxel
-	 * (only the first 3 values are used) **/
+	/** creates hessian image (dims x 6) interpolators, padded with NaN **/
 	public HessianBox(final ArrayImg<FloatType, FloatArray> hessImg, final long [] boxMin_)
 	{
 		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
@@ -38,7 +37,7 @@ public class HessianBox
 
 	}
 
-	/** trilinearly interpolated hessian (6 components) at the grid position x into h,
+	/** linearly interpolated hessian (6 components) at the grid position x into h,
 	 * false outside of the box **/
 	public boolean hessianAt(final double [] x, final double [] h)
 	{

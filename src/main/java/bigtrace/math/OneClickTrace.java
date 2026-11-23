@@ -1521,12 +1521,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 
-
 		EigenValVecSymmDecomposition<FloatType> mEV = new EigenValVecSymmDecomposition<>(3);
 
 		directionVectors =  Views.translate(dV, minV);
 		salWeights =  Views.translate(sW, minV[0], minV[1], minV[2]);
-		//salWeightsUB = VolumeMisc.convertFloatToUnsignedByte(salWeights,false);
+		
 		mEV.computeVWRAI(hessian, directionVectors, salWeights, nThreads, es);
 		raV = directionVectors.randomAccess();
 		raW = salWeights.randomAccess();

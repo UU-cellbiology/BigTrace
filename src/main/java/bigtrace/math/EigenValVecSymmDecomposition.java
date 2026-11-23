@@ -32,7 +32,8 @@ import net.imglib2.view.composite.RealComposite;
  * @param <T>
 **/
 
-public class EigenValVecSymmDecomposition<T extends RealType< T >>{//{ implements java.io.Serializable {
+public class EigenValVecSymmDecomposition < T extends RealType< T > >
+{
 
 /* ------------------------
    Class variables
@@ -43,11 +44,10 @@ public class EigenValVecSymmDecomposition<T extends RealType< T >>{//{ implement
 	 */
 	//private static final long serialVersionUID = -2036425524286417428L;
 
-/** Row and column dimension (square matrix).
+	/** Row and column dimension (square matrix).
    @serial matrix dimension.
    */
    private int n;
-
 
    /** Arrays for internal storage of eigenvalues.
    @serial internal storage of eigenvalues.
@@ -70,11 +70,10 @@ public class EigenValVecSymmDecomposition<T extends RealType< T >>{//{ implement
    */
    public EigenValVecSymmDecomposition( final int nDim )
    {
-	   n=nDim;
+	   n = nDim;
 	   V = new double[n][n];
        dEV = new double[n];
        eEV = new double[n];
-
    }
    
    private void computeVWRAIthreaded( final RandomAccessibleInterval< T > RAIin, 
@@ -85,6 +84,7 @@ public class EigenValVecSymmDecomposition<T extends RealType< T >>{//{ implement
 	   
 	   dCalc.computeVWRAI(  RAIin, eVector, eWeight);
    }
+   
    public void computeVWRAI( final RandomAccessibleInterval< T > RAIin, final RandomAccessibleInterval< T > eVector, final RandomAccessibleInterval< T > eWeight)
    {
 	   final Cursor< RealComposite< T > > m =  Views.collapseReal( RAIin ).cursor();
@@ -287,20 +287,23 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
    }
    
    
-   public void computeVectorWeight( RealComposite< T > tensor, RealComposite< T > vector,  T weight)
+   void setV(final RealComposite< T > tensor)
    {
 	   int nCount = 0;
-	  // RealCompositeSymmetricMatrix< T > m = new RealCompositeSymmetricMatrix<T>( null, n);
-	   //m.setData(tensor);
-	   int i;
-	   for(i = 0; i < n; i++)
+	 
+	   for(int i = 0; i < n; i++)
 		   for(int j = i; j < n; j++)
 		   {
 			   V[i][j] = tensor.get(nCount).getRealDouble();
-			   //V[i][j] = m.get(i, j);
 			   V[j][i] = V[i][j];
 			   nCount++;
 		   }
+   }
+   
+   
+   public void computeVectorWeight( final RealComposite< T > tensor, final RealComposite< T > vector, final T weight)
+   {
+	   setV(tensor);
 	   // Do the math
        // Tridiagonalize.
        tred2();
@@ -314,7 +317,7 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        // and store corresponding vector
        int index = 0;
        double dMin = Math.abs(dEV[index]);
-       for (i = 1; i < n; i++)
+       for (int i = 1; i < n; i++)
        {
     	   if(Math.abs(dEV[i]) < dMin)
     	   {
@@ -322,17 +325,17 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
     		   dMin = Math.abs(dEV[index]);
     	   }
        }
-       for (i = 0; i < n; i++)
+       for (int i = 0; i < n; i++)
        {
     	   vector.get(i).setReal(V[i][index]);
        } 	   
        boolean bBothNegative = true;
        double dWeight = 0.0;
-       for (i = 0; i < n; i++)
+       for (int i = 0; i < n; i++)
        {
     	   if(i != index)
     	   {
-    		   if(dEV[i]>0)
+    		   if(dEV[i] > 0)
     		   {
     			   bBothNegative = false;
     		   }
@@ -354,20 +357,9 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        ////////////////////////////////////////
    }
    
-   public void computeCorners( RealComposite< T > tensor,  T corner)
+   public void computeCorners( final RealComposite< T > tensor, final  T corner)
    {
-	   int nCount = 0;
-	  // RealCompositeSymmetricMatrix< T > m = new RealCompositeSymmetricMatrix<T>( null, n);
-	   //m.setData(tensor);
-	   int i;
-	   for(i = 0; i < n; i++)
-		   for(int j = i; j < n; j++)
-		   {
-			   V[i][j] = tensor.get(nCount).getRealDouble();
-			   //V[i][j] = m.get(i, j);
-			   V[j][i]=V[i][j];
-			   nCount++;
-		   }
+	   setV(tensor);
 	   // Do the math
        // Tridiagonalize.
        tred2();
@@ -381,19 +373,18 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        int index = 0;
        double dMax = dEV[index];
        double dMin = Math.abs(dEV[index]);
-       for (i =1;i<n; i++)
+       for (int i =1; i < n; i++)
        {
     	   if(Math.abs(dEV[i]) < dMin)
     	   {
-    		   index=i;
-    		   dMin=Math.abs(dEV[index]);
+    		   index = i;
+    		   dMin = Math.abs(dEV[index]);
     	   }
     	   if(dEV[i] > dMax)
     	   {
     		   dMax = dEV[i];
     	   }
        }
-   
        
        if(dMax<0)
        {
@@ -405,20 +396,10 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        }
    }
    
-   public void computeVectorWeightCorners( RealComposite< T > tensor, RealComposite< T > vector,  T weight, T corner)
+   public void computeVectorWeightCorners( final RealComposite< T > tensor, final RealComposite< T > vector,  final T weight, final T corner)
    {
-	   int nCount=0;
-	  // RealCompositeSymmetricMatrix< T > m = new RealCompositeSymmetricMatrix<T>( null, n);
-	   //m.setData(tensor);
-	   int i;
-	   for(i = 0; i < n; i++)
-		   for(int j = i; j < n; j++)
-		   {
-			   V[i][j] = tensor.get(nCount).getRealDouble();
-			   //V[i][j] = m.get(i, j);
-			   V[j][i] = V[i][j];
-			   nCount++;
-		   }
+	   
+	   setV(tensor);
 	   // Do the math
        // Tridiagonalize.
        tred2();
@@ -432,7 +413,7 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        int index = 0;
        double dMax = dEV[index];
        double dMin = Math.abs(dEV[index]);
-       for (i=1; i<n; i++)
+       for (int i = 1; i<n; i++)
        {
     	   if(Math.abs(dEV[i]) < dMin)
     	   {
@@ -444,13 +425,13 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
     		   dMax = dEV[i];
     	   }
        }
-       for (i = 0; i < n; i++)
+       for (int i = 0; i < n; i++)
        {
     	   vector.get(i).setReal(V[i][index]);
        } 	    
        boolean bBothNegative = true;
        double dWeight = 0.0;
-       for (i = 0; i < n; i++)
+       for (int i = 0; i < n; i++)
        {
     	   if(i != index)
     	   {
@@ -483,39 +464,27 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
        }
    }
    
-   public void computeTensor( RealComposite< T > tensor, final float [][] in_vals)
+   public void computeTensor( final RealComposite< T > tensor, final float [][] out_vals)
    {
-	   int nCount=0;
-	   //RealCompositeSymmetricMatrix< T > m = new RealCompositeSymmetricMatrix<T>( null, n);
-	   //m.setData(tensor);
-	   for(int i =0;i<n; i++)
-		   for(int j =i;j<n; j++)
-		   {
-			   V[i][j] = tensor.get(nCount).getRealFloat();
-			   //V[i][j] = m.get(i, j);
-			   V[j][i] = V[i][j];
-			   nCount++;
-		   }
+	   setV(tensor);
        // Tridiagonalize.
        tred2();
  
        // Diagonalize.
        tql2();
-       
-       
+              
        System.out.println("eig "+ Double.toString(dEV[0])+" "+Double.toString(dEV[1])+" "+Double.toString(dEV[2]));
-	   for(int i =0;i<n; i++)
-		   for(int j =0;j<n; j++)
+	   for(int i = 0; i < n; i++)
+		   for(int j = 0; j < n; j++)
 		   {
 			   //tensor.get((long)(nCount))
-			   in_vals[i][j] = (float) V[j][i];
+			   out_vals[i][j] = (float) V[j][i];
 		   }
-
    }
    
    public float [] getLineDirection()
    {
-	   int nIndex=0;
+	   int nIndex = 0;
 	   float [] vLineDirection = new float [3];
 	   double dMin=Double.MAX_VALUE;
 	   int i;
@@ -551,7 +520,7 @@ public void computeVWCRAI( final RandomAccessibleInterval< T > tensor,
    @return     real(diag(D))
    */
 
-   public double[] getRealEigenvalues () 
+   public double[] getRealEigenvalues() 
    {
       return dEV;
    }
