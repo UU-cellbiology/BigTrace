@@ -2,15 +2,20 @@ package bigtrace.math;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
+import net.imglib2.FinalRealInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RealPoint;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.Views;
 
 import bigtrace.geometry.Pipe3D;
+import bigtrace.volume.ConeCursor;
 
 /** "Branch-first" junction passage of one-click tracing (OneClickTrace.bJunctionBranchFirst).
  * The elongated line filter map used by the coasting (JunctionHandler) follows the strongest response,
@@ -64,7 +69,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	double dRefineMinAhead = 0.5;
 
 	/** the target is searched in cross-sections from this distance (in tracing SDs) ... **/
-	double dSearchStartSD = 6.0;
+	double dSearchStartSD = 8.0;
 
 	/** ... every dSearchStepSD ... **/
 	double dSearchStepSD = 1.0;
@@ -105,6 +110,22 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** (debug visualization) number of maximally bending paths shown (rotated around the heading) **/
 	int nBendPathsShown = 4;
+
+	/** cone search: candidates closer than this (tracing SDs, per axis) to a stronger one are merged
+	 * (a filament crosses the cone surface over several voxels) **/
+	double dCandidateMergeSD = 1.5;
+
+	/** bending cone of the last computeBendCone (physical): apex (end of the straight heading), 
+	 * vector from the apex to the base center, full opening angle (0 = no bending), 
+	 * axial and radial position of the maximally bent end relative to p0 **/
+	final double [] coneApex = new double[3];
+	final double [] coneAxis = new double[3];
+	double coneFullAngle = 0;
+	double coneAxial = 0;
+	double coneRadial = 0;
+
+	/** the candidates were searched on the bending cone (BRANCH_SEARCH_CONE), for the debug visualization **/
+	boolean bConeSearch = false;
 
 	/** maximum length of blind steps in a row (tracing SDs) **/
 	double dMaxBlindSD = 5.0;
@@ -244,7 +265,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		//3) curves to the candidates, the least turning one
 		chooseLeastTurning(cands);
-		jh.visDebugMessage(String.format("branch-first: %d candidate(s) at %.0f SD, chosen turns %.0f deg", altCurves.size() + 1, dTargetDist / dLenSD, dChosenTurnDeg));
+		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s) at %.0f SD, chosen turns %.0f deg", bConeSearch ? "cone" : "section",
+				altCurves.size() + 1, dTargetDist / dLenSD, dChosenTurnDeg));
 		visDebugPlan(true);
 
 		//4) follow the curve
@@ -260,6 +282,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath)
 	{
 		setupGeometry();
+		bConeSearch = false;
 		//heading: fit, or the momentum if the trace is too short
 		if(!fitHeading(currpoint))
 		{
@@ -627,12 +650,194 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * each: position (3), offset (1), |cos| (1), oriented direction (3), see ridgesInSection **/
 	ArrayList<double[]> findCandidates(final double dMinSal)
 	{
+		bConeSearch = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_CONE);
+		if(bConeSearch)
+		{
+			//on the bending cone: ahead, then closer
+			final ArrayList<double[]> cands = findCandidatesCone(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+			if(!cands.isEmpty())
+				return cands;
+			return findCandidatesCone(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+		}
 		//ahead
 		final ArrayList<double[]> cands = findCandidates(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
 		if(!cands.isEmpty())
 			return cands;
 		//closer (going back towards the junction)
 		return findCandidates(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+	}
+
+	/** Candidates on the surface of the bending cone (computeBendCone) of length dFromSD, +dStepSD, ... to dToSD
+	 * (tracing SDs), the first length with any. Same format as findCandidates (offset = from the cone apex) **/
+	ArrayList<double[]> findCandidatesCone(final double dMinSal, final double dFromSD, final double dToSD, final double dStepSD)
+	{
+		secCenter = null;
+		secRadiusSD = 0;
+		final ArrayList<double[]> rejected = new ArrayList<>();
+		if(dStepSD == 0)
+			return new ArrayList<>();
+		for (double dDist = dFromSD; (dStepSD > 0) ? (dDist <= dToSD + 1e-6) : (dDist >= dToSD - 1e-6); dDist += dStepSD)
+		{
+			computeBendCone(dDist * dLenSD);
+			if(!insideBox(coneApex))
+			{
+				if(dStepSD > 0)
+					break;
+				continue;
+			}
+			dTargetDist = dDist * dLenSD;
+			rejected.clear();
+			final ArrayList<double[]> cands = ridgesOnCone(dMinSal, rejected);
+			//(debug visualization)
+			secCandidates.clear();
+			for(final double [] c : cands)
+			{
+				secCandidates.add(new double [] {c[0], c[1], c[2]});
+			}
+			secRejected.clear();
+			secRejected.addAll(rejected);
+			if(!cands.isEmpty())
+				return cands;
+		}
+		return new ArrayList<>();
+	}
+
+	/** Candidates on the surface (shell) of the current bending cone (computeBendCone), voxels of the junction box 
+	 * visited by ConeCursor: ridge centres (saliency >= dMinSal and a maximum across their own line direction among
+	 * the 26 neighbours, as in ridgesInVicinity) with |cos| of the line direction vs the heading >= dCandidateMinCos; 
+	 * of those closer than dCandidateMergeSD the strongest one is kept. Each: position (3, physical), 
+	 * offset from the cone apex (SDs), |cos|, line direction oriented along the heading (3), saliency.
+	 * rejectedOut (may be null) gets positions of the ridge centres with the orientation outside the limit.
+	 * Without bending (zero opening angle) the cross-section at the apex is used. **/
+	ArrayList<double[]> ridgesOnCone(final double dMinSal, final ArrayList<double[]> rejectedOut)
+	{
+		if(!(coneFullAngle > 1e-6))
+		{
+			final double [] u = new double[3];
+			final double [] v = new double[3];
+			Pipe3D.crossSectionBasis(t0, u, v);
+			return ridgesInSection(coneApex, t0, u, v, dTargetMaxOffsetSD, dMinSal, dCandidateMinCos, rejectedOut);
+		}
+		//cursor over the shell, inside the junction box (grid voxels, voxel i at i * vox)
+		final RandomAccess<FloatType> ra = Views.translate(Views.hyperSlice(jh.box.hessImg, 3, 0), jh.box.boxMin).randomAccess();
+		final double [] bbMin = new double[3];
+		final double [] bbMax = new double[3];
+		double dMaxVox = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			bbMin[d] = jh.box.boxMin[d] * vox[d];
+			bbMax[d] = (jh.box.boxMin[d] + jh.box.nDim - 1) * vox[d];
+			dMaxVox = Math.max(dMaxVox, vox[d]);
+		}
+		final ConeCursor<FloatType> cc = new ConeCursor<>(ra, coneApex, coneAxis, coneFullAngle, vox, 
+				new FinalRealInterval(bbMin, bbMax), true, 0.5 * dMaxVox);
+		//saliency and direction (physical) per grid voxel, cached (neighbours are shared)
+		final HashMap<Long, double[]> cache = new HashMap<>();
+		final ArrayList<double[]> ridges = new ArrayList<>();
+		final long [] g = new long[3];
+		final double [] off = new double[3];
+		while(cc.hasNext())
+		{
+			cc.fwd();
+			for (int d = 0; d < 3; d++)
+			{
+				g[d] = cc.getLongPosition(d);
+			}
+			final double [] e = salAtVoxel(g[0], g[1], g[2], cache);
+			final double val = e[0];
+			if(!(val >= dMinSal) || val <= 0)
+				continue;
+			final double [] dir = new double [] {e[1], e[2], e[3]};
+			//ridge centre: maximum across its own direction
+			boolean bMax = true;
+			for (int dz = -1; dz <= 1 && bMax; dz++)
+				for (int dy = -1; dy <= 1 && bMax; dy++)
+					for (int dx = -1; dx <= 1; dx++)
+					{
+						if(dx == 0 && dy == 0 && dz == 0)
+							continue;
+						off[0] = dx * vox[0];
+						off[1] = dy * vox[1];
+						off[2] = dz * vox[2];
+						final double len = Math.sqrt(LinAlgHelpers.dot(off, off));
+						if(Math.abs(LinAlgHelpers.dot(off, dir)) > 0.5 * len)
+							continue;
+						if(salAtVoxel(g[0] + dx, g[1] + dy, g[2] + dz, cache)[0] > val)
+						{
+							bMax = false;
+							break;
+						}
+					}
+			if(!bMax)
+				continue;
+			final double [] pos = new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2]};
+			double cs = LinAlgHelpers.dot(dir, t0);
+			final double sign = cs < 0 ? -1.0 : 1.0;
+			cs = Math.abs(cs);
+			if(cs < dCandidateMinCos)
+			{
+				if(rejectedOut != null)
+				{
+					rejectedOut.add(pos);
+				}
+				continue;
+			}
+			double dOff = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				final double r = (pos[d] - coneApex[d]) / sd[d];
+				dOff += r * r;
+			}
+			ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+		}
+		//one per filament crossing the surface: the strongest of the close ones
+		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
+		final ArrayList<double[]> out = new ArrayList<>();
+		for(final double [] c : ridges)
+		{
+			boolean bClose = false;
+			for(final double [] o : out)
+			{
+				double dd = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					final double r = (c[d] - o[d]) / sd[d];
+					dd += r * r;
+				}
+				if(dd < dCandidateMergeSD * dCandidateMergeSD)
+				{
+					bClose = true;
+					break;
+				}
+			}
+			if(!bClose)
+				out.add(c);
+		}
+		return out;
+	}
+
+	/** saliency and line direction (physical, unit) at the grid voxel: {saliency, dx, dy, dz}, 
+	 * saliency NaN outside of the junction box; cached **/
+	double [] salAtVoxel(final long x, final long y, final long z, final HashMap<Long, double[]> cache)
+	{
+		final long key = OneClickTrace.packKey(x, y, z);
+		double [] e = cache.get(key);
+		if(e == null)
+		{
+			final double [] vecGrid = new double[3];
+			final double val = jh.box.hessBox.saliencyAt(new double [] {x, y, z}, vecGrid);
+			if(Double.isNaN(val))
+			{
+				e = new double [] {Double.NaN, 0, 0, 0};
+			}
+			else
+			{
+				final double [] dp = oc.gridToPhysDir(vecGrid);
+				e = new double [] {val, dp[0], dp[1], dp[2]};
+			}
+			cache.put(key, e);
+		}
+		return e;
 	}
 
 	/** candidates in the first cross-section with any, at distances dFromSD, +dStepSD, ... to dToSD (tracing SDs) **/
@@ -1091,10 +1296,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				rejFull.add(physToFull(c));
 			}
 		}
-		//bending cone (branch-first only)
-		if(coastEnd == null)
+		//branch-first, cone search: the bending cone searched (no cross-section); otherwise no cone
+		if(coastEnd == null && bConeSearch)
 		{
-			visDebugBendCone(dSearchStartSD * dLenSD);
+			visDebugBendCone(dTargetDist);
+		}
+		else
+		{
+			oc.bt.ocVisDebug.setBendCone(physToFull(p0), new double[3], 0.0, null);
 		}
 		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull,
 				altFull, coastEnd != null ? physToFull(coastEnd) : null);
@@ -1125,42 +1334,17 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return out;
 	}
 
-	/** Debug visualization of the bending cone: apex at the end of the straight heading (length dLength),
-	 * base circle through the ends of the maximally bending paths (maxBendPath) rotated around the heading;
-	 * the cone surface is where the filament can be after dLength with a limited bending, 
-	 * from straight on (apex) to the maximal bend (base). Also nBendPathsShown of the paths. **/
-	void visDebugBendCone(final double dLength)
+	/** Bending cone for the length dLength (physical) ahead of p0: apex at the end of the straight heading,
+	 * base circle through the ends of the maximally bending paths (maxBendPath) rotated around the heading.
+	 * Its surface is where the filament can be after dLength with a limited bending, from straight on (apex)
+	 * to the maximal bend (base). Sets coneApex, coneAxis, coneFullAngle, coneAxial, coneRadial **/
+	void computeBendCone(final double dLength)
 	{
 		final double [] u = new double[3];
 		final double [] v = new double[3];
 		Pipe3D.crossSectionBasis(t0, u, v);
-		final ArrayList<ArrayList<double[]>> pathsFull = new ArrayList<>();
-		double [] end = null;
-		for (int i = 0; i < nBendPathsShown; i++)
-		{
-			final double phi = 2.0 * Math.PI * i / nBendPathsShown;
-			final double [] n = new double[3];
-			for (int d = 0; d < 3; d++)
-			{
-				n[d] = Math.cos(phi) * u[d] + Math.sin(phi) * v[d];
-			}
-			final ArrayList<double[]> path = maxBendPath(dLength, n);
-			if(end == null)
-			{
-				end = path.get(path.size() - 1);
-			}
-			final ArrayList<double[]> pathFull = new ArrayList<>();
-			for(final double [] p : path)
-			{
-				pathFull.add(physToFull(p));
-			}
-			pathsFull.add(pathFull);
-		}
-		if(end == null)
-		{
-			final ArrayList<double[]> path = maxBendPath(dLength, u);
-			end = path.get(path.size() - 1);
-		}
+		final ArrayList<double[]> path = maxBendPath(dLength, u);
+		final double [] end = path.get(path.size() - 1);
 		//axial and radial position of the maximally bent end
 		double dAxial = 0;
 		for (int d = 0; d < 3; d++)
@@ -1176,20 +1360,44 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		dRadial = Math.sqrt(dRadial);
 		//cone: apex at the straight end, axis (apex -> base center) back along the heading
 		final double dHeight = dLength - dAxial;
-		final double [] apexFull = new double[3];
-		final double [] axis = new double[3];
-		final double [] apex = new double[3];
 		for (int d = 0; d < 3; d++)
 		{
-			apex[d] = p0[d] + dLength * t0[d];
-			axis[d] = -dHeight * t0[d];
+			coneApex[d] = p0[d] + dLength * t0[d];
+			coneAxis[d] = -dHeight * t0[d];
 		}
-		System.arraycopy(physToFull(apex), 0, apexFull, 0, 3);
-		final double dFullAngle = (dHeight > 1e-12 && dRadial > 1e-12) ? 2.0 * Math.atan2(dRadial, dHeight) : 0.0;
-		oc.bt.ocVisDebug.setBendCone(apexFull, axis, dFullAngle, pathsFull);
+		coneFullAngle = (dHeight > 1e-12 && dRadial > 1e-12) ? 2.0 * Math.atan2(dRadial, dHeight) : 0.0;
+		coneAxial = dAxial;
+		coneRadial = dRadial;
+	}
+
+	/** Debug visualization of the bending cone of length dLength (computeBendCone) and nBendPathsShown 
+	 * of the maximally bending paths **/
+	void visDebugBendCone(final double dLength)
+	{
+		computeBendCone(dLength);
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(t0, u, v);
+		final ArrayList<ArrayList<double[]>> pathsFull = new ArrayList<>();
+		for (int i = 0; i < nBendPathsShown; i++)
+		{
+			final double phi = 2.0 * Math.PI * i / nBendPathsShown;
+			final double [] n = new double[3];
+			for (int d = 0; d < 3; d++)
+			{
+				n[d] = Math.cos(phi) * u[d] + Math.sin(phi) * v[d];
+			}
+			final ArrayList<double[]> pathFull = new ArrayList<>();
+			for(final double [] p : maxBendPath(dLength, n))
+			{
+				pathFull.add(physToFull(p));
+			}
+			pathsFull.add(pathFull);
+		}
+		oc.bt.ocVisDebug.setBendCone(physToFull(coneApex), coneAxis.clone(), coneFullAngle, pathsFull);
 		jh.visDebugMessage(String.format("bending cone: %.0f deg per %.1f SD over %.0f SD, max. bent end %.1f SD ahead, %.1f SD aside, cone half angle %.0f deg",
 				Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, oc.dAngleThreshold)))), dBendStepSD, dLength / dLenSD,
-				dAxial / dLenSD, dRadial / dLenSD, Math.toDegrees(0.5 * dFullAngle)));
+				coneAxial / dLenSD, coneRadial / dLenSD, Math.toDegrees(0.5 * coneFullAngle)));
 	}
 
 	/** every nStride-th point of a dense curve (and its last one) in full resolution voxel coordinates **/

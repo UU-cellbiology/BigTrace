@@ -114,6 +114,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** junction passage by the map coasting: refined end and planned passage (JunctionBranchPassage.planToCoastEnd) **/
 	boolean bJunctionCoastRefine = true;
 	
+	/** branch-first candidate search: in cross-sections perpendicular to the heading **/
+	public static final int BRANCH_SEARCH_SECTION = 0;
+	
+	/** branch-first candidate search: on the surface of the bending cone (ConeCursor) **/
+	public static final int BRANCH_SEARCH_CONE = 1;
+	
+	/** branch-first candidate search mode (a constant for now) **/
+	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_CONE;
+	
 	/** recent points (full resolution) of the trace in the current direction, newest last
 	 * (heading fit of the branch-first junction passage) **/
 	final ArrayDeque<double[]> dirHistory = new ArrayDeque<>();
