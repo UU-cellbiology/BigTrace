@@ -487,7 +487,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double [] outArm = findOutgoingArm(pExit, heading);
 		if(outArm == null)
 			return;
-		if(SteerableLineFilter.dot(outArm, heading) < oc.dAngleThreshold)
+		if(LinAlgHelpers.dot(outArm, heading) < oc.dAngleThreshold)
 			return;
 		//half way between the passage heading and the arm
 		final double [] newHeading = new double[3];
@@ -526,7 +526,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		int nIncoming = 0;
 		for (int i = 1; i < arms.size(); i++)
 		{
-			if(SteerableLineFilter.dot(arms.get(i), heading) < SteerableLineFilter.dot(arms.get(nIncoming), heading))
+			if(LinAlgHelpers.dot(arms.get(i), heading) < LinAlgHelpers.dot(arms.get(nIncoming), heading))
 				nIncoming = i;
 		}
 		double [] outArm = null;
@@ -535,7 +535,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		{
 			if(i == nIncoming)
 				continue;
-			final double c = SteerableLineFilter.dot(arms.get(i), heading);
+			final double c = LinAlgHelpers.dot(arms.get(i), heading);
 			if(c > dBest)
 			{
 				dBest = c;

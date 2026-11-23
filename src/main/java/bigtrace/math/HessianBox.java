@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.LinAlgHelpers;
 
 /** Hessian (6 components) of a box of the tracing grid, stored in a 4D float ArrayImg
  * (x, y, z, component), with point-wise (trilinear) evaluation of the steerable line filter,
@@ -43,6 +44,7 @@ public class HessianBox
 		{
 			xl[d] = x[d] - boxMin[d];
 		}
+		
 		for (int c = 0; c < 6; c++)
 		{
 			h[c] = SteerableLineFilter.interpolate(hess, c * nVol, dims, xl);
@@ -72,6 +74,7 @@ public class HessianBox
 			xl[d] = x[d] - boxMin[d];
 		}
 		final double [] h = new double[6];
+		
 		for (int c = 0; c < 6; c++)
 		{
 			h[c] = SteerableLineFilter.interpolate(hess, c * nVol, dims, xl);
@@ -142,7 +145,7 @@ public class HessianBox
 			boolean bSeparated = true;
 			for (final int j : picked)
 			{
-				if(SteerableLineFilter.dot(dirs[i], dirs[j]) >= dSepCos)
+				if(LinAlgHelpers.dot(dirs[i], dirs[j]) >= dSepCos)
 				{
 					bSeparated = false;
 					break;
@@ -154,7 +157,7 @@ public class HessianBox
 			boolean bLocalMax = true;
 			for (int k = 0; k < nDirs; k++)
 			{
-				if(SteerableLineFilter.dot(dirs[i], dirs[k]) > dNbCos && resp[k] > resp[i])
+				if(LinAlgHelpers.dot(dirs[i], dirs[k]) > dNbCos && resp[k] > resp[i])
 				{
 					bLocalMax = false;
 					break;

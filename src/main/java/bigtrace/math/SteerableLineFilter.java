@@ -1,5 +1,7 @@
 package bigtrace.math;
 
+import net.imglib2.util.LinAlgHelpers;
+
 /** Steerable line filter computed from the 6 hessian components and small geometry helpers,
  * used for junction (crossing) handling in one-click tracing.
  * Hessian component order everywhere: xx, xy, xz, yy, yz, zz. **/
@@ -31,10 +33,10 @@ public class SteerableLineFilter
 		}
 		final double [] axis = new double[3];
 		axis[nMinAxis] = 1.0;
-		cross(dir, axis, u);
-		normalize(u);
-		cross(dir, u, v);
-		normalize(v);
+		LinAlgHelpers.cross(dir, axis, u);
+		LinAlgHelpers.normalize(u);
+		LinAlgHelpers.cross(dir, u, v);
+		LinAlgHelpers.normalize(v);
 	}
 
 	/** trilinear interpolation in a float array holding 3D volumes (x fastest),
@@ -89,32 +91,6 @@ public class SteerableLineFilter
 		return out;
 	}
 
-	public static double dot(final double [] a, final double [] b)
-	{
-		return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-	}
-
-	public static void cross(final double [] a, final double [] b, final double [] out)
-	{
-		final double x = a[1] * b[2] - a[2] * b[1];
-		final double y = a[2] * b[0] - a[0] * b[2];
-		final double z = a[0] * b[1] - a[1] * b[0];
-		out[0] = x;
-		out[1] = y;
-		out[2] = z;
-	}
-
-	public static void normalize(final double [] v)
-	{
-		final double len = Math.sqrt(dot(v, v));
-		if(len > 0)
-		{
-			for (int d = 0; d < 3; d++)
-			{
-				v[d] /= len;
-			}
-		}
-	}
 
 	/** eigen decomposition of the symmetric 3x3 matrix h (xx,xy,xz,yy,yz,zz) by Jacobi rotations:
 	 * eigenvalues in w, eigenvectors in the columns of V (V[component][index]) **/
@@ -195,7 +171,7 @@ public class SteerableLineFilter
 			{
 				vecOut[d] = V[d][index];
 			}
-			normalize(vecOut);
+			LinAlgHelpers.normalize(vecOut);
 		}
 		double dWeight = 0.0;
 		for (int i = 0; i < 3; i++)

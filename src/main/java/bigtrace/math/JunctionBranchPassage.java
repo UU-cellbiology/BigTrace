@@ -8,6 +8,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RealPoint;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.LinAlgHelpers;
 
 /** "Branch-first" junction passage of one-click tracing (OneClickTrace.bJunctionBranchFirst).
  * The elongated line filter map used by the coasting (JunctionHandler) follows the strongest response,
@@ -251,7 +252,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		if(!fitHeading(currpoint))
 		{
 			System.arraycopy(oc.memDirectionVector, 0, t0, 0, 3);
-			SteerableLineFilter.normalize(t0);
+			LinAlgHelpers.normalize(t0);
 		}
 		final double dOwnSal = oc.dSalTrace;
 		if(!(dOwnSal > 0))
@@ -283,11 +284,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		{
 			chord[d] = endPhys[d] - p0[d];
 		}
-		if(!(SteerableLineFilter.dot(chord, chord) > 0))
+		if(!(LinAlgHelpers.dot(chord, chord) > 0))
 		{
 			System.arraycopy(endDir, 0, chord, 0, 3);
 		}
-		SteerableLineFilter.normalize(chord);
+		LinAlgHelpers.normalize(chord);
 
 		//ridge centres in the vicinity of the end
 		final ArrayList<double[]> rejected = new ArrayList<>();
@@ -489,12 +490,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				b[d] = pts[k][d] - pts[k - 1][d];
 			}
-			if(!(SteerableLineFilter.dot(b, b) > 0))
+			if(!(LinAlgHelpers.dot(b, b) > 0))
 				continue;
-			SteerableLineFilter.normalize(b);
+			LinAlgHelpers.normalize(b);
 			if(bHasPrev)
 			{
-				sum += Math.acos(Math.max(-1.0, Math.min(1.0, SteerableLineFilter.dot(a, b))));
+				sum += Math.acos(Math.max(-1.0, Math.min(1.0, LinAlgHelpers.dot(a, b))));
 			}
 			System.arraycopy(b, 0, a, 0, 3);
 			bHasPrev = true;
@@ -579,7 +580,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		{
 			t0[d] = cov[d] / sVar;
 		}
-		final double len = Math.sqrt(SteerableLineFilter.dot(t0, t0));
+		final double len = Math.sqrt(LinAlgHelpers.dot(t0, t0));
 		if(!(len > 0))
 			return false;
 		for (int d = 0; d < 3; d++)
@@ -588,8 +589,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		//forward (along the momentum)
 		final double [] mem = oc.memDirectionVector.clone();
-		SteerableLineFilter.normalize(mem);
-		if(SteerableLineFilter.dot(t0, mem) < 0)
+		LinAlgHelpers.normalize(mem);
+		if(LinAlgHelpers.dot(t0, mem) < 0)
 		{
 			for (int d = 0; d < 3; d++)
 			{
@@ -597,13 +598,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			}
 		}
 		//blend with the momentum
-		if(dHeadingMomentumWeight > 0 && SteerableLineFilter.dot(mem, mem) > 0)
+		if(dHeadingMomentumWeight > 0 && LinAlgHelpers.dot(mem, mem) > 0)
 		{
 			for (int d = 0; d < 3; d++)
 			{
 				t0[d] = (1.0 - dHeadingMomentumWeight) * t0[d] + dHeadingMomentumWeight * mem[d];
 			}
-			SteerableLineFilter.normalize(t0);
+			LinAlgHelpers.normalize(t0);
 		}
 		return true;
 	}
@@ -762,7 +763,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				}
 				jh.box.hessBox.saliencyAt(xg, vecGrid);
 				final double [] dir = oc.gridToPhysDir(vecGrid);
-				double cs = SteerableLineFilter.dot(dir, t);
+				double cs = LinAlgHelpers.dot(dir, t);
 				if(cs < 0)
 				{
 					cs = -cs;
@@ -856,8 +857,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 								off[0] = dx * vox[0];
 								off[1] = dy * vox[1];
 								off[2] = dz * vox[2];
-								final double len = Math.sqrt(SteerableLineFilter.dot(off, off));
-								if(Math.abs(SteerableLineFilter.dot(off, dir)) > 0.5 * len)
+								final double len = Math.sqrt(LinAlgHelpers.dot(off, off));
+								if(Math.abs(LinAlgHelpers.dot(off, dir)) > 0.5 * len)
 									continue;
 								if(sal[((z + dz) * dim[1] + y + dy) * dim[0] + x + dx] > val)
 								{
@@ -873,7 +874,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					{
 						dAhead += (pos[d] - p0[d]) * dirAhead[d];
 					}
-					double cs = SteerableLineFilter.dot(dir, dirAhead);
+					double cs = LinAlgHelpers.dot(dir, dirAhead);
 					final double sign = cs < 0 ? -1.0 : 1.0;
 					cs = Math.abs(cs);
 					if(dAhead < dMinAhead || cs < dMinCos)
@@ -992,7 +993,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			p[d] = curve[k - 1][d] + f * (curve[k][d] - curve[k - 1][d]);
 			t[d] = curve[k][d] - curve[k - 1][d];
 		}
-		SteerableLineFilter.normalize(t);
+		LinAlgHelpers.normalize(t);
 	}
 
 	/** physical -> full resolution voxel coordinates **/
