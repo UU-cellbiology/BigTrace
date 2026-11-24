@@ -488,6 +488,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		//2) ridge centres ahead within the reach
 		final ArrayList<double[]> rejected = new ArrayList<>();
 		final ArrayList<double[]> ridges = ridgesInVicinity(p0, dGapReachSD, dMinSal, t0, dFront + dGapMinAheadSD * dLenSD, dCandidateMinCos, rejected);
+		//(debug visualization: the ridge centres behind the front, e.g. the traced filament itself, are not shown 
+		//as rejected, only those ahead failing the orientation)
+		final double dMinAhead = dFront + dGapMinAheadSD * dLenSD;
+		rejected.removeIf(x -> (x[0] - p0[0]) * t0[0] + (x[1] - p0[1]) * t0[1] + (x[2] - p0[2]) * t0[2] < dMinAhead);
 		//not on existing ROIs; offset: from the straight heading line (SDs, per axis); saliency
 		final long [] posFull = new long[3];
 		final double [] vecGrid = new double[3];
