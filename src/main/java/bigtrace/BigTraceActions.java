@@ -73,6 +73,7 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 		actions.runnableAction(() -> actionResetClip(),				"reset clipping", "X" );
 		actions.runnableAction(() -> actionToggleRender(),			"toggle render mode", "O" );
 		actions.runnableAction(() -> actionSelectRoi(),	            "select ROI", "E" );
+		actions.runnableAction(() -> actionToggleOCDebug(),	        "Toggle one click debug mode", "Q" );
 		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.XY ), ALIGN_XY_PLANE, ALIGN_XY_PLANE_KEYS );
 		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.ZY ), ALIGN_ZY_PLANE, ALIGN_ZY_PLANE_KEYS );
 		actions.runnableAction(() -> alignToPlane( AlignPlaneBT.XZ ), ALIGN_XZ_PLANE, ALIGN_XZ_PLANE_KEYS );
@@ -501,6 +502,15 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 			bt.btPanel.renderMethodPanel.cbRenderMethod.setSelectedIndex(BigTraceData.DATA_RENDER_MAX_INT);			
 		}
 	}
+	public void actionToggleOCDebug()
+	{
+		bt.bOCVisDebugEnabled = !bt.bOCVisDebugEnabled;
+		if(bt.bOCVisDebugEnabled )
+			bt.bvvViewer.showMessage("One Click debug view ON");
+		else
+			bt.bvvViewer.showMessage("One Click debug view OFF");
+	}
+	
 	/** selects ROI upon user click **/
 	public void actionSelectRoi()
 	{
@@ -515,9 +525,9 @@ public class BigTraceActions < T extends RealType< T > & NativeType< T > >
 					bt.roiManager.selectClosestToLineRoi(bt.findClickLine());
 				
 			}
-		}
-		
+		}	
 	}
+	
 	public ActionMap getActionMap()
 	{		
 		return actions.getActionMap();

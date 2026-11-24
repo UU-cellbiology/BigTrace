@@ -26,13 +26,23 @@ public class HessianBox
 	public HessianBox(final ArrayImg<FloatType, FloatArray> hessImg, final long [] boxMin_)
 	{
 		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
-		
+		final long [] lMin;
+		if(boxMin_.length > 3)
+		{
+			lMin = new long [3];
+			for(int d = 0; d < 3; d++)
+			{
+				lMin[d] = boxMin_[d];
+			}
+		}
+		else
+			lMin = boxMin_;
 		for(int c = 0; c < 6; c++)
 		{
 			raH.add( Views.interpolate( 
 				Views.extendValue(
 						Views.translate(
-								Views.hyperSlice( hessImg, 3, c ), boxMin_), Float.NaN), nInterpolatorFactory).realRandomAccess() );
+								Views.hyperSlice( hessImg, 3, c ), lMin), Float.NaN), nInterpolatorFactory).realRandomAccess() );
 		}
 
 	}

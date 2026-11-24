@@ -176,7 +176,7 @@ public class OCVisDebug
 
 	/** zoom in on the junction (hessian) box when the branch-first plan is shown, before the pause
 	 * (as "zoom in to click", D: centered view animation, screen fraction BigTraceData.dZoomBoxScreenFraction) **/
-	public boolean bBranchPlanZoom = false;
+	public boolean bBranchPlanZoom = true;
 	
 	/** color, line thickness and render type (Roi3D.OUTLINE, WIRE, SURFACE) of the branch-first cross-section **/
 	public Color colorBranchSection = new Color(100, 180, 255);
