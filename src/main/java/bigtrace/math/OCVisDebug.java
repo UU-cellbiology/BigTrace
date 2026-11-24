@@ -23,6 +23,7 @@ import bigtrace.scene.VisPolygonFlat;
 import bvvpg.vistools.Bvv;
 import bvvpg.vistools.BvvFunctions;
 import bvvpg.vistools.BvvStackSource;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -172,6 +173,10 @@ public class OCVisDebug
 	
 	/** pause when the branch-first plan is shown (ms); 0 = no pause **/
 	public int nBranchPlanDelayMs = 1500;
+
+	/** zoom in on the junction (hessian) box when the branch-first plan is shown, before the pause
+	 * (as "zoom in to click", D: centered view animation, screen fraction BigTraceData.dZoomBoxScreenFraction) **/
+	public boolean bBranchPlanZoom = false;
 	
 	/** color, line thickness and render type (Roi3D.OUTLINE, WIRE, SURFACE) of the branch-first cross-section **/
 	public Color colorBranchSection = new Color(100, 180, 255);
@@ -420,11 +425,12 @@ public class OCVisDebug
 	 * @param rejectedVoxel saliency maxima rejected there (saliency or orientation)
 	 * @param altCurvesVoxel curves planned to the other (not chosen) candidates; may be null
 	 * @param coastEndVoxel end point of the map coasting (refined passage); null = none
+	 * @param boxVoxel the junction (hessian) box, zoomed in on if bBranchPlanZoom; may be null
 	 */
 	public void showBranchPlan(final double [] entryVoxel, final double [] headingEndVoxel, final ArrayList<double[]> curveVoxel,
 			final double [] targetA, final double [] targetB, final ArrayList<double[]> sectionVoxel,
 			final ArrayList<double[]> candidatesVoxel, final ArrayList<double[]> rejectedVoxel,
-			final ArrayList<ArrayList<double[]>> altCurvesVoxel, final double [] coastEndVoxel)
+			final ArrayList<ArrayList<double[]>> altCurvesVoxel, final double [] coastEndVoxel, final Interval boxVoxel)
 	{
 		synchronized(this)
 		{
@@ -483,6 +489,11 @@ public class OCVisDebug
 			bMapJustShown = true;
 		}
 		bt.repaintBVV();
+		//zoom in on the junction box (as "zoom in to click")
+		if(bBranchPlanZoom && boxVoxel != null && bt.bvvViewer != null)
+		{
+			bt.bvvViewer.setTransformAnimator(bt.getCenteredViewAnim(boxVoxel, bt.btData.dZoomBoxScreenFraction));
+		}
 		sleep(nBranchPlanDelayMs);
 	}
 	

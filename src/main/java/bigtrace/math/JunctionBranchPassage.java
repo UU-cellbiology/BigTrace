@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RealPoint;
@@ -1479,7 +1480,20 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			oc.bt.ocVisDebug.setBendCone(physToFull(p0), new double[3], 0.0, null);
 		}
 		oc.bt.ocVisDebug.showBranchPlan(physToFull(p0), physToFull(hEnd), curveFull, tgtA, tgtB, sectionFull, candFull, rejFull,
-				altFull, coastEnd != null ? physToFull(coastEnd) : null);
+				altFull, coastEnd != null ? physToFull(coastEnd) : null, boxFull());
+	}
+
+	/** debug visualization: the junction (hessian) box in full resolution voxels (whole grid voxels) **/
+	FinalInterval boxFull()
+	{
+		final long [] min = new long[3];
+		final long [] max = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			min[d] = jh.box.boxMin[d] * oc.ds[d];
+			max[d] = (jh.box.boxMin[d] + jh.box.nDim) * oc.ds[d] - 1;
+		}
+		return new FinalInterval(min, max);
 	}
 
 	/** Maximally bending path of length dLength (physical) from p0: it turns by the directionality constrain angle
