@@ -190,6 +190,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * of the running average saliency of the trace (avoids jumping onto background) **/
 	static final double dGapMinRelSal = 0.3;
 	
+	/** normal stepping found no continuation: with junction handling on, the junction passage is planned there
+	 * first (a sharp kink or a junction not detected ahead), then the gap bridging **/
+	boolean bStallJunctionPassage = true;
+	
 	/** gap bridging by a planned passage (JunctionBranchPassage.planGap: ridge centres ahead within the reach, 
 	 * least turning curve to them, followed over the gap) instead of the jump to the best voxel in the 
 	 * look-ahead cone (bridgeGap) **/
@@ -1130,16 +1134,34 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			out = new RealPoint(finPos);
 			dSalTrace = 0.9 * dSalTrace + 0.1 * bestSal;
 		}
-		else if(dGapBridgeSigma > 0)
+		else
 		{
-			//ridge is interrupted, try to find its continuation ahead
-			if(bGapBridgePassage)
+			//no continuation: a sharp kink or a junction not detected ahead (e.g. detection not re-armed yet):
+			//the junction passage first (branch-first: half sphere candidates, least turning)
+			if(bJunctions && bStallJunctionPassage)
 			{
-				out = bridgeGapPassage(currpoint, raInput);
+				out = junctions.planAtStall(currpoint, raInput);
+				if(out != null)
+				{
+					bLastFromPassage = true;
+					return out;
+				}
+				if(junctions.nStallResult == JunctionHandler.PASSAGE_LOST || junctions.nStallResult == JunctionHandler.PASSAGE_MERGE)
+				{
+					return null;
+				}
 			}
-			else
+			//ridge is interrupted, try to find its continuation ahead
+			if(dGapBridgeSigma > 0)
 			{
-				out = bridgeGap(currpoint, refDirection, raInput);
+				if(bGapBridgePassage)
+				{
+					out = bridgeGapPassage(currpoint, raInput);
+				}
+				else
+				{
+					out = bridgeGap(currpoint, refDirection, raInput);
+				}
 			}
 		}
 		if(out == null && bKinkRecovery)

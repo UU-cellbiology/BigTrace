@@ -30,6 +30,17 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	/** coherence above this value re-arms the detection after a junction (hysteresis) **/
 	final double dJunctionCoherenceOut = 0.9;
 
+	/** ... or this path length of normal stepping (tracing SDs) after the passage: the coherence of a bending
+	 * or anisotropic filament can stay below dJunctionCoherenceOut for long, the next junction (or kink) 
+	 * would be missed; a branch-first passage ends many SDs beyond its junction **/
+	final double dRearmDistanceSD = 2.0;
+
+	/** (grid) position where the detection was found disarmed (re-arming by distance), null if armed **/
+	double [] disarmStart = null;
+
+	/** result of the last planAtStall (planPassage) **/
+	int nStallResult = PASSAGE_NONE;
+
 	/** voxels with saliency below this fraction of the maximum in the ball are ignored in the coherence **/
 	final double dCoherenceMinSalFraction = 0.3;
 
@@ -165,6 +176,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		bCoasting = false;
 		nCoastSteps = 0;
 		bJunctionArmed = true;
+		disarmStart = null;
 		passageQueue.clear();
 		bStopAfterQueue = false;
 	}
@@ -201,9 +213,23 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double dCoherenceAhead = getCoherenceAhead(currpoint);
 		if(!bJunctionArmed)
 		{
-			if(dCoherenceAhead > dJunctionCoherenceOut)
+			final double [] pg = toGrid(currpoint);
+			if(disarmStart == null)
+			{
+				disarmStart = pg;
+			}
+			double dDist = 0;
+			double dMinVox = Double.MAX_VALUE;
+			for (int d = 0; d < 3; d++)
+			{
+				final double r = (pg[d] - disarmStart[d]) * oc.gridVoxelSize[d];
+				dDist += r * r;
+				dMinVox = Math.min(dMinVox, oc.gridVoxelSize[d]);
+			}
+			if(dCoherenceAhead > dJunctionCoherenceOut || Math.sqrt(dDist) > dRearmDistanceSD * dMaxSigmaGrid * dMinVox)
 			{
 				bJunctionArmed = true;
+				disarmStart = null;
 			}
 		}
 		else
@@ -602,6 +628,22 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			box.showMap("junction map at " + Long.toString(entryGrid[0]) + "," + Long.toString(entryGrid[1])
 					+ "," + Long.toString(entryGrid[2]) + (oc.bDownsample ? " (grid)" : ""));
 		}
+	}
+
+	/** Normal stepping found no continuation (a sharp kink, or a junction not detected ahead):
+	 * the junction passage is planned at the current point (planPassage, whatever the detection state).
+	 * Returns its first point (the rest is queued), null if there is none; the result of planPassage 
+	 * is in nStallResult (PASSAGE_LOST, PASSAGE_MERGE: the trace stops) **/
+	RealPoint planAtStall(final RealPoint currpoint, final RandomAccess< T > raInput)
+	{
+		visDebugMessage("stepping stalled: junction passage");
+		nStallResult = planPassage(currpoint, raInput);
+		if(nStallResult == PASSAGE_OK)
+		{
+			stepPoint = passageQueue.poll();
+			return stepPoint;
+		}
+		return null;
 	}
 
 	/** Gap bridging by a planned passage (OneClickTrace.bridgeGapPassage): JunctionBranchPassage.planGap.
