@@ -162,8 +162,16 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** ridge centre test (isAcross): a single axis neighbour step is compared unless |cos| with the line is above this **/
 	double dAxisAlongCos = 0.8;
 
-	/** gap bridging (planGap): candidates at least this far ahead of the current point (tracing SDs) **/
+	/** gap bridging (planGap): candidates at least this far ahead (tracing SDs) of the most advanced 
+	 * recent trace point (along the heading) **/
 	double dGapMinAheadSD = 1.0;
+
+	/** gap bridging (planGap): the last part of the trace (tracing SDs, path length) left out of the heading fit:
+	 * before a gap the stepping often drifts to the side, off the end of the filament **/
+	double dGapTailSD = 1.5;
+
+	/** gap bridging (planGap): weight of the momentum in the heading (the momentum follows the drift at the end) **/
+	double dGapHeadingMomentumWeight = 0.0;
 
 	/** results of plan() **/
 	static final int GEO_OK = 0, GEO_NOFIT = 1, GEO_NOTARGET = 2, GEO_LOST = 3;
@@ -404,9 +412,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** Gap bridging by a planned passage (OneClickTrace.bridgeGapPassage: normal stepping found no continuation),
 	 * the same steps as plan() with a different candidate search:
-	 * 1) heading as in plan() (the reference direction of the stepping if the trace is too short);
+	 * 1) heading: line fit of the trace without its last dGapTailSD (drift to the side before the gap), 
+	 *    blended with the momentum by dGapHeadingMomentumWeight (if too short: as in plan(), or the reference 
+	 *    direction of the stepping);
 	 * 2) candidates: ridge centres (ridgesInVicinity) in the ellipsoid of dGapReachSD tracing SDs (per axis)
-	 *    around the current point, at least dGapMinAheadSD ahead along the heading, saliency
+	 *    around the current point, at least dGapMinAheadSD ahead (along the heading) of the most advanced 
+	 *    recent trace point within the reach, saliency
 	 *    >= dRelSaliency x running saliency of the trace, |cos| of the line direction vs the heading
 	 *    >= dCandidateMinCos (no cone: any position ahead), not on existing ROIs (traced mask);
 	 *    of those closer than dCandidateMergeSD the strongest one is kept. The junction box is placed
@@ -427,7 +438,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			//(fitHeading orients the fit along the momentum, not updated without history)
 			System.arraycopy(ref, 0, oc.memDirectionVector, 0, 3);
 		}
-		if(!fitHeading(currpoint))
+		if(!fitHeading(currpoint, dGapTailSD, dGapHeadingMomentumWeight) && !fitHeading(currpoint))
 		{
 			System.arraycopy(ref, 0, t0, 0, 3);
 		}
@@ -435,6 +446,23 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		if(!(dOwnSal > 0) || !(dGapReachSD > 0))
 		{
 			return GEO_NOTARGET;
+		}
+		//the most advanced recent trace point along the heading (within the reach): candidates must be ahead of it
+		double dFront = 0;
+		for(final double [] full : oc.dirHistory)
+		{
+			double dAlong = 0;
+			double dR = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				final double x = oc.toGridDouble(full[d], d) * vox[d] - p0[d];
+				dAlong += x * t0[d];
+				dR += (x / sd[d]) * (x / sd[d]);
+			}
+			if(Math.sqrt(dR) <= dGapReachSD)
+			{
+				dFront = Math.max(dFront, dAlong);
+			}
 		}
 		final double dMinSal = dRelSaliency * dOwnSal;
 		//reach along the heading (physical)
@@ -459,7 +487,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 		//2) ridge centres ahead within the reach
 		final ArrayList<double[]> rejected = new ArrayList<>();
-		final ArrayList<double[]> ridges = ridgesInVicinity(p0, dGapReachSD, dMinSal, t0, dGapMinAheadSD * dLenSD, dCandidateMinCos, rejected);
+		final ArrayList<double[]> ridges = ridgesInVicinity(p0, dGapReachSD, dMinSal, t0, dFront + dGapMinAheadSD * dLenSD, dCandidateMinCos, rejected);
 		//not on existing ROIs; offset: from the straight heading line (SDs, per axis); saliency
 		final long [] posFull = new long[3];
 		final double [] vecGrid = new double[3];
@@ -708,6 +736,14 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * (dHeadingMomentumWeight). Sets p0 (current point) also when it fails (too short history). **/
 	boolean fitHeading(final RealPoint currpoint)
 	{
+		return fitHeading(currpoint, 0.0, dHeadingMomentumWeight);
+	}
+
+	/** as fitHeading(currpoint), the last dSkipSD tracing SDs of the trace (path length) are left out of the fit
+	 * (e.g. the end of a trace drifting to the side before a gap), the fit is blended with the momentum
+	 * with the weight dMomentumWeight **/
+	boolean fitHeading(final RealPoint currpoint, final double dSkipSD, final double dMomentumWeight)
+	{
 		for (int d = 0; d < 3; d++)
 		{
 			p0[d] = oc.toGridDouble(currpoint.getDoublePosition(d), d) * vox[d];
@@ -715,7 +751,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final ArrayDeque<double[]> hist = oc.dirHistory;
 		if(hist.size() < nMinFitPoints)
 			return false;
-		final double dMaxLen = dFitLengthSD * dLenSD;
+		final double dSkipLen = Math.max(0.0, dSkipSD) * dLenSD;
+		final double dMaxLen = dSkipLen + dFitLengthSD * dLenSD;
 		final ArrayList<double[]> pts = new ArrayList<>();
 		final ArrayList<Double> sArr = new ArrayList<>();
 		double s = 0;
@@ -738,14 +775,17 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				}
 				s -= Math.sqrt(dl);
 			}
+			prev = x;
 			if(-s > dMaxLen)
 				break;
+			//(the end of the trace left out)
+			if(-s < dSkipLen)
+				continue;
 			pts.add(x);
 			sArr.add(s);
-			prev = x;
 		}
 		final int n = pts.size();
-		if(n < nMinFitPoints || -s < 2.0 * dStep)
+		if(n < nMinFitPoints || sArr.get(0) - sArr.get(n - 1) < 2.0 * dStep)
 			return false;
 		//least squares slope
 		double sMean = 0;
@@ -798,11 +838,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			}
 		}
 		//blend with the momentum
-		if(dHeadingMomentumWeight > 0 && LinAlgHelpers.dot(mem, mem) > 0)
+		if(dMomentumWeight > 0 && LinAlgHelpers.dot(mem, mem) > 0)
 		{
 			for (int d = 0; d < 3; d++)
 			{
-				t0[d] = (1.0 - dHeadingMomentumWeight) * t0[d] + dHeadingMomentumWeight * mem[d];
+				t0[d] = (1.0 - dMomentumWeight) * t0[d] + dMomentumWeight * mem[d];
 			}
 			LinAlgHelpers.normalize(t0);
 		}

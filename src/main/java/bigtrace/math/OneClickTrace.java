@@ -128,7 +128,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	public static final int BRANCH_SEARCH_SPHERE = 3;
 	
 	/** branch-first candidate search mode (a constant for now) **/
-	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_BOTH;
+	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_SPHERE;
 	
 	/** recent points (full resolution) of the trace in the current direction, newest last
 	 * (heading fit of the branch-first junction passage) **/
