@@ -243,7 +243,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * in the plane perpendicular to the local line direction) before the saliency hill-climbing (recenterOnRidge) **/
 	boolean bStegerRecenter = true;
 	
-	/** Steger re-centering: maximum offset of the centre from the stepped voxel (tracing sigmas, per axis) **/
+	/** Steger re-centering: maximum offset of the centre from the point one step ahead (tracing sigmas, per axis) **/
 	double dStegerMaxSD = 1.0;
 	
 	/** input of the convolutions of the current math box (border extended, grid coordinates), see getBoxInput **/
@@ -1939,31 +1939,64 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 	}
 	
-	/** Re-centering by Steger's method (C. Steger, An unbiased detector of curvilinear structures, 1998), in 3D:
-	 * at the grid voxel g the hessian H (math box) and the gradient (central differences of the Gaussian smoothed 
-	 * input, smoothedAt) give the second order Taylor expansion of the smoothed intensity; restricted to the plane
-	 * (u, v) perpendicular to the line direction t (eigenvector of the smallest absolute eigenvalue) its maximum 
-	 * is at the offset -(N'HN)^-1 N'g, N = (u v) (a bright line: N'HN negative definite). 
-	 * Solved in physical units (H and g scaled by the voxel size, the plane perpendicular to the physical direction). If the offset is within
-	 * the voxel (|offset| <= 0.5 on each axis), g + offset is the sub-voxel centre of the line; otherwise g moves
-	 * one voxel towards it and it is repeated (up to nRecenterMaxSteps).
-	 * The centre must be within dStegerMaxSD tracing sigmas (per axis) of the stepped voxel gridPos, in front of 
-	 * currpoint (along the momentum), its line direction within the directionality constrain of the momentum,
-	 * not masked or below the intensity threshold. Its grid position (continuous) goes to subOut.
-	 * Returns false (nothing changed) otherwise. **/
+	/** Re-centering by Steger's method (C. Steger, An unbiased detector of curvilinear structures, 1998), in 3D,
+	 * within the cross-section of the filament one step ahead: 
+	 * the line direction t (eigenvector of the smallest absolute eigenvalue at the stepped voxel gridPos, physical, 
+	 * oriented along the momentum) and the point o ahead of currpoint along t (by the projection of the step on t,
+	 * at least the smallest voxel) define the plane through o perpendicular to t (physical units). 
+	 * At the grid voxel g nearest to the current estimate, the hessian H (math box) and the gradient (central differences
+	 * of the Gaussian smoothed input, smoothedAt) give the second order Taylor expansion of the smoothed intensity;
+	 * its maximum within the plane (a bright line: negative definite in the plane) is the new estimate. 
+	 * Repeated while it moves to another voxel (up to nRecenterMaxSteps + 1 times).
+	 * The plane is fixed: the centre can not slide along the filament (towards a brighter spot of it, or back 
+	 * behind the current point when the step went below a filament climbing in z).
+	 * The centre must be within dStegerMaxSD tracing sigmas (per axis) of o, in front of currpoint (along the momentum), 
+	 * its line direction within the directionality constrain of the momentum, not masked or below the intensity
+	 * threshold. Its grid position (continuous) goes to subOut. Returns false (nothing changed) otherwise. **/
 	boolean recenterSteger(final RealPoint currpoint, final long [] gridPos, final double [] subOut, final RandomAccess< T > raInput)
 	{
-		final long [] g = gridPos.clone();
-		final long [] q = new long[3];
+		final double [] vx = gridVoxelSize;
 		final double [] h = new double[6];
 		final double [] t = new double[3];
+		//line direction at the stepped voxel (physical, along the momentum)
+		if(!mathBox.hessianAtVoxel(gridPos[0], gridPos[1], gridPos[2], h))
+			return false;
+		if(!(SteerableLineFilter.saliency(h, t) > 0))
+			return false;
+		final double [] tp = gridToPhysDir(t);
+		if(LinAlgHelpers.dot(tp, memDirectionVector) < 0)
+		{
+			LinAlgHelpers.scale(tp, -1.0, tp);
+		}
+		//the plane: through o (one step ahead of the current point along the line), perpendicular to it
+		final double [] cur = new double[3];
+		double dAhead = 0;
+		double dMinVox = Double.MAX_VALUE;
+		for (int d = 0; d < 3; d++)
+		{
+			cur[d] = toGridDouble(currpoint.getDoublePosition(d), d);
+			dAhead += (gridPos[d] - cur[d]) * vx[d] * tp[d];
+			dMinVox = Math.min(dMinVox, vx[d]);
+		}
+		dAhead = Math.max(dAhead, dMinVox);
+		final double [] o = new double[3];
+		final long [] g = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			o[d] = cur[d] + dAhead * tp[d] / vx[d];
+			g[d] = Math.round(o[d]);
+		}
 		final double [] u = new double[3];
 		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(tp, u, v);
+		final long [] q = new long[3];
 		final double [] grad = new double[3];
+		final double [] r = new double[3];
+		final double [] hr = new double[3];
 		final double [] hu = new double[3];
 		final double [] hv = new double[3];
-		final double [] delta = new double[3];
-		for (int nMove = 0; nMove <= nRecenterMaxSteps; nMove++)
+		final double [] x = new double[3];
+		for (int nIter = 0; nIter <= nRecenterMaxSteps; nIter++)
 		{
 			if(!mathBox.hessianAtVoxel(g[0], g[1], g[2], h))
 				return false;
@@ -1978,10 +2011,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				q[d] = g[d] - 1;
 				grad[d] = 0.5 * (dPlus - smoothedAt(q));
 			}
-			//Taylor expansion in the plane perpendicular to the line, in physical units:
-			//with anisotropic voxels the plane perpendicular in grid units is tilted along the line
-			//and its intensity maximum is off the line at steep (z) turns
-			final double [] vx = gridVoxelSize;
+			//physical units: with anisotropic voxels a plane perpendicular in grid units is tilted along the line
 			h[0] /= vx[0] * vx[0];
 			h[1] /= vx[0] * vx[1];
 			h[2] /= vx[0] * vx[2];
@@ -1991,47 +2021,44 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			for (int d = 0; d < 3; d++)
 			{
 				grad[d] /= vx[d];
+				r[d] = (o[d] - g[d]) * vx[d];
 			}
-			Pipe3D.crossSectionBasis(gridToPhysDir(t), u, v);
+			//maximum of f(g) + grad.(y - g) + 1/2 (y - g)'H(y - g) for y = o + a u + b v
+			hessianTimes(h, r, hr);
 			hessianTimes(h, u, hu);
 			hessianTimes(h, v, hv);
 			final double a11 = LinAlgHelpers.dot(u, hu);
 			final double a12 = LinAlgHelpers.dot(u, hv);
 			final double a22 = LinAlgHelpers.dot(v, hv);
-			final double b1 = LinAlgHelpers.dot(u, grad);
-			final double b2 = LinAlgHelpers.dot(v, grad);
+			final double b1 = LinAlgHelpers.dot(u, grad) + LinAlgHelpers.dot(u, hr);
+			final double b2 = LinAlgHelpers.dot(v, grad) + LinAlgHelpers.dot(v, hr);
 			final double det = a11 * a22 - a12 * a12;
 			if(!(det > 0) || a11 + a22 >= 0)
 				return false;
-			final double x1 = (a12 * b2 - a22 * b1) / det;
-			final double x2 = (a12 * b1 - a11 * b2) / det;
-			boolean bInVoxel = true;
+			final double ca = (a12 * b2 - a22 * b1) / det;
+			final double cb = (a12 * b1 - a11 * b2) / det;
+			boolean bSame = true;
 			for (int d = 0; d < 3; d++)
 			{
-				//(physical -> grid)
-				delta[d] = (x1 * u[d] + x2 * v[d]) / vx[d];
-				if(Math.abs(delta[d]) > 0.5)
-					bInVoxel = false;
-			}
-			if(bInVoxel)
-			{
-				return acceptSteger(currpoint, gridPos, g, delta, t, subOut, raInput);
-			}
-			//one voxel towards the centre
-			for (int d = 0; d < 3; d++)
-			{
-				if(Math.abs(delta[d]) > 0.5)
+				x[d] = o[d] + (ca * u[d] + cb * v[d]) / vx[d];
+				final long gn = Math.round(x[d]);
+				if(gn != g[d])
 				{
-					g[d] += (delta[d] > 0) ? 1 : -1;
+					bSame = false;
 				}
+				g[d] = gn;
+			}
+			if(bSame)
+			{
+				return acceptSteger(currpoint, o, x, t, subOut, raInput);
 			}
 		}
 		return false;
 	}
 	
-	/** checks of the Steger centre g + delta (grid) of the stepped voxel gridPos, line direction t (grid), 
+	/** checks of the Steger centre x (grid) in the cross-section through o (grid), line direction t (grid) at the centre, 
 	 * see recenterSteger; sets subOut **/
-	boolean acceptSteger(final RealPoint currpoint, final long [] gridPos, final long [] g, final double [] delta, final double [] t,
+	boolean acceptSteger(final RealPoint currpoint, final double [] o, final double [] x, final double [] t,
 			final double [] subOut, final RandomAccess< T > raInput)
 	{
 		final double [] memGrid = physToGridDir(memDirectionVector);
@@ -2039,10 +2066,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		double dForward = 0;
 		for (int d = 0; d < 3; d++)
 		{
-			subOut[d] = g[d] + delta[d];
-			final double r = (subOut[d] - gridPos[d]) / sigmaGridV[d];
-			dOffSD += r * r;
-			dForward += (subOut[d] - toGridDouble(currpoint.getDoublePosition(d), d)) * memGrid[d];
+			subOut[d] = x[d];
+			final double rr = (x[d] - o[d]) / sigmaGridV[d];
+			dOffSD += rr * rr;
+			dForward += (x[d] - toGridDouble(currpoint.getDoublePosition(d), d)) * memGrid[d];
 		}
 		if(Math.sqrt(dOffSD) > dStegerMaxSD || dForward < 0.5)
 			return false;
@@ -2054,7 +2081,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			final long [] gr = new long[3];
 			for (int d = 0; d < 3; d++)
 			{
-				gr[d] = Math.round(subOut[d]);
+				gr[d] = Math.round(x[d]);
 			}
 			final long [] posFull = toFullLong(gr);
 			if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)

@@ -1055,7 +1055,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				pole[d] = p0[d] + dTargetDist * t0[d];
 			}
-			if(!insideBox(pole))
+			if(!insideBox(pole) || !insideData(pole))
 			{
 				if(dStepSD > 0)
 					break;
@@ -1149,7 +1149,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 						final double r = (pos[d] - p0[d] - dAhead * t0[d]) / sd[d];
 						dLat += r * r;
 					}
-					ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dLat), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+					if(insideData(pos))
+						ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dLat), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
 				}
 		//one per filament crossing the surface: the strongest of the close ones
 		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
@@ -1174,7 +1175,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		for (double dDist = dFromSD; (dStepSD > 0) ? (dDist <= dToSD + 1e-6) : (dDist >= dToSD - 1e-6); dDist += dStepSD)
 		{
 			computeBendCone(dDist * dLenSD);
-			if(!insideBox(coneApex))
+			if(!insideBox(coneApex) || !insideData(coneApex))
 			{
 				if(dStepSD > 0)
 					break;
@@ -1261,7 +1262,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				final double r = (pos[d] - coneApex[d]) / sd[d];
 				dOff += r * r;
 			}
-			ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+			if(insideData(pos))
+				ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
 		}
 		//one per filament crossing the surface: the strongest of the close ones
 		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
@@ -1352,7 +1354,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				{
 					pPred[d] = p[d] + dStep * t[d];
 				}
-				if(!insideBox(pPred) || !nearestRidge(pPred, t, dT1FollowSD, dMinSal, dFollowMinCos, pPred, q))
+				if(!insideBox(pPred) || !insideData(pPred) || !nearestRidge(pPred, t, dT1FollowSD, dMinSal, dFollowMinCos, pPred, q))
 					break;
 				pts.add(q.clone());
 				System.arraycopy(q, 0, p, 0, 3);
@@ -1454,7 +1456,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				c0[d] = p0[d] + dDist * dLenSD * t0[d];
 			}
-			if(!insideBox(c0))
+			if(!insideBox(c0) || !insideData(c0))
 				break;
 			dTargetDist = dDist * dLenSD;
 			rejected.clear();
@@ -1477,6 +1479,19 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** true if the physical point is inside the junction box **/
+	/** the physical position x is inside of the data (tracing grid); the junction box can extend beyond it
+	 * (border extended), the hessian there shows fake (replicated) structures **/
+	boolean insideData(final double [] x)
+	{
+		for (int d = 0; d < 3; d++)
+		{
+			final long g = Math.round(x[d] / vox[d]);
+			if(g < oc.gridMin[d] || g > oc.gridMax[d])
+				return false;
+		}
+		return true;
+	}
+
 	boolean insideBox(final double [] x)
 	{
 		for (int d = 0; d < 3; d++)
@@ -1594,7 +1609,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					}
 					continue;
 				}
-				out.add(new double [] {x[0], x[1], x[2], off[i][j], cs, dir[0], dir[1], dir[2]});
+				if(insideData(x))
+					out.add(new double [] {x[0], x[1], x[2], off[i][j], cs, dir[0], dir[1], dir[2]});
 			}
 		}
 		return out;
@@ -1675,7 +1691,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 						}
 						continue;
 					}
-					out.add(new double [] {pos[0], pos[1], pos[2], dOff, cs, sign * dir[0], sign * dir[1], sign * dir[2]});
+					if(insideData(pos))
+						out.add(new double [] {pos[0], pos[1], pos[2], dOff, cs, sign * dir[0], sign * dir[1], sign * dir[2]});
 				}
 		return out;
 	}
