@@ -368,7 +368,7 @@ public class LineTrace3D extends AbstractCurve3D
 		
 		ArrayList<RealPoint> allvertices;
 		//in VOXEL coordinates
-		if(this.vertices.size() == 1)
+		if(this.vertices.size() <= 3)
 		{
 			allvertices = this.vertices;
 		}

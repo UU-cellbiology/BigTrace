@@ -475,7 +475,7 @@ public abstract class AbstractCurve3D extends AbstractRoi3D
 		final ArrayList<RealPoint> allvertices = new ArrayList<>();
 		
 		//in VOXEL coordinates
-		if(this.vertices.size()==1)
+		if(this.vertices.size() <= 3)
 		{
 			double [] pos = vertices.get(0).positionAsDoubleArray();
 			long [][] lPos = new long[2][3];
