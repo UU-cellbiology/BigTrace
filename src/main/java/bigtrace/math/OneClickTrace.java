@@ -1106,6 +1106,15 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 						finPos[d] = (float) (subCentre[d] * ds[d] + 0.5 * (ds[d] - 1));
 						bestGrid[d] = Math.round(subCentre[d]);
 					}
+					//line direction at the centre (interpolated hessian), not at the stepped voxel (often on the flank)
+					if(directionAtGrid(subCentre, newDirection))
+					{
+						if(LinAlgHelpers.dot(newDirection, refDirection) < 0)
+						{
+							LinAlgHelpers.scale(newDirection, -1.0, newDirection);
+						}
+						System.arraycopy(newDirection, 0, lastDirectionVector, 0, 3);
+					}
 				}
 				else if(recenterOnRidge(currpoint, bestGrid, raInput))
 				{
@@ -2076,6 +2085,20 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			}
 		}
 		return false;
+	}
+	
+	/** line direction (unit, physical) at the continuous grid position x from the linearly interpolated hessian
+	 * of the math box (MathBox.getHessianBox) to dirOut; false (dirOut not changed) outside of the box 
+	 * or if it is not line-like (saliency not positive) **/
+	boolean directionAtGrid(final double [] x, final double [] dirOut)
+	{
+		final double [] vecGrid = new double[3];
+		final double dSal = mathBox.getHessianBox().saliencyAt(x, vecGrid);
+		if(!(dSal > 0))
+			return false;
+		final double [] dir = gridToPhysDir(vecGrid);
+		System.arraycopy(dir, 0, dirOut, 0, 3);
+		return true;
 	}
 	
 	/** checks of the Steger centre x (grid) in the cross-section through o (grid), line direction t (grid) at the centre, 
