@@ -65,7 +65,11 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	static final int STEP_NORMAL = 0, STEP_POINT = 1, STEP_STOP = 2;
 
 	/** results of planPassage() **/
-	static final int PASSAGE_NONE = 0, PASSAGE_OK = 1, PASSAGE_MERGE = 2;
+	static final int PASSAGE_NONE = 0, PASSAGE_OK = 1, PASSAGE_MERGE = 2, PASSAGE_LOST = 3;
+
+	/** branch-first: if the passages to all candidates are lost (JunctionBranchPassage.followPlans), 
+	 * tracing stops in this direction (otherwise normal stepping continues into the junction) **/
+	boolean bStopOnLostPassage = true;
 
 	/** max tracing sigma in grid units **/
 	double dMaxSigmaGrid = 1.0;
@@ -220,6 +224,10 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 				stepPoint = passageQueue.poll();
 				return (stepPoint == null) ? STEP_STOP : STEP_POINT;
 			}
+			if(nPassage == PASSAGE_LOST)
+			{
+				return STEP_STOP;
+			}
 			if(nPassage == PASSAGE_MERGE)
 			{
 				//the trace would continue on an existing ROI: stop here
@@ -347,6 +355,13 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			else
 			{
 				path.clear();
+			}
+			//the passages to all candidates are lost: stop here
+			if(nBranch == JunctionBranchPassage.GEO_LOST && bStopOnLostPassage)
+			{
+				visDebugMessage("branch-first: all passages lost, trace stopped");
+				noPassageHeading(currpoint, memBefore, lastBefore);
+				return PASSAGE_LOST;
 			}
 		}
 		//map coasting (also without trace history or a branch found by branch-first)

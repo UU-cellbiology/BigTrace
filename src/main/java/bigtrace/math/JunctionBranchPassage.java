@@ -40,7 +40,10 @@ import bigtrace.volume.ConeCursor;
  *    dFollowMinCos of the curve) closest to the curve
  *    shifted by the current offset of the followed ridge from it (continuity: it does not switch between maxima)
  *    is taken; only points moving forward, at least dMinPointSpacing apart, are added;
- *    with none the step is "blind" on the curve; more than dMaxBlindSD of blind steps in a row: passage lost.
+ *    with none the step is "blind" on the curve; more than dBlindFraction of the curve length (at least dMinBlindSD)
+ *    of blind steps in a row: passage lost, the curve to the next candidate (in the order of turning, if it turns
+ *    at most dRetryMaxExtraTurnDeg more) is followed;
+ *    all lost: the trace stops (JunctionHandler.bStopOnLostPassage).
  * Without enough trace history (NOFIT) or a target (NOTARGET) the map coasting is used.
  * After the map coasting, planToCoastEnd() refines its end point (nearest ridge centre in its 3D vicinity, dRefineSD)
  * and the passage to it is planned and followed the same way (3-4): the map coasting tends to cut bends
@@ -150,8 +153,32 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** length of the bending cone where the candidates were searched (physical), for the debug visualization **/
 	double dConeDist = 0;
 
-	/** maximum length of blind steps in a row (tracing SDs) **/
-	double dMaxBlindSD = 5.0;
+	/** junction passage: maximum length of blind steps in a row, fraction of the length of the passage curve
+	 * (passages that found their branch went at most ~0.2 of the curve blind; a wrong one 0.4) ... **/
+	double dBlindFraction = 0.3;
+
+	/** ... but at least this (tracing SDs: the junction itself may have no clean ridge in the cross-sections).
+	 * Gap bridging: the reach of the bridge (blind steps over the gap are its purpose) **/
+	double dMinBlindSD = 1.0;
+
+	/** a planned passage (chooseLeastTurning): target, its end direction, curve, total turning and the change
+	 * of the end direction by the ridge fit (degrees) **/
+	static class Plan
+	{
+		double [] p1;
+		double [] t1;
+		double [][] curve;
+		double [] curveS;
+		double dTurnDeg;
+		double dFitDeg;
+	}
+
+	/** a lost passage: the next candidates are tried only if their curve turns at most this much more (degrees)
+	 * than the least turning one (otherwise it is a different path, e.g. onto another filament: the trace stops) **/
+	double dRetryMaxExtraTurnDeg = 30.0;
+
+	/** passages planned to the candidates, the least turning first (the next ones are tried if it is lost) **/
+	final ArrayList<Plan> plans = new ArrayList<>();
 
 	/** minimum number of trace points for the heading fit **/
 	int nMinFitPoints = 4;
@@ -312,8 +339,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				sMode, altCurves.size() + 1, dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 
-		//4) follow the curve
-		return follow(raInput, outPath, dMinSal, "branch-first");
+		//4) follow the curve (if lost, the next ones)
+		return followPlans(raInput, outPath, dMinSal, "branch-first", 0.0);
 	}
 
 	/** After the map coasting (ending at endFull, full resolution, with direction endDirGrid, grid space):
@@ -408,7 +435,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		jh.visDebugMessage(String.format("map coasting: end refined (%.1f SD), passage turns %.0f deg, end direction fit %.0f deg", 
 				best[3], dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
-		return follow(raInput, outPath, dMinSal, "map coasting");
+		return follow(raInput, outPath, dMinSal, "map coasting", junctionBlindLength());
 	}
 
 	/** Gap bridging by a planned passage (OneClickTrace.bridgeGapPassage: normal stepping found no continuation),
@@ -556,14 +583,15 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				dGapReachSD, altCurves.size() + 1, dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 
-		//4) follow the curve over the gap
-		return follow(raInput, outPath, dMinSal, "gap bridge");
+		//4) follow the curve over the gap (if lost, the next ones), blind up to the reach of the bridge
+		return followPlans(raInput, outPath, dMinSal, "gap bridge", dGapReachSD * dLenSD);
 	}
 
 	/** Follows the planned curve step by step: the nearest ridge in the cross-section (within dFollowSD),
 	 * otherwise a blind step on the curve. Points (full resolution) are added to outPath;
 	 * GEO_OK: heading of OneClickTrace set to the curve direction at the end, GEO_LOST: nothing changed. **/
-	int follow(final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath, final double dMinSal, final String sName)
+	int follow(final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath, final double dMinSal, final String sName,
+			final double dMaxBlindLength)
 	{
 		final double dCurveEnd = curveS[curveS.length - 1];
 		final double [] p = new double[3];
@@ -608,7 +636,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				System.arraycopy(pPred, 0, q, 0, 3);
 				bLastOk = false;
 				dBlind += dStep;
-				if(dBlind > dMaxBlindSD * dLenSD)
+				if(dBlind > dMaxBlindLength)
 				{
 					jh.visDebugMessage(sName + ": passage lost");
 					return GEO_LOST;
@@ -708,6 +736,73 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				altTurnDeg.add(Math.toDegrees(turns.get(i)));
 			}
 		}
+		//all plans, the least turning first
+		plans.clear();
+		for (int i = 0; i < nPlan; i++)
+		{
+			final Plan pl = new Plan();
+			final double [] ci = cands.get(i);
+			pl.p1 = new double [] {ci[0], ci[1], ci[2]};
+			pl.t1 = new double [] {ci[5], ci[6], ci[7]};
+			pl.curve = curves.get(i);
+			pl.curveS = curvesS.get(i);
+			pl.dTurnDeg = Math.toDegrees(turns.get(i));
+			pl.dFitDeg = fitDeg[i];
+			plans.add(pl);
+		}
+		plans.sort((a, b) -> Double.compare(a.dTurnDeg, b.dTurnDeg));
+	}
+
+	/** makes plans[nIndex] the current one (target, curve; the others are the alternative curves of the debug visualization) **/
+	void usePlan(final int nIndex)
+	{
+		final Plan pl = plans.get(nIndex);
+		System.arraycopy(pl.p1, 0, p1, 0, 3);
+		System.arraycopy(pl.t1, 0, t1, 0, 3);
+		curve = pl.curve;
+		curveS = pl.curveS;
+		dChosenTurnDeg = pl.dTurnDeg;
+		dT1FitDeg = pl.dFitDeg;
+		altCurves.clear();
+		altTurnDeg.clear();
+		for (int i = 0; i < plans.size(); i++)
+		{
+			if(i != nIndex)
+			{
+				altCurves.add(plans.get(i).curve);
+				altTurnDeg.add(plans.get(i).dTurnDeg);
+			}
+		}
+	}
+
+	/** maximum length of blind steps in a row of a junction passage along the current curve (physical) **/
+	double junctionBlindLength()
+	{
+		return Math.max(dMinBlindSD * dLenSD, dBlindFraction * curveS[curveS.length - 1]);
+	}
+
+	/** Follows the planned passages (plans) in the order of turning until one is not lost
+	 * (only those turning at most dRetryMaxExtraTurnDeg more than the first one).
+	 * dBlindLength: maximum length of blind steps in a row (physical), 0 or less: junctionBlindLength of each curve.
+	 * Returns GEO_OK (see follow) or GEO_LOST (all lost, nothing changed) **/
+	int followPlans(final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath, final double dMinSal, final String sName, 
+			final double dBlindLength)
+	{
+		for (int i = 0; i < plans.size(); i++)
+		{
+			if(i > 0 && plans.get(i).dTurnDeg > plans.get(0).dTurnDeg + dRetryMaxExtraTurnDeg)
+				break;
+			usePlan(i);
+			if(i > 0)
+			{
+				jh.visDebugMessage(String.format("%s: passage lost, next candidate (turns %.0f deg)", sName, dChosenTurnDeg));
+				visDebugPlan(true);
+			}
+			final double dMaxBlind = dBlindLength > 0 ? dBlindLength : junctionBlindLength();
+			if(follow(raInput, outPath, dMinSal, sName, dMaxBlind) == GEO_OK)
+				return GEO_OK;
+		}
+		return GEO_LOST;
 	}
 
 	/** total turning of a dense polyline: sum of the angles between successive segments (radians) **/
