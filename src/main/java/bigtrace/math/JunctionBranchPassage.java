@@ -159,6 +159,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** junction box center ahead of the current point (tracing SDs), the box covers the search **/
 	double dBoxAheadSD = 4.0;
 
+	/** ridge centre test (isAcross): a single axis neighbour step is compared unless |cos| with the line is above this **/
+	double dAxisAlongCos = 0.8;
+
+	/** gap bridging (planGap): candidates at least this far ahead of the current point (tracing SDs) **/
+	double dGapMinAheadSD = 1.0;
+
 	/** results of plan() **/
 	static final int GEO_OK = 0, GEO_NOFIT = 1, GEO_NOTARGET = 2, GEO_LOST = 3;
 
@@ -288,7 +294,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		//3) curves to the candidates, the least turning one
 		chooseLeastTurning(cands, dMinSal);
-		final String sMode = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_BOTH) ? 
+		final String sMode = (OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_SPHERE) ? 
+				String.format("half sphere %.0f SD", secRadiusSD) :
+				(OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_BOTH) ? 
 				String.format("cone %.0f SD + section %.0f SD", dConeDist / dLenSD, dTargetDist / dLenSD) 
 				: (bConeSearch ? String.format("cone %.0f SD", dConeDist / dLenSD) : String.format("section %.0f SD", dTargetDist / dLenSD));
 		jh.visDebugMessage(String.format("branch-first (%s): %d candidate(s), chosen turns %.0f deg, end direction fit %.0f deg", 
@@ -392,6 +400,131 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				best[3], dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 		return follow(raInput, outPath, dMinSal, "map coasting");
+	}
+
+	/** Gap bridging by a planned passage (OneClickTrace.bridgeGapPassage: normal stepping found no continuation),
+	 * the same steps as plan() with a different candidate search:
+	 * 1) heading as in plan() (the reference direction of the stepping if the trace is too short);
+	 * 2) candidates: ridge centres (ridgesInVicinity) in the ellipsoid of dGapReachSD tracing SDs (per axis)
+	 *    around the current point, at least dGapMinAheadSD ahead along the heading, saliency
+	 *    >= dRelSaliency x running saliency of the trace, |cos| of the line direction vs the heading
+	 *    >= dCandidateMinCos (no cone: any position ahead), not on existing ROIs (traced mask);
+	 *    of those closer than dCandidateMergeSD the strongest one is kept. The junction box is placed
+	 *    half way into the reach (covers the search). Planning order: offset from the straight heading line;
+	 * 3) the least turning curve to them (chooseLeastTurning, end direction fitted along the ridge);
+	 * 4) the curve is followed (follow: blind steps over the gap, then on the ridge).
+	 * Returns GEO_OK (points, full resolution, added to outPath; heading of OneClickTrace set to the passage end),
+	 * GEO_NOTARGET (no candidate) or GEO_LOST (could not be followed); nothing changed in OneClickTrace then. **/
+	int planGap(final RealPoint currpoint, final RandomAccess< T > raInput, final ArrayList<RealPoint> outPath, final double dGapReachSD)
+	{
+		setupGeometry();
+		bConeSearch = false;
+		//1) heading: fit, or the reference direction of the stepping
+		final double [] ref = (oc.bUseHistory ? oc.memDirectionVector : oc.lastDirectionVector).clone();
+		LinAlgHelpers.normalize(ref);
+		if(!oc.bUseHistory)
+		{
+			//(fitHeading orients the fit along the momentum, not updated without history)
+			System.arraycopy(ref, 0, oc.memDirectionVector, 0, 3);
+		}
+		if(!fitHeading(currpoint))
+		{
+			System.arraycopy(ref, 0, t0, 0, 3);
+		}
+		final double dOwnSal = oc.dSalTrace;
+		if(!(dOwnSal > 0) || !(dGapReachSD > 0))
+		{
+			return GEO_NOTARGET;
+		}
+		final double dMinSal = dRelSaliency * dOwnSal;
+		//reach along the heading (physical)
+		double dNorm = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dNorm += (t0[d] / sd[d]) * (t0[d] / sd[d]);
+		}
+		dTargetDist = dGapReachSD / Math.sqrt(dNorm);
+
+		//junction box half way into the reach
+		final long [] center = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			center[d] = Math.round((p0[d] + 0.5 * dTargetDist * t0[d]) / vox[d]);
+		}
+		jh.computeJunctionHessian(center);
+		if(jh.isVisDebug())
+		{
+			oc.bt.ocVisDebug.showJunctionMap(jh.box.getSaliencyForDisplay(oc.ds), "gap saliency");
+		}
+
+		//2) ridge centres ahead within the reach
+		final ArrayList<double[]> rejected = new ArrayList<>();
+		final ArrayList<double[]> ridges = ridgesInVicinity(p0, dGapReachSD, dMinSal, t0, dGapMinAheadSD * dLenSD, dCandidateMinCos, rejected);
+		//not on existing ROIs; offset: from the straight heading line (SDs, per axis); saliency
+		final long [] posFull = new long[3];
+		final double [] vecGrid = new double[3];
+		final ArrayList<double[]> valid = new ArrayList<>();
+		for(final double [] c : ridges)
+		{
+			final double [] full = physToFull(c);
+			for (int d = 0; d < 3; d++)
+			{
+				posFull[d] = Math.round(full[d]);
+			}
+			if(oc.bUseMask && oc.traceMask.isOccupied(posFull))
+			{
+				rejected.add(new double [] {c[0], c[1], c[2]});
+				continue;
+			}
+			double dAlong = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				dAlong += (c[d] - p0[d]) * t0[d];
+			}
+			double dLat = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				final double r = (c[d] - p0[d] - dAlong * t0[d]) / sd[d];
+				dLat += r * r;
+			}
+			final double sal = jh.box.saliencyAtVoxel(Math.round(c[0] / vox[0]), Math.round(c[1] / vox[1]), Math.round(c[2] / vox[2]), vecGrid);
+			valid.add(new double [] {c[0], c[1], c[2], Math.sqrt(dLat), c[4], c[5], c[6], c[7], sal});
+		}
+		//one per filament (piece): the strongest of the close ones
+		valid.sort((a, b) -> Double.compare(b[8], a[8]));
+		final ArrayList<double[]> cands = new ArrayList<>();
+		for(final double [] c : valid)
+		{
+			if(!isCloseTo(c, cands, dCandidateMergeSD))
+				cands.add(c);
+		}
+		//(debug visualization: the base of the searched half ellipsoid, at the current point)
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(t0, u, v);
+		secCenter = p0.clone();
+		secRadiusSD = dGapReachSD;
+		System.arraycopy(u, 0, secU, 0, 3);
+		System.arraycopy(v, 0, secV, 0, 3);
+		for(final double [] c : cands)
+		{
+			secCandidates.add(new double [] {c[0], c[1], c[2]});
+		}
+		secRejected.addAll(rejected);
+		if(cands.isEmpty())
+		{
+			jh.visDebugMessage("gap bridge: no continuation found");
+			visDebugPlan(false);
+			return GEO_NOTARGET;
+		}
+		//3) curves to the candidates, the least turning one
+		chooseLeastTurning(cands, dMinSal);
+		jh.visDebugMessage(String.format("gap bridge (%.1f SD): %d candidate(s), chosen turns %.0f deg, end direction fit %.0f deg", 
+				dGapReachSD, altCurves.size() + 1, dChosenTurnDeg, dT1FitDeg));
+		visDebugPlan(true);
+
+		//4) follow the curve over the gap
+		return follow(raInput, outPath, dMinSal, "gap bridge");
 	}
 
 	/** Follows the planned curve step by step: the nearest ridge in the cross-section (within dFollowSD),
@@ -683,6 +816,17 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	ArrayList<double[]> findCandidates(final double dMinSal)
 	{
 		final int nMode = OneClickTrace.BRANCH_SEARCH_MODE;
+		//on the half sphere ahead: outwards, then inwards
+		if(nMode == OneClickTrace.BRANCH_SEARCH_SPHERE)
+		{
+			bConeSearch = false;
+			ArrayList<double[]> sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+			if(sphereCands.isEmpty())
+			{
+				sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+			}
+			return sphereCands;
+		}
 		bConeSearch = (nMode == OneClickTrace.BRANCH_SEARCH_CONE || nMode == OneClickTrace.BRANCH_SEARCH_BOTH);
 		final boolean bSectionSearch = (nMode != OneClickTrace.BRANCH_SEARCH_CONE);
 		//on the bending cone: ahead, then closer
@@ -744,6 +888,137 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		secRejected.clear();
 		secRejected.addAll(coneRejected);
 		secRejected.addAll(secRej);
+		return out;
+	}
+
+	/** Candidates on the surface of the half sphere ahead (ridgesOnHalfSphere) of radius dFromSD, +dStepSD, ... 
+	 * to dToSD (tracing SDs), the first radius with any. Same format as findCandidates 
+	 * (offset = from the straight heading line) **/
+	ArrayList<double[]> findCandidatesSphere(final double dMinSal, final double dFromSD, final double dToSD, final double dStepSD)
+	{
+		secCenter = null;
+		secRadiusSD = 0;
+		final ArrayList<double[]> rejected = new ArrayList<>();
+		if(dStepSD == 0)
+			return new ArrayList<>();
+		double dNorm = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dNorm += (t0[d] / sd[d]) * (t0[d] / sd[d]);
+		}
+		final double dSDAlong = 1.0 / Math.sqrt(dNorm);
+		final double [] pole = new double[3];
+		for (double dR = dFromSD; (dStepSD > 0) ? (dR <= dToSD + 1e-6) : (dR >= dToSD - 1e-6); dR += dStepSD)
+		{
+			dTargetDist = dR * dSDAlong;
+			for (int d = 0; d < 3; d++)
+			{
+				pole[d] = p0[d] + dTargetDist * t0[d];
+			}
+			if(!insideBox(pole))
+			{
+				if(dStepSD > 0)
+					break;
+				continue;
+			}
+			rejected.clear();
+			final ArrayList<double[]> cands = ridgesOnHalfSphere(dR, dMinSal, rejected);
+			//(debug visualization: the rim of the half sphere, candidates, rejected)
+			final double [] u = new double[3];
+			final double [] v = new double[3];
+			Pipe3D.crossSectionBasis(t0, u, v);
+			secCenter = p0.clone();
+			secRadiusSD = dR;
+			System.arraycopy(u, 0, secU, 0, 3);
+			System.arraycopy(v, 0, secV, 0, 3);
+			secCandidates.clear();
+			for(final double [] c : cands)
+			{
+				secCandidates.add(new double [] {c[0], c[1], c[2]});
+			}
+			secRejected.clear();
+			secRejected.addAll(rejected);
+			if(!cands.isEmpty())
+				return cands;
+		}
+		return new ArrayList<>();
+	}
+
+	/** Candidates on the surface of the half sphere ahead of p0 (along the heading t0): voxels of the junction box
+	 * at the distance dRadiusSD tracing SDs (per axis, an ellipsoid) from p0, within a shell of half a voxel 
+	 * (the largest in SDs), with (x - p0).t0 >= 0. Ridge centres (isRidgeCentre) with saliency >= dMinSal and
+	 * |cos| of the line direction vs the heading >= dCandidateMinCos; of those closer than dCandidateMergeSD 
+	 * the strongest one is kept. A filament crosses the surface once (the incoming one behind it). 
+	 * Each: position (3, physical), offset from the straight heading line (SDs), |cos|, line direction oriented
+	 * along the heading (3), saliency. rejectedOut (may be null) gets the ridge centres with the orientation 
+	 * outside the limit. Limited by the junction box (lateral reach). **/
+	ArrayList<double[]> ridgesOnHalfSphere(final double dRadiusSD, final double dMinSal, final ArrayList<double[]> rejectedOut)
+	{
+		//shell half thickness (SDs): half of the largest voxel step in SDs, so the shell has no holes
+		double dHalf = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dHalf = Math.max(dHalf, 0.5 * vox[d] / sd[d]);
+		}
+		final long [] lo = new long[3];
+		final long [] hi = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			lo[d] = Math.max(jh.box.boxMin[d], (long) Math.floor((p0[d] - (dRadiusSD + dHalf) * sd[d]) / vox[d]));
+			hi[d] = Math.min(jh.box.boxMin[d] + jh.box.dims[d] - 1, (long) Math.ceil((p0[d] + (dRadiusSD + dHalf) * sd[d]) / vox[d]));
+		}
+		final ArrayList<double[]> ridges = new ArrayList<>();
+		final double [] vecGrid = new double[3];
+		final long [] g = new long[3];
+		final double [] pos = new double[3];
+		for (g[2] = lo[2]; g[2] <= hi[2]; g[2]++)
+			for (g[1] = lo[1]; g[1] <= hi[1]; g[1]++)
+				for (g[0] = lo[0]; g[0] <= hi[0]; g[0]++)
+				{
+					double dR = 0;
+					double dAhead = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						pos[d] = g[d] * vox[d];
+						final double r = (pos[d] - p0[d]) / sd[d];
+						dR += r * r;
+						dAhead += (pos[d] - p0[d]) * t0[d];
+					}
+					if(dAhead < 0 || Math.abs(Math.sqrt(dR) - dRadiusSD) > dHalf)
+						continue;
+					final double val = jh.box.saliencyAtVoxel(g[0], g[1], g[2], vecGrid);
+					if(!(val >= dMinSal) || val <= 0)
+						continue;
+					final double [] dir = oc.gridToPhysDir(vecGrid);
+					if(!isRidgeCentre(g, val, dir))
+						continue;
+					double cs = LinAlgHelpers.dot(dir, t0);
+					final double sign = cs < 0 ? -1.0 : 1.0;
+					cs = Math.abs(cs);
+					if(cs < dCandidateMinCos)
+					{
+						if(rejectedOut != null)
+						{
+							rejectedOut.add(pos.clone());
+						}
+						continue;
+					}
+					double dLat = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						final double r = (pos[d] - p0[d] - dAhead * t0[d]) / sd[d];
+						dLat += r * r;
+					}
+					ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dLat), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+				}
+		//one per filament crossing the surface: the strongest of the close ones
+		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
+		final ArrayList<double[]> out = new ArrayList<>();
+		for(final double [] c : ridges)
+		{
+			if(!isCloseTo(c, out, dCandidateMergeSD))
+				out.add(c);
+		}
 		return out;
 	}
 
@@ -882,11 +1157,23 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** true if the neighbour offset (dx, dy, dz) (grid voxels) lies across the line direction dir (physical, unit):
-	 * its component along the line is at most half the smallest voxel. (A |cos| limit does not work with
-	 * anisotropic voxels: e.g. (1, 0, 1) is a full voxel step along a line in xy, but at a large angle to it) **/
+	 * its component along the line is at most half the smallest voxel. (A |cos| limit alone does not work with
+	 * anisotropic voxels: e.g. (1, 0, 1) is a full voxel step along a line in xy, but at a large angle to it.)
+	 * A single axis step (e.g. one z slice) is also across unless it is nearly along the line (|cos| > dAxisAlongCos):
+	 * on the flanks of a filament the eigenvector tilts towards z, and with the z neighbours not compared 
+	 * a flank voxel would pass the ridge centre test (isRidgeCentre) **/
 	boolean isAcross(final int dx, final int dy, final int dz, final double [] dir)
 	{
-		return Math.abs(dx * vox[0] * dir[0] + dy * vox[1] * dir[1] + dz * vox[2] * dir[2]) <= 0.5 * dStep + 1e-12;
+		final double dAlong = Math.abs(dx * vox[0] * dir[0] + dy * vox[1] * dir[1] + dz * vox[2] * dir[2]);
+		if(dAlong <= 0.5 * dStep + 1e-12)
+			return true;
+		final int nAxes = (dx != 0 ? 1 : 0) + (dy != 0 ? 1 : 0) + (dz != 0 ? 1 : 0);
+		if(nAxes == 1)
+		{
+			final double dLen = Math.abs(dx) * vox[0] + Math.abs(dy) * vox[1] + Math.abs(dz) * vox[2];
+			return dAlong <= dAxisAlongCos * dLen;
+		}
+		return false;
 	}
 
 	/** true if the point x (first 3 values, physical) is closer than dRadiusSD (tracing SDs, per axis)

@@ -589,11 +589,40 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		}
 	}
 
+	/** Gap bridging by a planned passage (OneClickTrace.bridgeGapPassage): JunctionBranchPassage.planGap.
+	 * The passage points are queued (returned by the next step() calls, or by OneClickTrace.getNextPoint 
+	 * without junction handling), the first one is returned; null if there is no bridge 
+	 * (the heading of OneClickTrace is restored then). The junction detection state is kept. **/
+	RealPoint bridgeGap(final RealPoint currpoint, final RandomAccess< T > raInput)
+	{
+		passageQueue.clear();
+		visDebugMessage("gap: planning a bridge");
+		final double [] memBefore = oc.memDirectionVector.clone();
+		final double [] lastBefore = oc.lastDirectionVector.clone();
+		final double [] lineBefore = coastLineDir.clone();
+		final double [] dirBefore = coastDir.clone();
+		final boolean bArmedBefore = bJunctionArmed;
+		final ArrayList<RealPoint> path = new ArrayList<>();
+		final int nResult = branch.planGap(currpoint, raInput, path, oc.dGapBridgeSigma);
+		bJunctionArmed = bArmedBefore;
+		if(nResult != JunctionBranchPassage.GEO_OK || path.isEmpty())
+		{
+			System.arraycopy(memBefore, 0, oc.memDirectionVector, 0, 3);
+			System.arraycopy(lastBefore, 0, oc.lastDirectionVector, 0, 3);
+			System.arraycopy(lineBefore, 0, coastLineDir, 0, 3);
+			System.arraycopy(dirBefore, 0, coastDir, 0, 3);
+			visDebugMessage("gap: no bridge");
+			return null;
+		}
+		passageQueue.addAll(path);
+		return passageQueue.poll();
+	}
+
 	/** junction box at center (grid) and its hessian **/
 	void computeJunctionHessian(final long [] center)
 	{
 		box.setCenter(center);
-		box.computeHessian(oc.getJunctionInput(box), oc.convObjects, oc.nThreads, oc.es);
+		box.computeHessian(oc.getBoxInput(box), oc.convObjects, oc.nThreads, oc.es);
 	}
 
 	/** One coasting step along the elongated line filter map: one grid voxel along the entry
@@ -870,7 +899,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double dShortAlong = 1.5 * dMaxSigmaGrid;
 		final int nShortRay = Math.max(2, (int) Math.ceil(3.0 * dMaxSigmaGrid));
 		//1) cheap test in the math box of the start (short rays)
-		if(new HessianBox(oc.hessFloat, oc.minV).findArms(p, armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() < 3)
+		if(oc.mathBox.getHessianBox().findArms(p, armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() < 3)
 			return null;
 		//2) confirm with long rays in a junction box centered at the start
 		final long [] center = new long[3];
@@ -903,7 +932,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 				if(oc.bUseMask && oc.traceMask.isOccupied(q2))
 					continue;
 				oc.getMathForCurrentPoint(q2);
-				if(new HessianBox(oc.hessFloat, oc.minV).findArms(toGrid(q2), armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() <= 2)
+				if(oc.mathBox.getHessianBox().findArms(toGrid(q2), armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() <= 2)
 				{
 					return q2;
 				}

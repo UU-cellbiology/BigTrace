@@ -123,6 +123,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** branch-first candidate search: candidates of both (cone and cross-sections) pooled together **/
 	public static final int BRANCH_SEARCH_BOTH = 2;
 	
+	/** branch-first candidate search: on the surface of the half sphere (ellipsoid in tracing SDs) ahead,
+	 * centered at the current point **/
+	public static final int BRANCH_SEARCH_SPHERE = 3;
+	
 	/** branch-first candidate search mode (a constant for now) **/
 	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_BOTH;
 	
@@ -185,6 +189,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** gap bridging: landing voxel saliency must be at least this fraction 
 	 * of the running average saliency of the trace (avoids jumping onto background) **/
 	static final double dGapMinRelSal = 0.3;
+	
+	/** gap bridging by a planned passage (JunctionBranchPassage.planGap: ridge centres ahead within the reach, 
+	 * least turning curve to them, followed over the gap) instead of the jump to the best voxel in the 
+	 * look-ahead cone (bridgeGap) **/
+	boolean bGapBridgePassage = true;
 	
 	/** running (exponential) average of saliency along the current trace direction **/
 	double dSalTrace = 0.0;
@@ -263,11 +272,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	float fEstimatedThickness = 5.0f;
 	
-	/** eigenvectors container **/
-	ArrayImg<FloatType, FloatArray> dV;
-	/** weights (saliency) container **/
-	ArrayImg<FloatType, FloatArray> sW;
+	/** math box around the current point: hessian, saliency and direction at its voxels (grid) **/
+	MathBox mathBox;
 	
+	/** line directions (grid space, unit; x, y, z, component) and saliency of the math box, grid coordinates **/
 	IntervalView<FloatType> directionVectors;
 	IntervalView<FloatType> salWeights;
 	RandomAccess<FloatType> raV;
@@ -283,7 +291,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	public int nInsertROIInd = 0;
 	
 	ArrayImg<FloatType, FloatArray> gradFloat;
-	ArrayImg<FloatType, FloatArray> hessFloat;
 	
 	/** Tracing math (hessian, saliency, vectors, stepping) is done on the "grid".
 	 * Grid voxel g along axis d covers full resolution voxels [g*ds[d], g*ds[d]+ds[d]-1].
@@ -301,8 +308,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	final long [] gridMin = new long[3];
 	final long [] gridMax = new long[3];
 	
-	/** block-averaged local box (used only when downsampling) **/
-	ArrayImg<FloatType, FloatArray> gridBox;	
 	
 	private LineTrace3D currentTracing;
 	
@@ -708,13 +713,13 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//same stiffness per pixel on the downsampled grid
 		dStiffnessGridScale = 1.0 / dsMax;
 		updateStepping();
-		if(bJunctions)
+		//gap bridging, distance is in sigmas
+		dGapBridgeSigma = Math.min(BigTraceData.dOCGapBridgeMaxSigma, Math.max(0.0, bt.btData.dOCGapBridgeSigma));
+		//junction box: junctions, gap bridging by a planned passage
+		if(isJunctionBoxUsed())
 		{
 			junctions.init(dMaxSigmaGrid, bDownsample);
 		}
-				
-		//gap bridging, distance is in sigmas
-		dGapBridgeSigma = Math.min(BigTraceData.dOCGapBridgeMaxSigma, Math.max(0.0, bt.btData.dOCGapBridgeSigma));
 		bKinkRecovery = bt.btData.bOCKinkRecovery;
 		for (int d = 0; d < 3; d++)
 		{
@@ -760,9 +765,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//dV = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 3 );
 		//sW = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ]);
 
-		hessFloat = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ], 6 );
-		dV = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ], 3 );
-		sW = ArrayImgs.floats( boxFullRange[ 0 ], boxFullRange[ 1 ], boxFullRange[ 2 ]);
+		mathBox = new MathBox(boxFullRange, false);
 
 		
 		initNeighborsHashMap();
@@ -798,8 +801,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//downsampled box (with the margin)
 		if(bDownsample)
 		{
-			gridBox = ArrayImgs.floats( boxFullRange[ 0 ] + 2 * convMargin[ 0 ], boxFullRange[ 1 ] + 2 * convMargin[ 1 ], boxFullRange[ 2 ] + 2 * convMargin[ 2 ]);
-			if(bJunctions)
+			mathBox.setGridMargin(convMargin);
+			if(isJunctionBoxUsed())
 			{
 				junctions.box.setGridMargin(convMargin);
 			}
@@ -899,6 +902,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		
 		final RandomAccess< T > raInput = bt.btData.bOCIntensityStop ? fullInput.randomAccess() : null;
 
+		//points of a planned gap bridge (without junction handling, see bridgeGapPassage)
+		bLastFromPassage = false;
+		if(!bJunctions)
+		{
+			if(!junctions.passageQueue.isEmpty())
+			{
+				bLastFromPassage = true;
+				visDebugJunctionMap(true);
+				return junctions.passageQueue.poll();
+			}
+			//(debug: the gap saliency map is removed after the passage)
+			visDebugJunctionMap(false);
+		}
 		//junctions: passage points, stop, or normal stepping
 		if(bJunctions)
 		{
@@ -1090,7 +1106,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		else if(dGapBridgeSigma > 0)
 		{
 			//ridge is interrupted, try to find its continuation ahead
-			out = bridgeGap(currpoint, refDirection, raInput);
+			if(bGapBridgePassage)
+			{
+				out = bridgeGapPassage(currpoint, raInput);
+			}
+			else
+			{
+				out = bridgeGap(currpoint, refDirection, raInput);
+			}
 		}
 		if(out == null && bKinkRecovery)
 		{
@@ -1300,6 +1323,21 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return true;
 	}
 	
+	/** Gap bridging by a planned passage (bGapBridgePassage), called when normal stepping finds no candidate:
+	 * ridge centres ahead within dGapBridgeSigma tracing SDs, the least turning curve to them is followed
+	 * over the gap (JunctionHandler.bridgeGap, JunctionBranchPassage.planGap). The first point of the passage
+	 * is returned, the rest by the next getNextPoint calls (passage points: no self-intersection check).
+	 * Returns null if there is no bridge. **/
+	RealPoint bridgeGapPassage(final RealPoint currpoint, final RandomAccess< T > raInput)
+	{
+		final RealPoint out = junctions.bridgeGap(currpoint, raInput);
+		if(out != null)
+		{
+			bLastFromPassage = true;
+		}
+		return out;
+	}
+
 	/** Gap bridging for "dotty" (punctate) lines, called when normal stepping finds no candidate.
 	 * Looks ahead in a cone along the reference direction (half-angle acos(dGapConeCos)),
 	 * up to dGapBridgeSigma tracing sigmas away. Distance is measured in sigma units per axis, 
@@ -1465,14 +1503,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		innerTraceBox = getLocalTraceBox(fullInput,boxInnerHalfRange,currPoint);
 		//currentBox.min(minV);
 		
-		//input for convolutions (full resolution or block averaged grid):
-		//the data around the box are used too (convMargin), 
-		//border extension only at the borders of the data
-		final RandomAccessible<?> convSource;
+		//position of the math box (grid): the box around the point, inside of the data
 		if(!bDownsample)
 		{
 			currentBox.min(minV);
-			convSource = Views.extendBorder(fullInput);
 		}
 		else
 		{
@@ -1481,65 +1515,14 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			{
 				minV[d] = Math.max(gridMin[d], toGrid(currPoint.getDoublePosition(d), d) - boxGridHalfRange[d]);
 			}
-			final long [] gridInputMin = new long[3];
-			for(int d = 0; d < 3; d++)
-			{
-				gridInputMin[d] = minV[d] - convMargin[d];
-			}
-			fillGridBox(gridBox, gridInputMin);
-			convSource = Views.extendBorder(Views.translate(gridBox, gridInputMin));
 		}
-		
-		//IntervalView<FloatType> gradient = Views.translate(gradFloat, nShift);
-		IntervalView<FloatType> hessian = Views.translate(hessFloat, minV);
-		
+		mathBox.setMin(minV);
 		bt.visualBoxes.traceBox.setInterval( currentBox );
 
-	/*
-		double [][] kernels;
-		Kernel1D[] derivKernel;
-		int [] nDerivOrder;
-		Convolution convObj;
-		//start1 = System.currentTimeMillis();
-		final int nThreads = Runtime.getRuntime().availableProcessors();
-		ExecutorService es = Executors.newFixedThreadPool( nThreads );
-		//setProgress(0);
-		/*
-		//first derivatives
-		for (int d1=0;d1<3;d1++)
-		{
-			//current coordinate
-			IntervalView< FloatType > gd2 = Views.hyperSlice( gradient, 3, d1 );
-			nDerivOrder = new int [3];
-			nDerivOrder[d1]++;
-			kernels = DerivConvolutionKernels.convolve_derive_kernel(bt.btdata.sigmaTrace, nDerivOrder);
-			derivKernel = Kernel1D.centralAsymmetric(kernels);
-			convObj = SeparableKernelConvolution.convolution( derivKernel );
-			convObj.setExecutor(es);
-			convObj.process(Views.extendBorder(currentBox), gd2 );
-		}
-		*/
-		
-		//second derivatives
-		int count = 0;
-		for (int d1 = 0; d1 < 3; d1++)
-		{
-			for (int d2 = d1; d2 < 3; d2++ )
-			{
-				IntervalView< FloatType > hs2 = Views.hyperSlice( hessian, 3, count );
-				//FinalInterval test = (FinalInterval) convObjects[count].requiredSourceInterval(hs2);
-				//convObjects[count].process(Views.extendBorder(currentBox), hs2 );
-				convObjects[count].process(convSource, hs2 );
-				count++;
-			}
-		}
-
-		EigenValVecSymmDecomposition<FloatType> mEV = new EigenValVecSymmDecomposition<>(3);
-
-		directionVectors =  Views.translate(dV, minV);
-		salWeights =  Views.translate(sW, minV[0], minV[1], minV[2]);
-		
-		mEV.computeVWRAI(hessian, directionVectors, salWeights, nThreads, es);
+		//hessian (the data around the box are used too, convMargin), saliency and directions
+		mathBox.computeHessian(getBoxInput(mathBox), convObjects, nThreads, es);
+		directionVectors = mathBox.vecView();
+		salWeights = mathBox.salView();
 		raV = directionVectors.randomAccess();
 		raW = salWeights.randomAccess();
 		//calculate inner box
@@ -1852,18 +1835,24 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return out;
 	}
 
-	/** input (grid coordinates) for the hessian convolution of a junction box:
-	 * the full dataset, or with downsampling its block averages filled in the box **/
-	RandomAccessibleInterval<?> getJunctionInput(final JunctionBox box)
+	/** input (grid coordinates, border extended) for the hessian convolution of a box (math box, junction box)
+	 * at its current position: the full dataset, or with downsampling its block averages 
+	 * filled in the box with the convolution margin (border extension only at the borders of the data) **/
+	RandomAccessible<?> getBoxInput(final MathBox box)
 	{
 		if(!bDownsample)
 		{
-			return fullInput;
+			return Views.extendBorder(fullInput);
 		}
-		//block averaged grid of the box with the convolution margin
 		final long [] gridInputMin = box.gridInputMin();
 		fillGridBox(box.gridImg, gridInputMin);
-		return Views.translate(box.gridImg, gridInputMin);
+		return Views.extendBorder(Views.translate(box.gridImg, gridInputMin));
+	}
+
+	/** the junction box is needed: junction handling or gap bridging by a planned passage **/
+	boolean isJunctionBoxUsed()
+	{
+		return bJunctions || (dGapBridgeSigma > 0 && bGapBridgePassage);
 	}
 	
 	/** margin around a box needed by the hessian convolutions (max over the 6 derivative kernels) **/
