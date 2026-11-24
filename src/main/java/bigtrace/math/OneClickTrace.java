@@ -239,6 +239,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * of the momentum (same filament, not onto a crossing one) **/
 	final double dRecenterAngleCos = 0.9;
 	
+	/** re-centering by Steger's method (recenterSteger: sub-voxel line centre from the gradient and hessian
+	 * in the plane perpendicular to the local line direction) before the saliency hill-climbing (recenterOnRidge) **/
+	boolean bStegerRecenter = true;
+	
+	/** Steger re-centering: maximum offset of the centre from the stepped voxel (tracing sigmas, per axis) **/
+	double dStegerMaxSD = 1.0;
+	
+	/** input of the convolutions of the current math box (border extended, grid coordinates), see getBoxInput **/
+	RandomAccessible<?> mathBoxInput = null;
+	
+	/** Gaussian smoothing masks (tracing sigma on the grid, per axis; centered) for smoothedAt **/
+	double [][] smoothKernels = null;
+	
 	/** if true, the junction map is shown in ImageJ when entering a junction 
 	 * (interactive one-click only, not in batch/auto tracing) **/
 	public boolean bShowJunctionMap = false;
@@ -730,6 +743,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		{
 			sigmaGridV[d] = sigmaGrid[d];
 		}
+		//Gaussian masks (same sigma as the hessian) for the gradient of Steger re-centering
+		smoothKernels = DerivConvolutionKernels.convolve_derive_kernel(sigmaGrid, new int [] {0, 0, 0});
 		
 		//vertex placement is in px, each step is now up to dsMax px
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
@@ -1076,8 +1091,19 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			//history stepping: re-centering and momentum update
 			if(bUseHistory)
 			{
-				//position is snapped back to the ridge
-				if(recenterOnRidge(currpoint, bestGrid, raInput))
+				//position is snapped back to the ridge: the sub-voxel line centre (Steger),
+				//otherwise saliency hill-climbing on the grid
+				final double [] subCentre = new double[3];
+				final boolean bSub = bStegerRecenter && recenterSteger(currpoint, bestGrid, subCentre, raInput);
+				if(bSub)
+				{
+					for (int d = 0; d < 3; d++)
+					{
+						finPos[d] = (float) (subCentre[d] * ds[d] + 0.5 * (ds[d] - 1));
+						bestGrid[d] = Math.round(subCentre[d]);
+					}
+				}
+				else if(recenterOnRidge(currpoint, bestGrid, raInput))
 				{
 					for (int d = 0; d < 3; d++)
 					{
@@ -1089,7 +1115,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				//so heading errors get corrected), partly from the local orientation 
 				for (int d = 0; d < 3; d++)
 				{
-					bestStep[d] = (bestGrid[d] - toGrid(currpoint.getDoublePosition(d), d)) * gridVoxelSize[d];
+					bestStep[d] = bSub ? (subCentre[d] - toGridDouble(currpoint.getDoublePosition(d), d)) * gridVoxelSize[d]
+							: (bestGrid[d] - toGrid(currpoint.getDoublePosition(d), d)) * gridVoxelSize[d];
 				}
 				LinAlgHelpers.normalize(bestStep);
 				for (int d = 0; d < 3; d++)
@@ -1520,7 +1547,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		bt.visualBoxes.traceBox.setInterval( currentBox );
 
 		//hessian (the data around the box are used too, convMargin), saliency and directions
-		mathBox.computeHessian(getBoxInput(mathBox), convObjects, nThreads, es);
+		mathBoxInput = getBoxInput(mathBox);
+		mathBox.computeHessian(mathBoxInput, convObjects, nThreads, es);
 		directionVectors = mathBox.vecView();
 		salWeights = mathBox.salView();
 		raV = directionVectors.randomAccess();
@@ -1911,6 +1939,173 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 	}
 	
+	/** Re-centering by Steger's method (C. Steger, An unbiased detector of curvilinear structures, 1998), in 3D:
+	 * at the grid voxel g the hessian H (math box) and the gradient (central differences of the Gaussian smoothed 
+	 * input, smoothedAt) give the second order Taylor expansion of the smoothed intensity; restricted to the plane
+	 * (u, v) perpendicular to the line direction t (eigenvector of the smallest absolute eigenvalue) its maximum 
+	 * is at the offset -(N'HN)^-1 N'g, N = (u v) (a bright line: N'HN negative definite). 
+	 * Solved in physical units (H and g scaled by the voxel size, the plane perpendicular to the physical direction). If the offset is within
+	 * the voxel (|offset| <= 0.5 on each axis), g + offset is the sub-voxel centre of the line; otherwise g moves
+	 * one voxel towards it and it is repeated (up to nRecenterMaxSteps).
+	 * The centre must be within dStegerMaxSD tracing sigmas (per axis) of the stepped voxel gridPos, in front of 
+	 * currpoint (along the momentum), its line direction within the directionality constrain of the momentum,
+	 * not masked or below the intensity threshold. Its grid position (continuous) goes to subOut.
+	 * Returns false (nothing changed) otherwise. **/
+	boolean recenterSteger(final RealPoint currpoint, final long [] gridPos, final double [] subOut, final RandomAccess< T > raInput)
+	{
+		final long [] g = gridPos.clone();
+		final long [] q = new long[3];
+		final double [] h = new double[6];
+		final double [] t = new double[3];
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		final double [] grad = new double[3];
+		final double [] hu = new double[3];
+		final double [] hv = new double[3];
+		final double [] delta = new double[3];
+		for (int nMove = 0; nMove <= nRecenterMaxSteps; nMove++)
+		{
+			if(!mathBox.hessianAtVoxel(g[0], g[1], g[2], h))
+				return false;
+			if(!(SteerableLineFilter.saliency(h, t) > 0))
+				return false;
+			//gradient of the smoothed input (per grid voxel)
+			for (int d = 0; d < 3; d++)
+			{
+				System.arraycopy(g, 0, q, 0, 3);
+				q[d] = g[d] + 1;
+				final double dPlus = smoothedAt(q);
+				q[d] = g[d] - 1;
+				grad[d] = 0.5 * (dPlus - smoothedAt(q));
+			}
+			//Taylor expansion in the plane perpendicular to the line, in physical units:
+			//with anisotropic voxels the plane perpendicular in grid units is tilted along the line
+			//and its intensity maximum is off the line at steep (z) turns
+			final double [] vx = gridVoxelSize;
+			h[0] /= vx[0] * vx[0];
+			h[1] /= vx[0] * vx[1];
+			h[2] /= vx[0] * vx[2];
+			h[3] /= vx[1] * vx[1];
+			h[4] /= vx[1] * vx[2];
+			h[5] /= vx[2] * vx[2];
+			for (int d = 0; d < 3; d++)
+			{
+				grad[d] /= vx[d];
+			}
+			Pipe3D.crossSectionBasis(gridToPhysDir(t), u, v);
+			hessianTimes(h, u, hu);
+			hessianTimes(h, v, hv);
+			final double a11 = LinAlgHelpers.dot(u, hu);
+			final double a12 = LinAlgHelpers.dot(u, hv);
+			final double a22 = LinAlgHelpers.dot(v, hv);
+			final double b1 = LinAlgHelpers.dot(u, grad);
+			final double b2 = LinAlgHelpers.dot(v, grad);
+			final double det = a11 * a22 - a12 * a12;
+			if(!(det > 0) || a11 + a22 >= 0)
+				return false;
+			final double x1 = (a12 * b2 - a22 * b1) / det;
+			final double x2 = (a12 * b1 - a11 * b2) / det;
+			boolean bInVoxel = true;
+			for (int d = 0; d < 3; d++)
+			{
+				//(physical -> grid)
+				delta[d] = (x1 * u[d] + x2 * v[d]) / vx[d];
+				if(Math.abs(delta[d]) > 0.5)
+					bInVoxel = false;
+			}
+			if(bInVoxel)
+			{
+				return acceptSteger(currpoint, gridPos, g, delta, t, subOut, raInput);
+			}
+			//one voxel towards the centre
+			for (int d = 0; d < 3; d++)
+			{
+				if(Math.abs(delta[d]) > 0.5)
+				{
+					g[d] += (delta[d] > 0) ? 1 : -1;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/** checks of the Steger centre g + delta (grid) of the stepped voxel gridPos, line direction t (grid), 
+	 * see recenterSteger; sets subOut **/
+	boolean acceptSteger(final RealPoint currpoint, final long [] gridPos, final long [] g, final double [] delta, final double [] t,
+			final double [] subOut, final RandomAccess< T > raInput)
+	{
+		final double [] memGrid = physToGridDir(memDirectionVector);
+		double dOffSD = 0;
+		double dForward = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			subOut[d] = g[d] + delta[d];
+			final double r = (subOut[d] - gridPos[d]) / sigmaGridV[d];
+			dOffSD += r * r;
+			dForward += (subOut[d] - toGridDouble(currpoint.getDoublePosition(d), d)) * memGrid[d];
+		}
+		if(Math.sqrt(dOffSD) > dStegerMaxSD || dForward < 0.5)
+			return false;
+		//same filament: orientation within the directionality constrain of the momentum
+		if(Math.abs(LinAlgHelpers.dot(gridToPhysDir(t), memDirectionVector)) < dAngleThreshold)
+			return false;
+		if(bt.btData.bOCIntensityStop || bUseMask)
+		{
+			final long [] gr = new long[3];
+			for (int d = 0; d < 3; d++)
+			{
+				gr[d] = Math.round(subOut[d]);
+			}
+			final long [] posFull = toFullLong(gr);
+			if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+				return false;
+			if(bUseMask && traceMask.isOccupied( posFull ))
+				return false;
+		}
+		return true;
+	}
+	
+	/** symmetric matrix (6 components: xx, xy, xz, yy, yz, zz) times x **/
+	static void hessianTimes(final double [] h, final double [] x, final double [] out)
+	{
+		out[0] = h[0] * x[0] + h[1] * x[1] + h[2] * x[2];
+		out[1] = h[1] * x[0] + h[3] * x[1] + h[4] * x[2];
+		out[2] = h[2] * x[0] + h[4] * x[1] + h[5] * x[2];
+	}
+	
+	/** Gaussian smoothed input (tracing sigma, smoothKernels) at the grid voxel g, 
+	 * from the input of the math box (mathBoxInput) **/
+	@SuppressWarnings( "unchecked" )
+	double smoothedAt(final long [] g)
+	{
+		final RandomAccess<? extends RealType<?>> ra = ((RandomAccessible<? extends RealType<?>>) mathBoxInput).randomAccess();
+		final double [] kx = smoothKernels[0];
+		final double [] ky = smoothKernels[1];
+		final double [] kz = smoothKernels[2];
+		final int cx = kx.length / 2;
+		final int cy = ky.length / 2;
+		final int cz = kz.length / 2;
+		final long [] pos = new long[3];
+		double sum = 0;
+		for (int k = 0; k < kz.length; k++)
+		{
+			pos[2] = g[2] + k - cz;
+			for (int j = 0; j < ky.length; j++)
+			{
+				pos[1] = g[1] + j - cy;
+				final double wyz = ky[j] * kz[k];
+				double sumX = 0;
+				for (int i = 0; i < kx.length; i++)
+				{
+					pos[0] = g[0] + i - cx;
+					sumX += kx[i] * ra.setPositionAndGet(pos).getRealDouble();
+				}
+				sum += wyz * sumX;
+			}
+		}
+		return sum;
+	}
+
 	/** Momentum stepping prefers going straight, so it does not re-center by itself.
 	 * This hill-climbs saliency in the cross-section perpendicular to the momentum direction:
 	 * at each iteration it checks the 3x3 neighbors (in the cross-section plane) 

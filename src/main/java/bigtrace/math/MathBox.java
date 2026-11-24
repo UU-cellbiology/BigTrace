@@ -176,6 +176,50 @@ public class MathBox
 				&& x < boxMin[0] + dims[0] && y < boxMin[1] + dims[1] && z < boxMin[2] + dims[2];
 	}
 
+	/** line saliency at the continuous grid position x, trilinearly interpolated from the voxels of the box;
+	 * NaN outside of the box **/
+	public double saliencyAt(final double [] x)
+	{
+		final long [] f = new long[3];
+		final double [] w = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			f[d] = (long) Math.floor(x[d]);
+			w[d] = x[d] - f[d];
+			if(f[d] < boxMin[d] || f[d] + (w[d] > 0 ? 1 : 0) > boxMin[d] + dims[d] - 1)
+				return Double.NaN;
+		}
+		final float [] sal = salImg.update( null ).getCurrentStorageArray();
+		double sum = 0;
+		for (int k = 0; k < 2; k++)
+			for (int j = 0; j < 2; j++)
+				for (int i = 0; i < 2; i++)
+				{
+					final double wt = (i == 0 ? 1 - w[0] : w[0]) * (j == 0 ? 1 - w[1] : w[1]) * (k == 0 ? 1 - w[2] : w[2]);
+					if(wt == 0)
+						continue;
+					final long z = f[2] + k - boxMin[2];
+					final long y = f[1] + j - boxMin[1];
+					final long xx = f[0] + i - boxMin[0];
+					sum += wt * sal[(int) ((z * dims[1] + y) * dims[0] + xx)];
+				}
+		return sum;
+	}
+
+	/** hessian (6 components: xx, xy, xz, yy, yz, zz) at the grid voxel (x, y, z) to h, false outside of the box **/
+	public boolean hessianAtVoxel(final long x, final long y, final long z, final double [] h)
+	{
+		if(!contains(x, y, z))
+			return false;
+		final int i = (int) (((z - boxMin[2]) * dims[1] + (y - boxMin[1])) * dims[0] + (x - boxMin[0]));
+		final float [] hess = hessImg.update( null ).getCurrentStorageArray();
+		for (int c = 0; c < 6; c++)
+		{
+			h[c] = hess[i + c * nVol];
+		}
+		return true;
+	}
+
 	/** line saliency at the grid voxel (x, y, z), its direction (grid space, unit) to vecOut (may be null);
 	 * NaN outside of the box **/
 	public double saliencyAtVoxel(final long x, final long y, final long z, final double [] vecOut)

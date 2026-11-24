@@ -159,8 +159,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** junction box center ahead of the current point (tracing SDs), the box covers the search **/
 	double dBoxAheadSD = 4.0;
 
-	/** ridge centre test (isAcross): a single axis neighbour step is compared unless |cos| with the line is above this **/
-	double dAxisAlongCos = 0.8;
+	/** ridge centre test (isRidgeCentre): distance of the compared points in the plane perpendicular to the line
+	 * (in smallest voxels) **/
+	double dRidgeTestStep = 1.0;
 
 	/** gap bridging (planGap): candidates at least this far ahead (tracing SDs) of the most advanced 
 	 * recent trace point (along the heading) **/
@@ -1179,45 +1180,33 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** Ridge centre test: true if the saliency val at the grid voxel g (line direction dir, physical, unit)
-	 * is not smaller than at any of its 26 neighbours (+-1 voxel in each axis) lying across the line,
-	 * i.e. less than half the smallest voxel along it (isAcross). Neighbours along the line are not compared:
-	 * the saliency changes smoothly along a filament, a strict 3D maximum is found only every few microns.
+	 * is not smaller than the saliency (interpolated, MathBox.saliencyAt) at dRidgeTestStep smallest voxels 
+	 * away in 8 directions in the plane perpendicular to the line (physical): a maximum across the line,
+	 * the saliency along it is not compared (it changes smoothly along a filament, a strict 3D maximum 
+	 * is found only every few microns). In physical units, so it works for anisotropic voxels; 
+	 * on the flank of a filament (where the eigenvector tilts towards z) the plane still points to the centre.
 	 * False at the border of the junction box **/
 	boolean isRidgeCentre(final long [] g, final double val, final double [] dir)
 	{
-		for (int dz = -1; dz <= 1; dz++)
-			for (int dy = -1; dy <= 1; dy++)
-				for (int dx = -1; dx <= 1; dx++)
-				{
-					if(dx == 0 && dy == 0 && dz == 0)
-						continue;
-					final double nb = jh.box.saliencyAtVoxel(g[0] + dx, g[1] + dy, g[2] + dz, null);
-					if(Double.isNaN(nb))
-						return false;
-					if(isAcross(dx, dy, dz, dir) && nb > val)
-						return false;
-				}
-		return true;
-	}
-
-	/** true if the neighbour offset (dx, dy, dz) (grid voxels) lies across the line direction dir (physical, unit):
-	 * its component along the line is at most half the smallest voxel. (A |cos| limit alone does not work with
-	 * anisotropic voxels: e.g. (1, 0, 1) is a full voxel step along a line in xy, but at a large angle to it.)
-	 * A single axis step (e.g. one z slice) is also across unless it is nearly along the line (|cos| > dAxisAlongCos):
-	 * on the flanks of a filament the eigenvector tilts towards z, and with the z neighbours not compared 
-	 * a flank voxel would pass the ridge centre test (isRidgeCentre) **/
-	boolean isAcross(final int dx, final int dy, final int dz, final double [] dir)
-	{
-		final double dAlong = Math.abs(dx * vox[0] * dir[0] + dy * vox[1] * dir[1] + dz * vox[2] * dir[2]);
-		if(dAlong <= 0.5 * dStep + 1e-12)
-			return true;
-		final int nAxes = (dx != 0 ? 1 : 0) + (dy != 0 ? 1 : 0) + (dz != 0 ? 1 : 0);
-		if(nAxes == 1)
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(dir, u, v);
+		final double r = dRidgeTestStep * dStep;
+		final double [] x = new double[3];
+		for (int k = 0; k < 8; k++)
 		{
-			final double dLen = Math.abs(dx) * vox[0] + Math.abs(dy) * vox[1] + Math.abs(dz) * vox[2];
-			return dAlong <= dAxisAlongCos * dLen;
+			final double phi = k * Math.PI / 4.0;
+			final double c = Math.cos(phi);
+			final double sn = Math.sin(phi);
+			for (int d = 0; d < 3; d++)
+			{
+				x[d] = g[d] + r * (c * u[d] + sn * v[d]) / vox[d];
+			}
+			final double nb = jh.box.saliencyAt(x);
+			if(Double.isNaN(nb) || nb > val)
+				return false;
 		}
-		return false;
+		return true;
 	}
 
 	/** true if the point x (first 3 values, physical) is closer than dRadiusSD (tracing SDs, per axis)
@@ -1518,7 +1507,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** Ridge centre voxels (grid voxels of the junction box) in the vicinity of cPhys: ellipsoid of dRadiusSD 
 	 * tracing SDs (per axis). A ridge centre has saliency >= dMinSal and not smaller than any of its 26 neighbours 
-	 * lying across its own line direction (isAcross). Accepted: ahead of p0
+	 * lying across its own line direction (isRidgeCentre). Accepted: ahead of p0
 	 * (projection of (x - p0) on dirAhead >= dMinAhead) and |cos| of the line direction vs dirAhead >= dMinCos.
 	 * Each result: position (3, physical), offset in SDs, |cos|, line direction oriented along dirAhead (3, physical);
 	 * rejectedOut (may be null) gets the positions of the ridge centres failing "ahead" or the orientation **/
@@ -1570,24 +1559,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					dOff = Math.sqrt(dOff);
 					if(dOff > dRadiusSD)
 						continue;
-					//ridge centre: maximum across its own direction (isAcross)
+					//ridge centre: maximum across its own direction (isRidgeCentre)
 					final double [] dir = dirs[i];
-					boolean bMax = true;
-					for (int dz = -1; dz <= 1 && bMax; dz++)
-						for (int dy = -1; dy <= 1 && bMax; dy++)
-							for (int dx = -1; dx <= 1; dx++)
-							{
-								if(dx == 0 && dy == 0 && dz == 0)
-									continue;
-								if(!isAcross(dx, dy, dz, dir))
-									continue;
-								if(sal[((z + dz) * dim[1] + y + dy) * dim[0] + x + dx] > val)
-								{
-									bMax = false;
-									break;
-								}
-							}
-					if(!bMax)
+					if(!isRidgeCentre(new long [] {lo[0] + x, lo[1] + y, lo[2] + z}, val, dir))
 						continue;
 					//ahead and orientation
 					double dAhead = 0;
