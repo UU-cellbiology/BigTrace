@@ -593,7 +593,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	void computeJunctionHessian(final long [] center)
 	{
 		box.setCenter(center);
-		box.computeHessian(oc.getJunctionInput(box), oc.convObjects);
+		box.computeHessian(oc.getJunctionInput(box), oc.convObjects, oc.nThreads, oc.es);
 	}
 
 	/** One coasting step along the elongated line filter map: one grid voxel along the entry

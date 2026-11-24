@@ -1,5 +1,7 @@
 package bigtrace.math;
 
+import java.util.concurrent.ExecutorService;
+
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.img.array.ArrayImg;
@@ -29,6 +31,13 @@ public class JunctionBox
 	/** hessian of the box (6 components) **/
 	final ArrayImg<FloatType, FloatArray> hessImg;
 
+	/** line saliency at the voxels of the box (from its hessian, as in the math box, computeSaliency) **/
+	final ArrayImg<FloatType, FloatArray> salImg;
+
+	/** line direction (hessian eigenvector of the smallest absolute eigenvalue, grid space, unit) 
+	 * at the voxels of the box (3 components, computeSaliency) **/
+	final ArrayImg<FloatType, FloatArray> vecImg;
+
 	/** steered line filter R_e at the voxels of the box **/
 	final ArrayImg<FloatType, FloatArray> lineImg;
 
@@ -49,6 +58,8 @@ public class JunctionBox
 		nHalf = nHalf_;
 		nDim = 2 * nHalf + 1;
 		hessImg = ArrayImgs.floats( nDim, nDim, nDim, 6 );
+		salImg = ArrayImgs.floats( nDim, nDim, nDim );
+		vecImg = ArrayImgs.floats( nDim, nDim, nDim, 3 );
 		lineImg = ArrayImgs.floats( nDim, nDim, nDim );
 		mapImg = ArrayImgs.floats( nDim, nDim, nDim );
 		gridImg = bDownsample ? ArrayImgs.floats( nDim, nDim, nDim ) : null;
@@ -85,16 +96,56 @@ public class JunctionBox
 	}
 
 	/** hessian of the box by full (separable Gaussian derivative) convolution of input
-	 * (border extended), conv are the 6 second derivative convolutions (xx,xy,xz,yy,yz,zz) **/
+	 * (border extended), conv are the 6 second derivative convolutions (xx,xy,xz,yy,yz,zz);
+	 * then the line saliency and direction at its voxels (computeSaliency) **/
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public void computeHessian(final RandomAccessibleInterval<?> input, final Convolution [] conv)
+	public void computeHessian(final RandomAccessibleInterval<?> input, final Convolution [] conv, final int nThreads, final ExecutorService es)
 	{
 		final IntervalView<FloatType> jHess = Views.translate(hessImg, boxMin[0], boxMin[1], boxMin[2], 0);
 		for (int count = 0; count < 6; count++)
 		{
 			conv[count].process(Views.extendBorder(input), Views.hyperSlice( jHess, 3, count ));
 		}
+		computeSaliency(nThreads, es);
+	}
+
+	/** line saliency (salImg) and direction (vecImg) at the voxels of the box from its hessian (hessImg),
+	 * as in the math box (EigenValVecSymmDecomposition); the point-wise access (hessBox). 
+	 * es may be null (single thread) **/
+	public void computeSaliency(final int nThreads, final ExecutorService es)
+	{
+		final EigenValVecSymmDecomposition<FloatType> mEV = new EigenValVecSymmDecomposition<>(3);
+		if(es != null && nThreads > 1)
+		{
+			mEV.computeVWRAI(hessImg, vecImg, salImg, nThreads, es);
+		}
+		else
+		{
+			mEV.computeVWRAI(hessImg, vecImg, salImg);
+		}
 		hessBox = new HessianBox(hessImg, boxMin);
+	}
+
+	/** line saliency at the grid voxel (x, y, z), its direction (grid space, unit) to vecOut (may be null);
+	 * NaN outside of the box **/
+	public double saliencyAtVoxel(final long x, final long y, final long z, final double [] vecOut)
+	{
+		final long lx = x - boxMin[0];
+		final long ly = y - boxMin[1];
+		final long lz = z - boxMin[2];
+		if(lx < 0 || ly < 0 || lz < 0 || lx >= nDim || ly >= nDim || lz >= nDim)
+			return Double.NaN;
+		final int i = (int) ((lz * nDim + ly) * nDim + lx);
+		if(vecOut != null)
+		{
+			final float [] vec = vecImg.update( null ).getCurrentStorageArray();
+			final int nVol = nDim * nDim * nDim;
+			for (int d = 0; d < 3; d++)
+			{
+				vecOut[d] = vec[i + d * nVol];
+			}
+		}
+		return salImg.update( null ).getCurrentStorageArray()[i];
 	}
 
 	/** elongated line filter map for the unit direction e:
@@ -173,23 +224,10 @@ public class JunctionBox
 		return toDisplay(mapImg, ds);
 	}
 	
-	/** Line saliency of the box (from its hessian, as in the math box) for display 
-	 * (debug visualization of the branch-first junction passage), same format as getMapForDisplay **/
+	/** Line saliency of the box (salImg) for display (debug visualization of the branch-first 
+	 * junction passage), same format as getMapForDisplay **/
 	public IntervalView<UnsignedByteType> getSaliencyForDisplay(final long [] ds)
 	{
-		final ArrayImg<FloatType, FloatArray> salImg = ArrayImgs.floats( nDim, nDim, nDim );
-		final float [] hess = hessImg.update( null ).getCurrentStorageArray();
-		final float [] sal = salImg.update( null ).getCurrentStorageArray();
-		final int nVol = nDim * nDim * nDim;
-		final double [] h = new double[6];
-		for (int i = 0; i < nVol; i++)
-		{
-			for (int c = 0; c < 6; c++)
-			{
-				h[c] = hess[i + c * nVol];
-			}
-			sal[i] = (float) SteerableLineFilter.saliency(h, null);
-		}
 		return toDisplay(salImg, ds);
 	}
 	

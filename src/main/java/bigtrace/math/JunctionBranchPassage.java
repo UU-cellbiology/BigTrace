@@ -2,7 +2,6 @@ package bigtrace.math;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 
 import net.imglib2.FinalRealInterval;
@@ -123,10 +122,6 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** cone search: candidates closer than this (tracing SDs, per axis) to a stronger one are merged
 	 * (a filament crosses the cone surface over several voxels) **/
 	double dCandidateMergeSD = 1.5;
-
-	/** cone search: a saliency maximum on the cone surface is snapped to the ridge centre within this radius
-	 * (tracing SDs, per axis) in the cross-section perpendicular to its line direction **/
-	double dConeSnapSD = 1.0;
 
 	/** end direction of the passage curve (t1): the target's ridge is followed this far each way (tracing SDs)
 	 * and the direction is fitted to it (the eigenvector at a single point is biased near a junction or a gap);
@@ -786,16 +781,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return new ArrayList<>();
 	}
 
-	/** Candidates on the surface (shell) of the current bending cone (computeBendCone), voxels of the junction box 
-	 * visited by ConeCursor. A filament crossing the surface leaves a slice (blob, or a stripe if it crosses obliquely)
-	 * of saliency on it: its maximum within the surface (saliency >= dMinSal, no stronger shell voxel closer than 
-	 * dCandidateMergeSD) is snapped to the ridge centre (nearestRidge within dConeSnapSD, cross-section perpendicular
-	 * to its line direction; the thin shell mostly misses the centre itself), then |cos| of the line direction
-	 * at the centre vs the heading >= dCandidateMinCos; maxima snapped to the same ridge are merged. 
-	 * Each: position (3, physical), offset from the cone apex (SDs), |cos|, line direction oriented along 
-	 * the heading (3), saliency. rejectedOut (may be null) gets positions of the maxima not snapped to a ridge
-	 * or with the orientation outside the limit.
-	 * Without bending (zero opening angle) the cross-section at the apex is used. **/
+	/** Candidates on the surface (shell) of the current bending cone (computeBendCone), voxels of the junction box
+	 * visited by ConeCursor: ridge centres (isRidgeCentre: maximum of the line saliency across the line among
+	 * the 26 neighbours; saliency and direction of the box voxels, JunctionBox.computeSaliency) with saliency >= dMinSal and |cos|
+	 * of the line direction vs the heading >= dCandidateMinCos; of those closer than dCandidateMergeSD the strongest
+	 * one is kept. Each: position (3, physical), offset from the cone apex (SDs), |cos|, line direction oriented
+	 * along the heading (3), saliency. rejectedOut (may be null) gets positions of the ridge centres with the orientation
+	 * outside the limit. Without bending (zero opening angle) the cross-section at the apex is used. **/
 	ArrayList<double[]> ridgesOnCone(final double dMinSal, final ArrayList<double[]> rejectedOut)
 	{
 		if(!(coneFullAngle > 1e-6))
@@ -806,7 +798,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			return ridgesInSection(coneApex, t0, u, v, dTargetMaxOffsetSD, dMinSal, dCandidateMinCos, rejectedOut);
 		}
 		//cursor over the shell, inside the junction box (grid voxels, voxel i at i * vox)
-		final RandomAccess<FloatType> ra = Views.translate(Views.hyperSlice(jh.box.hessImg, 3, 0), jh.box.boxMin).randomAccess();
+		final RandomAccess<FloatType> ra = Views.translate(jh.box.salImg, jh.box.boxMin).randomAccess();
 		final double [] bbMin = new double[3];
 		final double [] bbMax = new double[3];
 		double dMaxVox = 0;
@@ -816,12 +808,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			bbMax[d] = (jh.box.boxMin[d] + jh.box.nDim - 1) * vox[d];
 			dMaxVox = Math.max(dMaxVox, vox[d]);
 		}
-		final ConeCursor<FloatType> cc = new ConeCursor<>(ra, coneApex, coneAxis, coneFullAngle, vox, 
+		final ConeCursor<FloatType> cc = new ConeCursor<>(ra, coneApex, coneAxis, coneFullAngle, vox,
 				new FinalRealInterval(bbMin, bbMax), true, 0.5 * dMaxVox);
-		//1) shell voxels above the saliency threshold: slices of the filaments crossing the surface
-		//(the shell is thin, the ridge centre itself is mostly off it, so no 3D ridge centre test here)
-		final HashMap<Long, double[]> cache = new HashMap<>();
-		final ArrayList<double[]> shell = new ArrayList<>();
+		//shell voxels that are ridge centres (saliency maxima across the line among the +-1 voxel neighbours)
+		final ArrayList<double[]> ridges = new ArrayList<>();
+		final double [] vecGrid = new double[3];
 		final long [] g = new long[3];
 		while(cc.hasNext())
 		{
@@ -830,46 +821,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				g[d] = cc.getLongPosition(d);
 			}
-			final double [] e = salAtVoxel(g[0], g[1], g[2], cache);
-			final double val = e[0];
+			final double val = jh.box.saliencyAtVoxel(g[0], g[1], g[2], vecGrid);
 			if(!(val >= dMinSal) || val <= 0)
 				continue;
-			shell.add(new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2], val, e[1], e[2], e[3]});
-		}
-		//2) maxima of the slices within the surface: the strongest, none stronger closer than dCandidateMergeSD
-		shell.sort((a, b) -> Double.compare(b[3], a[3]));
-		final ArrayList<double[]> maxima = new ArrayList<>();
-		for(final double [] s : shell)
-		{
-			if(!isCloseTo(s, maxima, dCandidateMergeSD))
-				maxima.add(s);
-		}
-		//3) each maximum snapped to the ridge centre (cross-section perpendicular to its line direction, within dConeSnapSD),
-		//orientation vs the heading at the ridge centre
-		final ArrayList<double[]> ridges = new ArrayList<>();
-		final double [] q = new double[3];
-		final double [] xg = new double[3];
-		final double [] vecGrid = new double[3];
-		for(final double [] m : maxima)
-		{
-			final double [] pos = new double [] {m[0], m[1], m[2]};
-			final double [] dirM = new double [] {m[4], m[5], m[6]};
-			if(!nearestRidge(pos, dirM, dConeSnapSD, dMinSal, q))
-			{
-				if(rejectedOut != null)
-				{
-					rejectedOut.add(pos);
-				}
-				continue;
-			}
-			for (int d = 0; d < 3; d++)
-			{
-				xg[d] = q[d] / vox[d];
-			}
-			final double val = jh.box.hessBox.saliencyAt(xg, vecGrid);
-			if(Double.isNaN(val))
-				continue;
 			final double [] dir = oc.gridToPhysDir(vecGrid);
+			if(!isRidgeCentre(g, val, dir))
+				continue;
+			final double [] pos = new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2]};
 			double cs = LinAlgHelpers.dot(dir, t0);
 			final double sign = cs < 0 ? -1.0 : 1.0;
 			cs = Math.abs(cs);
@@ -877,19 +835,19 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			{
 				if(rejectedOut != null)
 				{
-					rejectedOut.add(q.clone());
+					rejectedOut.add(pos);
 				}
 				continue;
 			}
 			double dOff = 0;
 			for (int d = 0; d < 3; d++)
 			{
-				final double r = (q[d] - coneApex[d]) / sd[d];
+				final double r = (pos[d] - coneApex[d]) / sd[d];
 				dOff += r * r;
 			}
-			ridges.add(new double [] {q[0], q[1], q[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
+			ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
 		}
-		//4) maxima snapped to the same ridge: the strongest one
+		//one per filament crossing the surface: the strongest of the close ones
 		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
 		final ArrayList<double[]> out = new ArrayList<>();
 		for(final double [] c : ridges)
@@ -898,6 +856,36 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				out.add(c);
 		}
 		return out;
+	}
+
+	/** Ridge centre test: true if the saliency val at the grid voxel g (line direction dir, physical, unit)
+	 * is not smaller than at any of its 26 neighbours (+-1 voxel in each axis) lying across the line,
+	 * i.e. less than half the smallest voxel along it (isAcross). Neighbours along the line are not compared:
+	 * the saliency changes smoothly along a filament, a strict 3D maximum is found only every few microns.
+	 * False at the border of the junction box **/
+	boolean isRidgeCentre(final long [] g, final double val, final double [] dir)
+	{
+		for (int dz = -1; dz <= 1; dz++)
+			for (int dy = -1; dy <= 1; dy++)
+				for (int dx = -1; dx <= 1; dx++)
+				{
+					if(dx == 0 && dy == 0 && dz == 0)
+						continue;
+					final double nb = jh.box.saliencyAtVoxel(g[0] + dx, g[1] + dy, g[2] + dz, null);
+					if(Double.isNaN(nb))
+						return false;
+					if(isAcross(dx, dy, dz, dir) && nb > val)
+						return false;
+				}
+		return true;
+	}
+
+	/** true if the neighbour offset (dx, dy, dz) (grid voxels) lies across the line direction dir (physical, unit):
+	 * its component along the line is at most half the smallest voxel. (A |cos| limit does not work with
+	 * anisotropic voxels: e.g. (1, 0, 1) is a full voxel step along a line in xy, but at a large angle to it) **/
+	boolean isAcross(final int dx, final int dy, final int dz, final double [] dir)
+	{
+		return Math.abs(dx * vox[0] * dir[0] + dy * vox[1] * dir[1] + dz * vox[2] * dir[2]) <= 0.5 * dStep + 1e-12;
 	}
 
 	/** true if the point x (first 3 values, physical) is closer than dRadiusSD (tracing SDs, per axis)
@@ -919,8 +907,10 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	}
 
 	/** Direction of the ridge at c (physical): the ridge is followed both ways from c (dT1FitSD each,
-	 * cross-sections perpendicular to the current direction every dStep, ridge closest to the predicted point
-	 * within dT1FollowSD, stops at a gap) and the principal axis of the ridge points (incl. c) is fitted.
+	 * cross-sections perpendicular to dirInit every dStep, ridge closest to the predicted point (previous one
+	 * + dStep along dirInit) within dT1FollowSD, stops at a gap) and the principal axis of the ridge points
+	 * (incl. c) is fitted. The cross-sections are not turned with the ridge: over the short fit length the continuity
+	 * keeps them on it, while a direction from the short chords is dominated by the coarse z steps.
 	 * Robust to the bias of the single eigenvector near a junction or a gap end.
 	 * dirInit: initial direction (unit, physical); the result (to out) is oriented along it.
 	 * Returns false (out not changed) if the ridge is too short (less than 3 points or 0.5 tracing SD extent). **/
@@ -950,20 +940,6 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					break;
 				pts.add(q.clone());
 				System.arraycopy(q, 0, p, 0, 3);
-				//direction: the chord from c (once long enough), smoother than the step
-				final double [] ch = new double[3];
-				for (int d = 0; d < 3; d++)
-				{
-					ch[d] = q[d] - c[d];
-				}
-				final double len = Math.sqrt(LinAlgHelpers.dot(ch, ch));
-				if(len > 0.5 * dLenSD && LinAlgHelpers.dot(ch, t) > 0)
-				{
-					for (int d = 0; d < 3; d++)
-					{
-						t[d] = ch[d] / len;
-					}
-				}
 			}
 		}
 		final int n = pts.size();
@@ -1043,30 +1019,6 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 			c[5 + d] = fit[d];
 		}
 		return Math.toDegrees(Math.acos(cs));
-	}
-
-	/** saliency and line direction (physical, unit) at the grid voxel: {saliency, dx, dy, dz}, 
-	 * saliency NaN outside of the junction box; cached **/
-	double [] salAtVoxel(final long x, final long y, final long z, final HashMap<Long, double[]> cache)
-	{
-		final long key = OneClickTrace.packKey(x, y, z);
-		double [] e = cache.get(key);
-		if(e == null)
-		{
-			final double [] vecGrid = new double[3];
-			final double val = jh.box.hessBox.saliencyAt(new double [] {x, y, z}, vecGrid);
-			if(Double.isNaN(val))
-			{
-				e = new double [] {Double.NaN, 0, 0, 0};
-			}
-			else
-			{
-				final double [] dp = oc.gridToPhysDir(vecGrid);
-				e = new double [] {val, dp[0], dp[1], dp[2]};
-			}
-			cache.put(key, e);
-		}
-		return e;
 	}
 
 	/** candidates in the first cross-section with any, at distances dFromSD, +dStepSD, ... to dToSD (tracing SDs) **/
@@ -1234,7 +1186,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 
 	/** Ridge centre voxels (grid voxels of the junction box) in the vicinity of cPhys: ellipsoid of dRadiusSD 
 	 * tracing SDs (per axis). A ridge centre has saliency >= dMinSal and not smaller than any of its 26 neighbours 
-	 * lying across its own line direction (|cos(offset, direction)| <= 0.5, physical). Accepted: ahead of p0
+	 * lying across its own line direction (isAcross). Accepted: ahead of p0
 	 * (projection of (x - p0) on dirAhead >= dMinAhead) and |cos| of the line direction vs dirAhead >= dMinCos.
 	 * Each result: position (3, physical), offset in SDs, |cos|, line direction oriented along dirAhead (3, physical);
 	 * rejectedOut (may be null) gets the positions of the ridge centres failing "ahead" or the orientation **/
@@ -1254,22 +1206,17 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		final int nVol = dim[0] * dim[1] * dim[2];
 		final double [] sal = new double[nVol];
 		final double [][] dirs = new double[nVol][];
-		final double [] xg = new double[3];
 		final double [] vecGrid = new double[3];
 		int n = 0;
 		for (int z = 0; z < dim[2]; z++)
 			for (int y = 0; y < dim[1]; y++)
 				for (int x = 0; x < dim[0]; x++)
 				{
-					xg[0] = lo[0] + x;
-					xg[1] = lo[1] + y;
-					xg[2] = lo[2] + z;
-					final double val = jh.box.hessBox.saliencyAt(xg, vecGrid);
+					final double val = jh.box.saliencyAtVoxel(lo[0] + x, lo[1] + y, lo[2] + z, vecGrid);
 					sal[n] = Double.isNaN(val) ? Double.NEGATIVE_INFINITY : val;
 					dirs[n] = Double.isNaN(val) ? null : oc.gridToPhysDir(vecGrid);
 					n++;
 				}
-		final double [] off = new double[3];
 		final double [] pos = new double[3];
 		for (int z = 1; z < dim[2] - 1; z++)
 			for (int y = 1; y < dim[1] - 1; y++)
@@ -1291,7 +1238,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					dOff = Math.sqrt(dOff);
 					if(dOff > dRadiusSD)
 						continue;
-					//ridge centre: maximum across its own direction
+					//ridge centre: maximum across its own direction (isAcross)
 					final double [] dir = dirs[i];
 					boolean bMax = true;
 					for (int dz = -1; dz <= 1 && bMax; dz++)
@@ -1300,11 +1247,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 							{
 								if(dx == 0 && dy == 0 && dz == 0)
 									continue;
-								off[0] = dx * vox[0];
-								off[1] = dy * vox[1];
-								off[2] = dz * vox[2];
-								final double len = Math.sqrt(LinAlgHelpers.dot(off, off));
-								if(Math.abs(LinAlgHelpers.dot(off, dir)) > 0.5 * len)
+								if(!isAcross(dx, dy, dz, dir))
 									continue;
 								if(sal[((z + dz) * dim[1] + y + dy) * dim[0] + x + dx] > val)
 								{
