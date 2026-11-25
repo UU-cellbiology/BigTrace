@@ -110,6 +110,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * curve decides among them. Following the curve uses the directionality constrain vs the curve direction **/
 	double dCandidateMinCos = 0.5;
 
+	/** half sphere candidates: the orientation (dCandidateMinCos) is compared with the direction a filament
+	 * would have there if it bent smoothly from the current point (a circular arc tangent to the heading t0:
+	 * t0 reflected about the chord to the candidate, arcDirection) instead of with t0 itself. The search radius
+	 * is several SDs, a bending filament crosses the sphere far from the heading direction; a filament crossing
+	 * at the current point runs along the chord, its arc direction is opposite to the heading (still rejected) **/
+	boolean bCandidateArcOrientation = true;
+
 	/** weight of the orientation difference in the candidate cost (order of the candidates to plan) **/
 	double dTargetAngleWeight = 4.0;
 
@@ -1342,7 +1349,8 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					final double [] dir = oc.gridToPhysDir(vecGrid);
 					if(!isRidgeCentre(g, val, dir))
 						continue;
-					double cs = LinAlgHelpers.dot(dir, t0);
+					final double [] tRef = bCandidateArcOrientation ? arcDirection(pos) : t0;
+					double cs = LinAlgHelpers.dot(dir, tRef);
 					final double sign = cs < 0 ? -1.0 : 1.0;
 					cs = Math.abs(cs);
 					if(cs < dCandidateMinCos)
@@ -1373,6 +1381,29 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return out;
 	}
 
+
+	/** direction (physical, unit) at the point pos (physical) of the circular arc from p0 with the tangent t0
+	 * through pos: t0 reflected about the chord u from p0 to pos, 2 (t0.u) u - t0 (t0 if pos is p0) **/
+	double [] arcDirection(final double [] pos)
+	{
+		final double [] u = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			u[d] = pos[d] - p0[d];
+		}
+		final double len = LinAlgHelpers.length(u);
+		if(!(len > 0))
+			return t0.clone();
+		LinAlgHelpers.scale(u, 1.0 / len, u);
+		final double c = LinAlgHelpers.dot(t0, u);
+		final double [] out = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			out[d] = 2.0 * c * u[d] - t0[d];
+		}
+		LinAlgHelpers.normalize(out);
+		return out;
+	}
 
 	/** Ridge centre test: true if the saliency val at the grid voxel g (line direction dir, physical, unit)
 	 * is not smaller than the saliency (interpolated, MathBox.saliencyAt) at dRidgeTestStep smallest voxels 

@@ -270,6 +270,12 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** Steger's linking: minimum cosine between the step to the next line point and the momentum
 	 * (Steger, 2D: the neighbors within 67.5 deg of the line direction) **/
 	double dLinkMinStepCos = 0.5;
+
+	/** Steger's linking, neighbors checked for the continuation: false, all 26 with the centre ahead of the current
+	 * point along the momentum; true, Steger's restricted set around the line direction at the current line point
+	 * (lastDirectionVector oriented along the momentum, rounded to one of the 26 neighbor directions in grid units,
+	 * NeighborsHashMap: three topologically different configurations, dissertation Fig. 4.35) **/
+	boolean bLinkStegerNeighbors = true;
 	
 	/** input of the convolutions of the current math box (border extended, grid coordinates), see getBoxInput **/
 	RandomAccessible<?> mathBoxInput = null;
@@ -2149,11 +2155,38 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] bestT = new double[3];
 		double bestCost = Double.MAX_VALUE;
 		double bestSal = 0;
+		//Steger's set of neighbors around the line direction (otherwise all 26, see below)
+		boolean [] bChecked = null;
+		if(bLinkStegerNeighbors)
+		{
+			final double [] tl = lastDirectionVector.clone();
+			if(LinAlgHelpers.dot(tl, refDirection) < 0)
+			{
+				LinAlgHelpers.scale(tl, -1.0, tl);
+			}
+			final double [] tg = physToGridDir(tl);
+			int nIndex = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				nIndex = nIndex * 3 + ((int) Math.round(tg[d]) + 1);
+			}
+			bChecked = new boolean[27];
+			final ArrayList<int[]> set = neighborsArr[nIndex];
+			if(set != null)
+			{
+				for(final int [] o : set)
+				{
+					bChecked[(o[2] + 1) * 9 + (o[1] + 1) * 3 + (o[0] + 1)] = true;
+				}
+			}
+		}
 		for (int k = -1; k <= 1; k++)
 			for (int j = -1; j <= 1; j++)
 				for (int i = -1; i <= 1; i++)
 				{
 					if(i == 0 && j == 0 && k == 0)
+						continue;
+					if(bChecked != null && !bChecked[(k + 1) * 9 + (j + 1) * 3 + (i + 1)])
 						continue;
 					n[0] = gc[0] + i;
 					n[1] = gc[1] + j;
