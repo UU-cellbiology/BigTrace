@@ -52,7 +52,6 @@ public class MathBox
 	/** margin of gridImg around the box (convolution input) **/
 	final long [] gridMargin = new long[3];
 
-
 	/** interpolators per hessian component (6 of them), made on demand for the current position of the box **/
 	final List <RealRandomAccess< FloatType >>  rraHess = new ArrayList<>();
 

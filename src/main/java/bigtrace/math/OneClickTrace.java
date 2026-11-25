@@ -20,13 +20,11 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.algorithm.convolution.kernel.Kernel1D;
 import net.imglib2.algorithm.convolution.kernel.SeparableKernelConvolution;
 import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -113,23 +111,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	/** junction passage by the map coasting: refined end and planned passage (JunctionBranchPassage.planToCoastEnd) **/
 	boolean bJunctionCoastRefine = true;
-	
-//	/** branch-first candidate search: in cross-sections perpendicular to the heading **/
-//	public static final int BRANCH_SEARCH_SECTION = 0;
-//	
-//	/** branch-first candidate search: on the surface of the bending cone (ConeCursor) **/
-//	public static final int BRANCH_SEARCH_CONE = 1;
-//	
-//	/** branch-first candidate search: candidates of both (cone and cross-sections) pooled together **/
-//	public static final int BRANCH_SEARCH_BOTH = 2;
-	
-	/** branch-first candidate search: on the surface of the half sphere (ellipsoid in tracing SDs) ahead,
-	 * centered at the current point **/
-	public static final int BRANCH_SEARCH_SPHERE = 3;
-	
-	/** branch-first candidate search mode (a constant for now) **/
-	public static final int BRANCH_SEARCH_MODE = BRANCH_SEARCH_SPHERE;
-	
+		
 	/** recent points (full resolution) of the trace in the current direction, newest last
 	 * (heading fit of the branch-first junction passage) **/
 	final ArrayDeque<double[]> dirHistory = new ArrayDeque<>();

@@ -353,9 +353,9 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		//normal stepping through the junction first: used if it reaches one of the branches
 		//(turning not much more than the least turning one)
 		final ArrayList<RealPoint> probePts = new ArrayList<>();
-		final boolean bSphere = OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_SPHERE && secRadiusSD > 0;
+
 		boolean bProbed = false;
-		if(bSphere && oc.bJunctionProbe)
+		if(oc.bJunctionProbe)
 		{
 			bProbed = true;
 			if(planByProbe(currpoint, dMinSal, probePts) == GEO_OK)
@@ -368,11 +368,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		//4) follow the curve (if lost, the next ones)
 		final int nResult = followPlans(raInput, outPath, dMinSal, "branch-first", 0.0);
 		//all lost, normal stepping ends inside the half sphere (the end of the filament): up to there
-		if(nResult == GEO_LOST && bSphere && oc.bJunctionProbeEnd && !bProbed)
+		if(nResult == GEO_LOST && oc.bJunctionProbeEnd && !bProbed)
 		{
 			runProbe(currpoint, probePts);
 		}
-		if(nResult == GEO_LOST && bSphere && oc.bJunctionProbeEnd && !oc.bProbeReached && !probePts.isEmpty())
+		if(nResult == GEO_LOST && oc.bJunctionProbeEnd && !oc.bProbeReached && !probePts.isEmpty())
 		{
 			jh.visDebugMessage("branch-first: passages lost, normal stepping ends inside, used up to its end");
 			outPath.addAll(probePts);
@@ -1143,80 +1143,12 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * each: position (3), offset (1), |cos| (1), oriented direction (3), see ridgesInSection **/
 	ArrayList<double[]> findCandidates(final double dMinSal)
 	{
-		final int nMode = OneClickTrace.BRANCH_SEARCH_MODE;
-//		//on the half sphere ahead: outwards, then inwards
-//		if(nMode == OneClickTrace.BRANCH_SEARCH_SPHERE)
-//		{
-			//bConeSearch = false;
-			ArrayList<double[]> sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
-			if(sphereCands.isEmpty())
-			{
-				sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
-			}
-			return sphereCands;
-//		}
-//		bConeSearch = (nMode == OneClickTrace.BRANCH_SEARCH_CONE || nMode == OneClickTrace.BRANCH_SEARCH_BOTH);
-//		final boolean bSectionSearch = (nMode != OneClickTrace.BRANCH_SEARCH_CONE);
-//		//on the bending cone: ahead, then closer
-//		ArrayList<double[]> coneCands = new ArrayList<>();
-//		final ArrayList<double[]> coneCandPos = new ArrayList<>();
-//		final ArrayList<double[]> coneRejected = new ArrayList<>();
-//		if(bConeSearch)
-//		{
-//			coneCands = findCandidatesCone(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
-//			if(coneCands.isEmpty())
-//			{
-//				coneCands = findCandidatesCone(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
-//			}
-//			dConeDist = dTargetDist;
-//			coneCandPos.addAll(secCandidates);
-//			coneRejected.addAll(secRejected);
-//			if(!bSectionSearch)
-//				return coneCands;
-//		}
-//		//cross-sections: ahead, then closer (going back towards the junction)
-//		ArrayList<double[]> secCands = findCandidates(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
-//		if(secCands.isEmpty())
-//		{
-//			secCands = findCandidates(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
-//		}
-//		if(!bConeSearch)
-//			return secCands;
-//		//both: pooled, a cross-section candidate close to a cone candidate is dropped
-//		final ArrayList<double[]> out = new ArrayList<>(coneCands);
-//		final ArrayList<double[]> secPos = new ArrayList<>();
-//		for(final double [] c : secCands)
-//		{
-//			boolean bClose = false;
-//			for(final double [] o : coneCands)
-//			{
-//				double dd = 0;
-//				for (int d = 0; d < 3; d++)
-//				{
-//					final double r = (c[d] - o[d]) / sd[d];
-//					dd += r * r;
-//				}
-//				if(dd < dCandidateMergeSD * dCandidateMergeSD)
-//				{
-//					bClose = true;
-//					break;
-//				}
-//			}
-//			if(!bClose)
-//			{
-//				out.add(c);
-//				secPos.add(new double [] {c[0], c[1], c[2]});
-//			}
-//		}
-//		//(debug visualization) candidates and rejected maxima of both
-//		final ArrayList<double[]> secRej = new ArrayList<>(secRejected);
-//		secCandidates.clear();
-//		secCandidates.addAll(coneCandPos);
-//		secCandidates.addAll(secPos);
-//		secRejected.clear();
-//		secRejected.addAll(coneRejected);
-//		secRejected.addAll(secRej);
-//		return out;
+		ArrayList<double[]> sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD, dSearchMaxSD, dSearchStepSD);
+		if(sphereCands.isEmpty())
+		{
+			sphereCands = findCandidatesSphere(dMinSal, dSearchStartSD - dSearchStepSD, dSearchMinSD, -dSearchStepSD);
+		}
+		return sphereCands;
 	}
 
 	/** Candidates on the surface of the half sphere ahead (ridgesOnHalfSphere) of radius dFromSD, +dStepSD, ... 
@@ -1351,118 +1283,6 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		return out;
 	}
 
-//	/** Candidates on the surface of the bending cone (computeBendCone) of length dFromSD, +dStepSD, ... to dToSD
-//	 * (tracing SDs), the first length with any. Same format as findCandidates (offset = from the cone apex) **/
-//	ArrayList<double[]> findCandidatesCone(final double dMinSal, final double dFromSD, final double dToSD, final double dStepSD)
-//	{
-//		secCenter = null;
-//		secRadiusSD = 0;
-//		final ArrayList<double[]> rejected = new ArrayList<>();
-//		if(dStepSD == 0)
-//			return new ArrayList<>();
-//		for (double dDist = dFromSD; (dStepSD > 0) ? (dDist <= dToSD + 1e-6) : (dDist >= dToSD - 1e-6); dDist += dStepSD)
-//		{
-//			computeBendCone(dDist * dLenSD);
-//			if(!insideBox(coneApex) || !insideData(coneApex))
-//			{
-//				if(dStepSD > 0)
-//					break;
-//				continue;
-//			}
-//			dTargetDist = dDist * dLenSD;
-//			rejected.clear();
-//			final ArrayList<double[]> cands = ridgesOnCone(dMinSal, rejected);
-//			//(debug visualization)
-//			secCandidates.clear();
-//			for(final double [] c : cands)
-//			{
-//				secCandidates.add(new double [] {c[0], c[1], c[2]});
-//			}
-//			secRejected.clear();
-//			secRejected.addAll(rejected);
-//			if(!cands.isEmpty())
-//				return cands;
-//		}
-//		return new ArrayList<>();
-//	}
-//
-//	/** Candidates on the surface (shell) of the current bending cone (computeBendCone), voxels of the junction box
-//	 * visited by ConeCursor: ridge centres (isRidgeCentre: maximum of the line saliency across the line among
-//	 * the 26 neighbours; saliency and direction of the box voxels, JunctionBox.computeSaliency) with saliency >= dMinSal and |cos|
-//	 * of the line direction vs the heading >= dCandidateMinCos; of those closer than dCandidateMergeSD the strongest
-//	 * one is kept. Each: position (3, physical), offset from the cone apex (SDs), |cos|, line direction oriented
-//	 * along the heading (3), saliency. rejectedOut (may be null) gets positions of the ridge centres with the orientation
-//	 * outside the limit. Without bending (zero opening angle) the cross-section at the apex is used. **/
-//	ArrayList<double[]> ridgesOnCone(final double dMinSal, final ArrayList<double[]> rejectedOut)
-//	{
-//		if(!(coneFullAngle > 1e-6))
-//		{
-//			final double [] u = new double[3];
-//			final double [] v = new double[3];
-//			Pipe3D.crossSectionBasis(t0, u, v);
-//			return ridgesInSection(coneApex, t0, u, v, dTargetMaxOffsetSD, dMinSal, dCandidateMinCos, rejectedOut);
-//		}
-//		//cursor over the shell, inside the junction box (grid voxels, voxel i at i * vox)
-//		final RandomAccess<FloatType> ra = Views.translate(jh.box.salImg, jh.box.boxMin).randomAccess();
-//		final double [] bbMin = new double[3];
-//		final double [] bbMax = new double[3];
-//		double dMaxVox = 0;
-//		for (int d = 0; d < 3; d++)
-//		{
-//			bbMin[d] = jh.box.boxMin[d] * vox[d];
-//			bbMax[d] = (jh.box.boxMin[d] + jh.box.nDim - 1) * vox[d];
-//			dMaxVox = Math.max(dMaxVox, vox[d]);
-//		}
-//		final ConeCursor<FloatType> cc = new ConeCursor<>(ra, coneApex, coneAxis, coneFullAngle, vox,
-//				new FinalRealInterval(bbMin, bbMax), true, 0.5 * dMaxVox);
-//		//shell voxels that are ridge centres (saliency maxima across the line among the +-1 voxel neighbours)
-//		final ArrayList<double[]> ridges = new ArrayList<>();
-//		final double [] vecGrid = new double[3];
-//		final long [] g = new long[3];
-//		while(cc.hasNext())
-//		{
-//			cc.fwd();
-//			for (int d = 0; d < 3; d++)
-//			{
-//				g[d] = cc.getLongPosition(d);
-//			}
-//			final double val = jh.box.saliencyAtVoxel(g[0], g[1], g[2], vecGrid);
-//			if(!(val >= dMinSal) || val <= 0)
-//				continue;
-//			final double [] dir = oc.gridToPhysDir(vecGrid);
-//			if(!isRidgeCentre(g, val, dir))
-//				continue;
-//			final double [] pos = new double [] {g[0] * vox[0], g[1] * vox[1], g[2] * vox[2]};
-//			double cs = LinAlgHelpers.dot(dir, t0);
-//			final double sign = cs < 0 ? -1.0 : 1.0;
-//			cs = Math.abs(cs);
-//			if(cs < dCandidateMinCos)
-//			{
-//				if(rejectedOut != null)
-//				{
-//					rejectedOut.add(pos);
-//				}
-//				continue;
-//			}
-//			double dOff = 0;
-//			for (int d = 0; d < 3; d++)
-//			{
-//				final double r = (pos[d] - coneApex[d]) / sd[d];
-//				dOff += r * r;
-//			}
-//			if(insideData(pos))
-//				ridges.add(new double [] {pos[0], pos[1], pos[2], Math.sqrt(dOff), cs, sign * dir[0], sign * dir[1], sign * dir[2], val});
-//		}
-//		//one per filament crossing the surface: the strongest of the close ones
-//		ridges.sort((a, b) -> Double.compare(b[8], a[8]));
-//		final ArrayList<double[]> out = new ArrayList<>();
-//		for(final double [] c : ridges)
-//		{
-//			if(!isCloseTo(c, out, dCandidateMergeSD))
-//				out.add(c);
-//		}
-//		return out;
-//	}
 
 	/** Ridge centre test: true if the saliency val at the grid voxel g (line direction dir, physical, unit)
 	 * is not smaller than the saliency (interpolated, MathBox.saliencyAt) at dRidgeTestStep smallest voxels 
@@ -1626,45 +1446,6 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 		}
 		return Math.toDegrees(Math.acos(cs));
 	}
-
-//	/** candidates in the first cross-section with any, at distances dFromSD, +dStepSD, ... to dToSD (tracing SDs) **/
-//	ArrayList<double[]> findCandidates(final double dMinSal, final double dFromSD, final double dToSD, final double dStepSD)
-//	{
-//		final double [] u = new double[3];
-//		final double [] v = new double[3];
-//		Pipe3D.crossSectionBasis(t0, u, v);
-//		final double [] c0 = new double[3];
-//		secRadiusSD = dTargetMaxOffsetSD;
-//		final ArrayList<double[]> rejected = new ArrayList<>();
-//		if(dStepSD == 0)
-//			return new ArrayList<>();
-//		for (double dDist = dFromSD; (dStepSD > 0) ? (dDist <= dToSD + 1e-6) : (dDist >= dToSD - 1e-6); dDist += dStepSD)
-//		{
-//			for (int d = 0; d < 3; d++)
-//			{
-//				c0[d] = p0[d] + dDist * dLenSD * t0[d];
-//			}
-//			if(!insideBox(c0) || !insideData(c0))
-//				break;
-//			dTargetDist = dDist * dLenSD;
-//			rejected.clear();
-//			final ArrayList<double[]> cands = ridgesInSection(c0, t0, u, v, dTargetMaxOffsetSD, dMinSal, dCandidateMinCos, rejected);
-//			//(debug visualization) this cross-section
-//			secCenter = c0.clone();
-//			System.arraycopy(u, 0, secU, 0, 3);
-//			System.arraycopy(v, 0, secV, 0, 3);
-//			secCandidates.clear();
-//			for(final double [] c : cands)
-//			{
-//				secCandidates.add(new double [] {c[0], c[1], c[2]});
-//			}
-//			secRejected.clear();
-//			secRejected.addAll(rejected);
-//			if(!cands.isEmpty())
-//				return cands;
-//		}
-//		return new ArrayList<>();
-//	}
 
 	/** true if the physical point is inside the junction box **/
 	/** the physical position x is inside of the data (tracing grid); the junction box can extend beyond it
