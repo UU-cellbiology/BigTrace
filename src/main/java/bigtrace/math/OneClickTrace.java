@@ -249,7 +249,25 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	
 	/** Steger re-centering: maximum offset of the centre from the point one step ahead (tracing sigmas, per axis) **/
 	double dStegerMaxSD = 1.0;
-	
+
+	/** stepping by Steger's linking of line points (stegerLinkStep) instead of the saliency choice of a neighbor
+	 * followed by re-centering (history stepping only); the latter remains the fallback **/
+	boolean bStegerLinking = true;
+
+	/** Steger's linking: weight c of the angle difference (radians) in the cost d + c * beta,
+	 * d is the distance between the line points in the smallest voxel size (Steger: c = 1, pixels) **/
+	double dLinkAngleWeight = 1.0;
+
+	/** Steger's linking: maximum offset of a line point from its voxel centre (grid voxels, per axis; Steger: 0.5) **/
+	double dLinkVoxelTol = 0.5;
+
+	/** Steger's linking: minimum progress of the next line point along the momentum (smallest voxel size) **/
+	double dLinkMinForward = 0.25;
+
+	/** Steger's linking: minimum cosine between the step to the next line point and the momentum
+	 * (Steger, 2D: the neighbors within 67.5 deg of the line direction) **/
+	double dLinkMinStepCos = 0.5;
+
 	/** input of the convolutions of the current math box (border extended, grid coordinates), see getBoxInput **/
 	RandomAccessible<?> mathBoxInput = null;
 	
@@ -956,7 +974,18 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] refDirection = bUseHistory  ? memDirectionVector : lastDirectionVector;
 		/** the same in grid space, for the choice of neighbors **/
 		final double [] refGrid = physToGridDir(refDirection);
-				
+
+		//history stepping by Steger's linking of line points
+		//(if no neighbor ahead is a line point: the saliency choice of a neighbor and re-centering below)
+		if(bUseHistory && bStegerLinking)
+		{
+			out = stegerLinkStep(currpoint, refDirection, raInput);
+			if(out != null)
+			{
+				return out;
+			}
+		}
+
 		/** normalized step vector of the current and of the best candidate **/
 		final double [] candStep = new double[3];
 		final double [] bestStep = new double[3];
@@ -2100,7 +2129,224 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		System.arraycopy(dir, 0, dirOut, 0, 3);
 		return true;
 	}
-	
+
+	/** Stepping by Steger's linking of line points (C. Steger, An unbiased detector of curvilinear structures, 1998;
+	 * dissertation 1998, 3.1.x linking and 4.3.2-4.3.3 lines in 3D), history (momentum) stepping only.
+	 * Each of the 26 neighbors of the voxel of the current (sub-voxel) point with its centre ahead along the momentum
+	 * is tested as a line point on its own (stegerLinePoint): no re-centering, a voxel on the flank of the filament
+	 * is not a line point (its extremum lies outside of it).
+	 * Line points must have the orientation within the directionality constrain of the momentum,
+	 * pass the intensity and mask checks and be ahead of the current point (dLinkMinForward).
+	 * The next point is the line point minimizing Steger's d + c * beta: d is the distance between the sub-voxel
+	 * points (smallest voxel size), beta the angle between their line directions (radians, 0 to pi/2),
+	 * c = dLinkAngleWeight. The line direction, the momentum and the running saliency are updated as in getNextPoint.
+	 * Returns null if no neighbor ahead is a line point. **/
+	RealPoint stegerLinkStep(final RealPoint currpoint, final double [] refDirection, final RandomAccess< T > raInput)
+	{
+		final double [] vx = gridVoxelSize;
+		final double dMinVox = Math.min(vx[0], Math.min(vx[1], vx[2]));
+		final double [] cur = new double[3];
+		final long [] gc = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			cur[d] = toGridDouble(currpoint.getDoublePosition(d), d);
+			gc[d] = Math.round(cur[d]);
+		}
+		final SmoothedCache smoothed = new SmoothedCache(gc);
+		final long [] n = new long[3];
+		final double [] x = new double[3];
+		final double [] t = new double[3];
+		final double [] bestX = new double[3];
+		final double [] bestT = new double[3];
+		double bestCost = Double.MAX_VALUE;
+		double bestSal = 0;
+		for (int k = -1; k <= 1; k++)
+			for (int j = -1; j <= 1; j++)
+				for (int i = -1; i <= 1; i++)
+				{
+					if(i == 0 && j == 0 && k == 0)
+						continue;
+					n[0] = gc[0] + i;
+					n[1] = gc[1] + j;
+					n[2] = gc[2] + k;
+					boolean bOk = true;
+					double dCentreAhead = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						if(n[d] < gridMin[d] || n[d] > gridMax[d])
+						{
+							bOk = false;
+						}
+						dCentreAhead += (n[d] - cur[d]) * vx[d] * refDirection[d];
+					}
+					//only the neighbors compatible with the direction of the line (ahead)
+					if(!bOk || dCentreAhead <= 0)
+						continue;
+					final double dSal = mathBox.saliencyAtVoxel(n[0], n[1], n[2], null);
+					if(!(dSal > 0))
+						continue;
+					if(!stegerLinePoint(n, smoothed, x, t))
+						continue;
+					if(Math.abs(LinAlgHelpers.dot(t, refDirection)) < dAngleThreshold)
+						continue;
+					double dForward = 0;
+					double dDist = 0;
+					for (int d = 0; d < 3; d++)
+					{
+						final double s = (x[d] - cur[d]) * vx[d];
+						dForward += s * refDirection[d];
+						dDist += s * s;
+					}
+					//ahead, in the cone of the momentum (Steger: only the neighbors compatible with the line direction)
+					if(dForward < dLinkMinForward * dMinVox || dForward < dLinkMinStepCos * Math.sqrt(dDist))
+						continue;
+					final double dBeta = Math.acos(Math.min(1.0, Math.abs(LinAlgHelpers.dot(t, lastDirectionVector))));
+					final double dCost = Math.sqrt(dDist) / dMinVox + dLinkAngleWeight * dBeta;
+					if(dCost >= bestCost)
+						continue;
+					//not a point of the trace already (Steger: not added to a line yet),
+					//e.g. the line point of a neighbor right next to the current one
+					final double [] xFull = new double[3];
+					for (int d = 0; d < 3; d++)
+					{
+						xFull[d] = x[d] * ds[d] + 0.5 * (ds[d] - 1);
+					}
+					if(checkIntersection(new RealPoint(xFull)))
+						continue;
+					if(bt.btData.bOCIntensityStop || bUseMask)
+					{
+						final long [] gr = new long[3];
+						for (int d = 0; d < 3; d++)
+						{
+							gr[d] = Math.round(x[d]);
+						}
+						final long [] posFull = toFullLong(gr);
+						if(bt.btData.bOCIntensityStop && raInput.setPositionAndGet( posFull ).getRealDouble() < bt.btData.dOCIntensityThreshold)
+							continue;
+						if(bUseMask && traceMask.isOccupied( posFull ))
+							continue;
+					}
+					bestCost = dCost;
+					bestSal = dSal;
+					System.arraycopy(x, 0, bestX, 0, 3);
+					System.arraycopy(t, 0, bestT, 0, 3);
+				}
+		if(bestCost == Double.MAX_VALUE)
+			return null;
+
+		//line direction at the new point, oriented along the momentum
+		if(LinAlgHelpers.dot(bestT, refDirection) < 0)
+		{
+			LinAlgHelpers.scale(bestT, -1.0, bestT);
+		}
+		System.arraycopy(bestT, 0, lastDirectionVector, 0, 3);
+		//momentum: the actual displacement and the line direction
+		final double [] step = new double[3];
+		final float [] finPos = new float[3];
+		for (int d = 0; d < 3; d++)
+		{
+			step[d] = (bestX[d] - cur[d]) * vx[d];
+			finPos[d] = (float) (bestX[d] * ds[d] + 0.5 * (ds[d] - 1));
+		}
+		LinAlgHelpers.normalize(step);
+		for (int d = 0; d < 3; d++)
+		{
+			memDirectionVector[d] = dMomentumAlpha * memDirectionVector[d]
+					+ (1.0 - dMomentumAlpha) * ((1.0 - dMomentumEigenShare) * step[d] + dMomentumEigenShare * bestT[d]);
+		}
+		LinAlgHelpers.normalize(memDirectionVector);
+		dSalTrace = 0.9 * dSalTrace + 0.1 * bestSal;
+		return new RealPoint(finPos);
+	}
+
+	/** Steger's line point test of the grid voxel n (dissertation 4.3.2, in physical units):
+	 * the second order Taylor polynomial of the smoothed intensity at n (hessian of the math box,
+	 * gradient by central differences of smoothedAt) restricted to the plane through n spanned by the two
+	 * eigenvectors of the largest absolute eigenvalues (perpendicular to the line direction) has its maximum
+	 * (bright line: both eigenvalues negative) within the voxel (dLinkVoxelTol per axis).
+	 * The line point (continuous grid position) goes to xOut, the line direction (physical, unit) to tOut. **/
+	boolean stegerLinePoint(final long [] n, final SmoothedCache smoothed, final double [] xOut, final double [] tOut)
+	{
+		final double [] vx = gridVoxelSize;
+		final double [] h = new double[6];
+		if(!mathBox.hessianAtVoxel(n[0], n[1], n[2], h))
+			return false;
+		//physical units (isotropic, as Steger's resampled data)
+		h[0] /= vx[0] * vx[0];
+		h[1] /= vx[0] * vx[1];
+		h[2] /= vx[0] * vx[2];
+		h[3] /= vx[1] * vx[1];
+		h[4] /= vx[1] * vx[2];
+		h[5] /= vx[2] * vx[2];
+		if(!(SteerableLineFilter.saliency(h, tOut) > 0))
+			return false;
+		final double [] grad = new double[3];
+		final long [] q = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			System.arraycopy(n, 0, q, 0, 3);
+			q[d] = n[d] + 1;
+			final double dPlus = smoothed.get(q);
+			q[d] = n[d] - 1;
+			grad[d] = 0.5 * (dPlus - smoothed.get(q)) / vx[d];
+		}
+		final double [] u = new double[3];
+		final double [] v = new double[3];
+		Pipe3D.crossSectionBasis(tOut, u, v);
+		final double [] hu = new double[3];
+		final double [] hv = new double[3];
+		hessianTimes(h, u, hu);
+		hessianTimes(h, v, hv);
+		final double a11 = LinAlgHelpers.dot(u, hu);
+		final double a12 = LinAlgHelpers.dot(u, hv);
+		final double a22 = LinAlgHelpers.dot(v, hv);
+		final double b1 = LinAlgHelpers.dot(u, grad);
+		final double b2 = LinAlgHelpers.dot(v, grad);
+		final double det = a11 * a22 - a12 * a12;
+		if(!(det > 0) || a11 + a22 >= 0)
+			return false;
+		final double ca = (a12 * b2 - a22 * b1) / det;
+		final double cb = (a12 * b1 - a11 * b2) / det;
+		for (int d = 0; d < 3; d++)
+		{
+			final double dOff = (ca * u[d] + cb * v[d]) / vx[d];
+			if(Math.abs(dOff) > dLinkVoxelTol)
+				return false;
+			xOut[d] = n[d] + dOff;
+		}
+		return true;
+	}
+
+	/** smoothedAt values around the grid voxel c (offsets -2..2 per axis), computed once on demand **/
+	final class SmoothedCache
+	{
+		final long [] c;
+		final double [] vals = new double[125];
+		SmoothedCache(final long [] c_)
+		{
+			c = c_.clone();
+			java.util.Arrays.fill(vals, Double.NaN);
+		}
+		double get(final long [] g)
+		{
+			int index = 0;
+			for (int d = 2; d >= 0; d--)
+			{
+				final long o = g[d] - c[d];
+				if(o < -2 || o > 2)
+				{
+					return smoothedAt(g);
+				}
+				index = index * 5 + (int) (o + 2);
+			}
+			if(Double.isNaN(vals[index]))
+			{
+				vals[index] = smoothedAt(g);
+			}
+			return vals[index];
+		}
+	}
+
 	/** checks of the Steger centre x (grid) in the cross-section through o (grid), line direction t (grid) at the centre, 
 	 * see recenterSteger; sets subOut **/
 	boolean acceptSteger(final RealPoint currpoint, final double [] o, final double [] x, final double [] t,

@@ -231,6 +231,7 @@ public class BigTrace < T extends RealType< T > & NativeType< T > > implements P
 		}
 		
 	}
+	
 	public void loadSources()
 	{
 		if(btMacro.bMacroMode)
