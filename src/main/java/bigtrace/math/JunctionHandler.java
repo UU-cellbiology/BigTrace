@@ -501,8 +501,6 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 	{
 		System.arraycopy(memBefore, 0, oc.memDirectionVector, 0, 3);
 		System.arraycopy(lastBefore, 0, oc.lastDirectionVector, 0, 3);
-		if(box.hessBox == null)
-			return;
 		final double [] outArm = findOutgoingArm(toGrid(currpoint), memBefore);
 		if(outArm != null)
 		{
@@ -563,7 +561,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		{
 			pAhead[d] += nJunctionRadius * headingGrid[d];
 		}
-		final ArrayList<double[]> armsGrid = box.hessBox.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
+		final ArrayList<double[]> armsGrid = box.findArms(pAhead, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
 		if(armsGrid.size() < 2)
 			return null;
 		//arm directions to physical space
@@ -963,7 +961,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		final double dShortAlong = 1.5 * dMaxSigmaGrid;
 		final int nShortRay = Math.max(2, (int) Math.ceil(3.0 * dMaxSigmaGrid));
 		//1) cheap test in the math box of the start (short rays)
-		if(oc.mathBox.getHessianBox().findArms(p, armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() < 3)
+		if(oc.mathBox.findArms(p, armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() < 3)
 			return null;
 		//2) confirm with long rays in a junction box centered at the start
 		final long [] center = new long[3];
@@ -972,7 +970,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 			center[d] = Math.round(p[d]);
 		}
 		computeJunctionHessian(center);
-		final ArrayList<double[]> arms = box.hessBox.findArms(p, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
+		final ArrayList<double[]> arms = box.findArms(p, armDirections, dAlongSigma, (int) Math.ceil(2.0 * dAlongSigma), dArmFraction, dArmSepDeg);
 		if(arms.size() < 3)
 			return null;
 		//3) candidate starts out along the arms (strongest first)
@@ -996,7 +994,7 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 				if(oc.bUseMask && oc.traceMask.isOccupied(q2))
 					continue;
 				oc.getMathForCurrentPoint(q2);
-				if(oc.mathBox.getHessianBox().findArms(toGrid(q2), armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() <= 2)
+				if(oc.mathBox.findArms(toGrid(q2), armDirections, dShortAlong, nShortRay, dArmFraction, dArmSepDeg).size() <= 2)
 				{
 					return q2;
 				}

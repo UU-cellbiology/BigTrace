@@ -898,22 +898,11 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				boxFullRange[d] = boxGridHalfRange[d] * 2 + 1;
 			}
 		}
-		//IntervalView<T> input = Views.interval(fullInput, getLocalTraceBox(fullInput,boxFullHalfRange,startPoint));
-		//dim = Intervals.dimensionsAsLongArray( input );
-		
-		//gradient, first derivatives, 3 values per voxel
-		//gradFloat = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 3 );
 
-		//hessian, second derivatives, 6 values per voxel
-		//hessFloat = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 6 );
-		//dV = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 3 );
-		//sW = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ]);
+		mathBox = new MathBox(boxFullRange);
 
-		mathBox = new MathBox(boxFullRange, false);
-
-		
-		initNeighborsHashMap();
-		//initNeighbors();
+		//fill candidate voxels
+		NeighborsHashMap.fill( neighborsArr );
 		
 		nThreads = Runtime.getRuntime().availableProcessors();
 		es = Executors.newFixedThreadPool( nThreads );
@@ -1912,121 +1901,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	}
 	
 	
-		
-	/** for each voxel in the 26 neighborhood
-	 * it maps adjacent voxels
-	 */
-	void initNeighborsHashMap()
-	{
-		//int nCount = 0;
-		for (int d1=-1;d1<2;d1++)
-		{
-			for ( int d2 = -1; d2 < 2; d2++ )
-			{
-				for ( int d3 = -1; d3 < 2; d3++ )
-				{
-					//let's determine "neighbor type"
-					int nType = Math.abs(d1)+Math.abs(d2)+Math.abs(d3);
-					//remove central pixel
-					if(nType != 0)
-					{
-						//let's make a hash string
-						//String sKey = Integer.toString(d1)+Integer.toString(d2)+Integer.toString(d3);
-						ArrayList<int[]> around =new ArrayList<>();
-						//System.out.print(sKey);
-						
-						//nCount++;	
-
-						//iterating around the neighborhood of each pixel
-						for (int m1=-1;m1<2;m1++)
-						{
-							for ( int m2 = -1; m2 < 2; m2++ )
-							{
-								for ( int m3 = -1; m3 < 2; m3++ )
-								{
-									int [] nb = new int [3];
-									//"face cross" neighbor
-									if(nType == 1)
-									{
-										nb[0] = m1+d1*2;
-										nb[1] = m2+d2*2;
-										nb[2] = m3+d3*2;
-									}
-									else
-									{
-										nb[0] = m1+d1;
-										nb[1] = m2+d2;
-										nb[2] = m3+d3;								
-									}
-									//check if it belongs to the original neighborhood
-									
-									if(Math.abs(nb[0])<2 && Math.abs(nb[1])<2 && Math.abs(nb[2])<2)
-									{
-										switch(nType)
-										{
-											//face, central neighbor
-											case 1:
-												around.add(nb);
-												break;
-											//neighbor and the middle of the edge
-											case 2:
-												//(let's remove central pixel)
-												if(Math.abs(nb[0])+Math.abs(nb[1])+Math.abs(nb[2])!=0)
-												{
-													//remove sides
-													if(Math.abs(m1)+Math.abs(m2)+Math.abs(m3)<3)
-													{
-														around.add(nb);
-													}
-												}
-												break;
-											//corner neighbor (let's remove central pixel)
-											case 3:
-												if(Math.abs(nb[0])+Math.abs(nb[1])+Math.abs(nb[2])!=0)
-												{
-													around.add(nb);
-												}
-												break;
-											
-										}
-											
-									}
-								}
-							}
-						}
-						//neighborsMap.put(sKey, around);
-						neighborsArr[(d1 + 1) * 9 + (d2 + 1) * 3 + (d3 + 1)] = around;
-						//System.out.println(" "+around.size()+" type"+Integer.toString(nType));
-					}
-				}
-			}
-		}
-		//System.out.println(nCount);
-		/*
-		ArrayList<int[]> test = neighborsMap.get("0-11");
-		for(int d=0;d<test.size();d++)
-		{
-			int[] vals=test.get(d);
-			//System.out.println(Integer.toString(vals[0])+Integer.toString(vals[1])+Integer.toString(vals[2]));
-			double [] origvector = new double[3];
-			origvector[0] = 0.0;
-			origvector[1] = -1.0;
-			origvector[2] = 1.0;
-			LinAlgHelpers.normalize(origvector);
-			double [] neighbor = new double [3];
-			for(int i=0;i<3;i++)
-			{
-				neighbor[i] = vals[i];
-			}
-			LinAlgHelpers.normalize(neighbor);
-			//LinAlgHelpers.scale(neighbor, LinAlgHelpers.length(neighbor), neighbor);
-			System.out.println(LinAlgHelpers.dot(origvector, neighbor));
-			
-		}
-		*/
-		
-	}
-	
 	/** full resolution coordinate -> grid voxel. For ds = 1 it is Math.round(x), as before **/
 	long toGrid(final double x, final int d)
 	{
@@ -2152,9 +2026,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] h = new double[6];
 		final double [] t = new double[3];
 		//line direction at the stepped voxel (physical, along the momentum)
-		if(!mathBox.hessianAtVoxel(gridPos[0], gridPos[1], gridPos[2], h))
+		if(!mathBox.hessianAtVoxel(gridPos, h))
 			return false;
-		if(!(SteerableLineFilter.saliency(h, t) > 0))
+		if(!(mathBox.saliencyAndVectorAtVoxel(gridPos, h) > 0))
 			return false;
 		final double [] tp = gridToPhysDir(t);
 		if(LinAlgHelpers.dot(tp, memDirectionVector) < 0)
@@ -2191,9 +2065,9 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		final double [] x = new double[3];
 		for (int nIter = 0; nIter <= nRecenterMaxSteps; nIter++)
 		{
-			if(!mathBox.hessianAtVoxel(g[0], g[1], g[2], h))
+			if(!mathBox.hessianAtVoxel(g, h))
 				return false;
-			if(!(SteerableLineFilter.saliency(h, t) > 0))
+			if(!(mathBox.saliencyAndVectorAtVoxel(g,t) > 0) )
 				return false;
 			//gradient of the smoothed input (per grid voxel)
 			for (int d = 0; d < 3; d++)
@@ -2255,7 +2129,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	boolean directionAtGrid(final double [] x, final double [] dirOut)
 	{
 		final double [] vecGrid = new double[3];
-		final double dSal = mathBox.getHessianBox().saliencyAt(x, vecGrid);
+		final double dSal = mathBox.saliencyAndVectorAt(x, vecGrid);
 		if(!(dSal > 0))
 			return false;
 		final double [] dir = gridToPhysDir(vecGrid);
@@ -2402,7 +2276,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	{
 		final double [] vx = gridVoxelSize;
 		final double [] h = new double[6];
-		if(!mathBox.hessianAtVoxel(n[0], n[1], n[2], h))
+		if(!mathBox.hessianAtVoxel(n, h))
 			return false;
 		//physical units (isotropic, as Steger's resampled data)
 		h[0] /= vx[0] * vx[0];
@@ -2411,6 +2285,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		h[3] /= vx[1] * vx[1];
 		h[4] /= vx[1] * vx[2];
 		h[5] /= vx[2] * vx[2];
+		
 		if(!(SteerableLineFilter.saliency(h, tOut) > 0))
 			return false;
 		final double [] grad = new double[3];
@@ -2685,22 +2560,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return sal;
 	}
 
-
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	/*
      * Executed in event dispatching thread
      */

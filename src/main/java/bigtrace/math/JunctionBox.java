@@ -27,7 +27,7 @@ public class JunctionBox extends MathBox
 
 	public JunctionBox(final int nHalf_, final boolean bDownsample)
 	{
-		super(new long [] {2 * nHalf_ + 1, 2 * nHalf_ + 1, 2 * nHalf_ + 1}, true);
+		super(new long [] {2 * nHalf_ + 1, 2 * nHalf_ + 1, 2 * nHalf_ + 1});
 		nHalf = nHalf_;
 		nDim = 2 * nHalf + 1;
 		lineImg = ArrayImgs.floats( nDim, nDim, nDim );

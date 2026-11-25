@@ -1,15 +1,22 @@
 package bigtrace.math;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -46,25 +53,37 @@ public class MathBox
 	/** margin of gridImg around the box (convolution input) **/
 	final long [] gridMargin = new long[3];
 
-	/** point-wise (interpolated) access to the hessian is made after each computeHessian;
-	 * otherwise only on demand (getHessianBox) **/
-	final boolean bInterpolated;
 
-	/** point-wise access to the hessian of the box (after computeHessian if bInterpolated, see getHessianBox) **/
-	HessianBox hessBox = null;
+	/** interpolators per hessian component (6 of them) **/
+	final List <RealRandomAccess< FloatType >>  rraHess = new ArrayList<>();
+
+	/** interpolators per vector component (3 of them) **/
+	final List <RealRandomAccess< FloatType >>  rraVec = new ArrayList<>();
+	
+	/** interpolated saliency volume**/
+	RealRandomAccess< FloatType > rraSal = null;
+	
+	final OutOfBounds< FloatType > raSal;
+	
+	final OutOfBounds< FloatType > raHess;
+
+	final OutOfBounds< FloatType > raVec;
 
 	/** box of size dims_ (grid voxels); bInterpolated_: point-wise (interpolated) hessian access (hessBox) **/
-	public MathBox(final long [] dims_, final boolean bInterpolated_)
+	public MathBox(final long [] dims_)
 	{
 		for (int d = 0; d < 3; d++)
 		{
 			dims[d] = dims_[d];
 		}
 		nVol = (int) (dims[0] * dims[1] * dims[2]);
-		bInterpolated = bInterpolated_;
 		hessImg = ArrayImgs.floats( dims[0], dims[1], dims[2], 6 );
 		salImg = ArrayImgs.floats( dims[0], dims[1], dims[2] );
 		vecImg = ArrayImgs.floats( dims[0], dims[1], dims[2], 3 );
+		
+		raSal = Views.extendValue( salView(), Float.NaN ).randomAccess();
+		raHess = Views.extendValue( hessView(), Float.NaN ).randomAccess();
+		raVec = Views.extendValue( vecView(), Float.NaN ).randomAccess();
 	}
 
 	/** sets the margin of the block averaged input around the box (needed by the convolutions),
@@ -96,7 +115,7 @@ public class MathBox
 		{
 			boxMin[d] = min[d];
 		}
-		hessBox = null;
+		resetInterpolators();
 	}
 
 	/** places the box centered at the grid position center **/
@@ -106,7 +125,14 @@ public class MathBox
 		{
 			boxMin[d] = center[d] - dims[d] / 2;
 		}
-		hessBox = null;
+		resetInterpolators();
+	}
+	
+	void resetInterpolators()
+	{
+		rraHess.clear();
+		rraVec.clear();
+		rraSal = null;
 	}
 
 	/** hessian of the box by the 6 second derivative convolutions conv (xx, xy, xz, yy, yz, zz) of input
@@ -137,19 +163,8 @@ public class MathBox
 		{
 			mEV.computeVWRAI(hessImg, vecImg, salImg);
 		}
-		hessBox = bInterpolated ? new HessianBox(hessImg, boxMin) : null;
 	}
 
-	/** point-wise (linearly interpolated) access to the current hessian of the box,
-	 * made on demand (once per computeHessian) if the box is not bInterpolated **/
-	public HessianBox getHessianBox()
-	{
-		if(hessBox == null)
-		{
-			hessBox = new HessianBox(hessImg, boxMin);
-		}
-		return hessBox;
-	}
 
 	/** hessian in grid coordinates (x, y, z, component) **/
 	public IntervalView<FloatType> hessView()
@@ -158,7 +173,7 @@ public class MathBox
 	}
 
 	/** line saliency in grid coordinates **/
-	public IntervalView<FloatType> salView()
+	public IntervalView< FloatType > salView()
 	{
 		return Views.translate(salImg, boxMin[0], boxMin[1], boxMin[2]);
 	}
@@ -176,47 +191,68 @@ public class MathBox
 				&& x < boxMin[0] + dims[0] && y < boxMin[1] + dims[1] && z < boxMin[2] + dims[2];
 	}
 
-	/** line saliency at the continuous grid position x, trilinearly interpolated from the voxels of the box;
+	/** line saliency at the continuous grid position x, 
+	 * trilinearly interpolated from the voxels of the box;
 	 * NaN outside of the box **/
 	public double saliencyAt(final double [] x)
-	{
-		final long [] f = new long[3];
-		final double [] w = new double[3];
-		for (int d = 0; d < 3; d++)
+	{		
+		if(rraSal == null)
 		{
-			f[d] = (long) Math.floor(x[d]);
-			w[d] = x[d] - f[d];
-			if(f[d] < boxMin[d] || f[d] + (w[d] > 0 ? 1 : 0) > boxMin[d] + dims[d] - 1)
-				return Double.NaN;
+			initSaliencyInterpolation();
 		}
-		final float [] sal = salImg.update( null ).getCurrentStorageArray();
-		double sum = 0;
-		for (int k = 0; k < 2; k++)
-			for (int j = 0; j < 2; j++)
-				for (int i = 0; i < 2; i++)
-				{
-					final double wt = (i == 0 ? 1 - w[0] : w[0]) * (j == 0 ? 1 - w[1] : w[1]) * (k == 0 ? 1 - w[2] : w[2]);
-					if(wt == 0)
-						continue;
-					final long z = f[2] + k - boxMin[2];
-					final long y = f[1] + j - boxMin[1];
-					final long xx = f[0] + i - boxMin[0];
-					sum += wt * sal[(int) ((z * dims[1] + y) * dims[0] + xx)];
-				}
-		return sum;
+		rraSal.setPosition( x );
+		return rraSal.get().get();
+	}
+	
+	/** line saliency at the continuous grid position x, 
+	 * trilinearly interpolated from the voxels of the box;
+	 * NaN outside of the box **/
+	public double saliencyAtVoxel(final long [] v)
+	{				
+		return raSal.setPositionAndGet( v[0], v[1], v[2] ).get();
+	}
+	
+	
+	/** interpolated version **/
+	public double saliencyAndVectorAt(final double [] x, final double [] vecOut)
+	{
+		final double sal = saliencyAt(x);
+		if(Double.isNaN(sal))
+			return sal;
+		if(rraVec.size() < 1)
+		{
+			initVectorInterpolation();
+		}
+		for(int d = 0; d < 3; d++)
+		{
+			vecOut[d] = rraVec.get( d ).setPositionAndGet( x ).get();
+		}
+		return sal;
 	}
 
-	/** hessian (6 components: xx, xy, xz, yy, yz, zz) at the grid voxel (x, y, z) to h, false outside of the box **/
-	public boolean hessianAtVoxel(final long x, final long y, final long z, final double [] h)
+	public double saliencyAndVectorAtVoxel(final long [] v, final double [] vecOut)
 	{
-		if(!contains(x, y, z))
-			return false;
-		final int i = (int) (((z - boxMin[2]) * dims[1] + (y - boxMin[1])) * dims[0] + (x - boxMin[0]));
-		final float [] hess = hessImg.update( null ).getCurrentStorageArray();
+		final double sal = saliencyAtVoxel(v);
+		if(Double.isNaN(sal))
+			return sal;
+		for(int d = 0; d < 3; d++)
+		{
+			vecOut[d] = raVec.setPositionAndGet( v[0], v[1], v[2], d ).get();
+		}
+		return sal;
+	}
+
+	
+	public boolean hessianAtVoxel(final long [] v, final double [] h)
+	{
 		for (int c = 0; c < 6; c++)
 		{
-			h[c] = hess[i + c * nVol];
+			h[c] = raHess.setPositionAndGet( v[0], v[1], v[2], c ).get();
+			if(Double.isNaN( h[c]))
+				return false;
 		}
+		
+		
 		return true;
 	}
 
@@ -276,4 +312,146 @@ public class MathBox
 		}
 		return Views.translate(out, min);
 	}
+	
+	void initSaliencyInterpolation()
+	{
+		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
+		rraSal = Views.interpolate (Views.extendValue(salView(), Float.NaN), nInterpolatorFactory).realRandomAccess();			
+	}
+	
+	void initHessianInterpolation()
+	{
+		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
+
+		for(int c = 0; c < 6; c++)
+		{
+			rraHess.add( Views.interpolate( 
+				Views.extendValue(
+						Views.translate(
+								Views.hyperSlice( hessImg, 3, c ), boxMin), Float.NaN), nInterpolatorFactory).realRandomAccess() );
+		}
+	}
+	
+	void initVectorInterpolation()
+	{
+		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
+
+		for(int d = 0; d < 3; d++)
+		{
+			rraVec.add( Views.interpolate( 
+				Views.extendValue(
+						Views.translate(
+								Views.hyperSlice( vecImg, 3, d ), boxMin), Float.NaN), nInterpolatorFactory).realRandomAccess() );
+		}
+	}
+	
+	
+	/** steered line filter (SteerableLineFilter.lineResponse) at the grid position x
+	 * from the trilinearly interpolated hessian. Returns NaN outside of the box **/
+	public double lineResponse(final double [] x, final double [] e)
+	{
+		final double [] h = new double[6];
+		if(rraHess.size() < 1)
+		{
+			initHessianInterpolation();
+		}
+		for (int c = 0; c < 6; c++)
+		{
+			h[c] = rraHess.get( c ).setPositionAndGet( x ).get();
+			if(Double.isNaN(h[c]))
+				return Double.NaN;
+		}
+		return SteerableLineFilter.lineResponse(h, e);
+	}
+	
+	/** elongated line filter on the ray ahead of p along the unit direction e:
+	 * Gaussian (SD alongSigma) weighted mean of the steered line filter at 1..nMax grid voxels.
+	 * Samples outside of the box are skipped, NaN if there are none inside **/
+	public double rayResponse(final double [] p, final double [] e, final double alongSigma, final int nMax)
+	{
+		final double [] x = new double[3];
+		double sum = 0;
+		double wsum = 0;
+		for (int s = 1; s <= nMax; s++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				x[d] = p[d] + s * e[d];
+			}
+			final double r = lineResponse(x, e);
+			if(!Double.isNaN(r))
+			{
+				final double w = Math.exp(-0.5 * s * s / (alongSigma * alongSigma));
+				sum += w * r;
+				wsum += w;
+			}
+		}
+		return wsum > 0 ? sum / wsum : Double.NaN;
+	}
+
+	/** "Arms" of lines around p: directions (from dirs, covering the whole sphere) where the
+	 * elongated ray filter has a local maximum (within 20 deg) of at least dFrac of the
+	 * strongest response, at least dSepDeg apart from each other.
+	 * A plain filament has 2 arms (opposite), a merge/Y junction 3, a crossing 4.
+	 * Returns copies of the arm directions sorted by decreasing response. **/
+	public ArrayList<double[]> findArms(final double [] p, final double [][] dirs, final double alongSigma, final int nMax, final double dFrac, final double dSepDeg)
+	{
+		final ArrayList<double[]> arms = new ArrayList<>();
+		final int nDirs = dirs.length;
+		final double [] resp = new double[nDirs];
+		double dMax = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < nDirs; i++)
+		{
+			final double r = rayResponse(p, dirs[i], alongSigma, nMax);
+			resp[i] = Double.isNaN(r) ? Double.NEGATIVE_INFINITY : r;
+			dMax = Math.max(dMax, resp[i]);
+		}
+		if(!(dMax > 0))
+			return arms;
+		//indices sorted by decreasing response
+		final Integer [] order = new Integer[nDirs];
+		for (int i = 0; i < nDirs; i++)
+		{
+			order[i] = i;
+		}
+		java.util.Arrays.sort(order, (a, b) -> Double.compare(resp[b], resp[a]));
+		final double dNbCos = Math.cos(Math.toRadians(20.0));
+		final double dSepCos = Math.cos(Math.toRadians(dSepDeg));
+		final ArrayList<Integer> picked = new ArrayList<>();
+		for (final int i : order)
+		{
+			if(resp[i] < dFrac * dMax)
+				break;
+			boolean bSeparated = true;
+			for (final int j : picked)
+			{
+				if(LinAlgHelpers.dot(dirs[i], dirs[j]) >= dSepCos)
+				{
+					bSeparated = false;
+					break;
+				}
+			}
+			if(!bSeparated)
+				continue;
+			//local maximum among the neighboring directions
+			boolean bLocalMax = true;
+			for (int k = 0; k < nDirs; k++)
+			{
+				if(LinAlgHelpers.dot(dirs[i], dirs[k]) > dNbCos && resp[k] > resp[i])
+				{
+					bLocalMax = false;
+					break;
+				}
+			}
+			if(bLocalMax)
+			{
+				picked.add(i);
+				arms.add(dirs[i].clone());
+			}
+		}
+		return arms;
+	}
+	
+	
+	
 }

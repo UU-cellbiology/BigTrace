@@ -1738,7 +1738,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				//(a ring of samples beyond the limit for the local maximum test)
 				if(off[i][j] > dMaxOffsetSD + 2.0 * h / dMaxSD + 0.5)
 					continue;
-				final double val = jh.box.hessBox.saliencyAt(xg, null);
+				final double val = jh.box.saliencyAt(xg);
 				if(!Double.isNaN(val))
 					sal[i][j] = val;
 			}
@@ -1777,7 +1777,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 					rejectedOut.add(x.clone());
 					continue;
 				}
-				jh.box.hessBox.saliencyAt(xg, vecGrid);
+				jh.box.saliencyAndVectorAt(xg, vecGrid);
 				final double [] dir = oc.gridToPhysDir(vecGrid);
 				double cs = LinAlgHelpers.dot(dir, t);
 				if(cs < 0)
