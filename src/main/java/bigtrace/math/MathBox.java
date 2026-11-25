@@ -13,7 +13,6 @@ import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.LinAlgHelpers;
@@ -54,22 +53,13 @@ public class MathBox
 	final long [] gridMargin = new long[3];
 
 
-	/** interpolators per hessian component (6 of them) **/
+	/** interpolators per hessian component (6 of them), made on demand for the current position of the box **/
 	final List <RealRandomAccess< FloatType >>  rraHess = new ArrayList<>();
 
-	/** interpolators per vector component (3 of them) **/
-	final List <RealRandomAccess< FloatType >>  rraVec = new ArrayList<>();
-	
-	/** interpolated saliency volume**/
+	/** interpolated saliency, made on demand for the current position of the box **/
 	RealRandomAccess< FloatType > rraSal = null;
-	
-	final OutOfBounds< FloatType > raSal;
-	
-	final OutOfBounds< FloatType > raHess;
 
-	final OutOfBounds< FloatType > raVec;
-
-	/** box of size dims_ (grid voxels); bInterpolated_: point-wise (interpolated) hessian access (hessBox) **/
+	/** box of size dims_ (grid voxels) **/
 	public MathBox(final long [] dims_)
 	{
 		for (int d = 0; d < 3; d++)
@@ -80,10 +70,6 @@ public class MathBox
 		hessImg = ArrayImgs.floats( dims[0], dims[1], dims[2], 6 );
 		salImg = ArrayImgs.floats( dims[0], dims[1], dims[2] );
 		vecImg = ArrayImgs.floats( dims[0], dims[1], dims[2], 3 );
-		
-		raSal = Views.extendValue( salView(), Float.NaN ).randomAccess();
-		raHess = Views.extendValue( hessView(), Float.NaN ).randomAccess();
-		raVec = Views.extendValue( vecView(), Float.NaN ).randomAccess();
 	}
 
 	/** sets the margin of the block averaged input around the box (needed by the convolutions),
@@ -128,10 +114,11 @@ public class MathBox
 		resetInterpolators();
 	}
 	
+	/** the interpolators are made for the box position (the views copy it),
+	 * after the box is moved they are made again on demand **/
 	void resetInterpolators()
 	{
 		rraHess.clear();
-		rraVec.clear();
 		rraSal = null;
 	}
 
@@ -191,11 +178,33 @@ public class MathBox
 				&& x < boxMin[0] + dims[0] && y < boxMin[1] + dims[1] && z < boxMin[2] + dims[2];
 	}
 
+	/** the continuous grid position x can be interpolated from the voxels of the box
+	 * (it is between the first and the last voxel along each axis) **/
+	public boolean containsReal(final double [] x)
+	{
+		for (int d = 0; d < 3; d++)
+		{
+			if(!(x[d] >= boxMin[d] && x[d] <= boxMin[d] + dims[d] - 1))
+				return false;
+		}
+		return true;
+	}
+
+	/** index of the grid voxel v in the box arrays (first component), -1 outside of the box **/
+	int voxelIndex(final long [] v)
+	{
+		if(!contains(v[0], v[1], v[2]))
+			return -1;
+		return (int) (((v[2] - boxMin[2]) * dims[1] + (v[1] - boxMin[1])) * dims[0] + (v[0] - boxMin[0]));
+	}
+
 	/** line saliency at the continuous grid position x, 
 	 * trilinearly interpolated from the voxels of the box;
 	 * NaN outside of the box **/
 	public double saliencyAt(final double [] x)
-	{		
+	{
+		if(!containsReal(x))
+			return Double.NaN;
 		if(rraSal == null)
 		{
 			initSaliencyInterpolation();
@@ -204,55 +213,58 @@ public class MathBox
 		return rraSal.get().get();
 	}
 	
-	/** line saliency at the continuous grid position x, 
-	 * trilinearly interpolated from the voxels of the box;
-	 * NaN outside of the box **/
+	/** line saliency at the grid voxel v, NaN outside of the box **/
 	public double saliencyAtVoxel(final long [] v)
-	{				
-		return raSal.setPositionAndGet( v[0], v[1], v[2] ).get();
+	{
+		return saliencyAtVoxel(v[0], v[1], v[2], null);
 	}
 	
-	
-	/** interpolated version **/
-	public double saliencyAndVectorAt(final double [] x, final double [] vecOut)
+	/** hessian (6 components: xx, xy, xz, yy, yz, zz) at the continuous grid position x,
+	 * trilinearly interpolated from the voxels of the box, to h; false outside of the box **/
+	public boolean hessianAt(final double [] x, final double [] h)
 	{
-		final double sal = saliencyAt(x);
-		if(Double.isNaN(sal))
-			return sal;
-		if(rraVec.size() < 1)
+		if(!containsReal(x))
+			return false;
+		if(rraHess.size() < 1)
 		{
-			initVectorInterpolation();
+			initHessianInterpolation();
 		}
-		for(int d = 0; d < 3; d++)
-		{
-			vecOut[d] = rraVec.get( d ).setPositionAndGet( x ).get();
-		}
-		return sal;
-	}
-
-	public double saliencyAndVectorAtVoxel(final long [] v, final double [] vecOut)
-	{
-		final double sal = saliencyAtVoxel(v);
-		if(Double.isNaN(sal))
-			return sal;
-		for(int d = 0; d < 3; d++)
-		{
-			vecOut[d] = raVec.setPositionAndGet( v[0], v[1], v[2], d ).get();
-		}
-		return sal;
-	}
-
-	
-	public boolean hessianAtVoxel(final long [] v, final double [] h)
-	{
 		for (int c = 0; c < 6; c++)
 		{
-			h[c] = raHess.setPositionAndGet( v[0], v[1], v[2], c ).get();
-			if(Double.isNaN( h[c]))
-				return false;
+			h[c] = rraHess.get( c ).setPositionAndGet( x ).get();
 		}
-		
-		
+		return true;
+	}
+
+	/** line saliency and direction (grid space, unit) to vecOut at the continuous grid position x
+	 * from the trilinearly interpolated hessian (its eigen decomposition, SteerableLineFilter.saliency:
+	 * the eigenvectors themselves can not be interpolated, their sign is arbitrary at each voxel);
+	 * NaN (vecOut not changed) outside of the box **/
+	public double saliencyAndVectorAt(final double [] x, final double [] vecOut)
+	{
+		final double [] h = new double[6];
+		if(!hessianAt(x, h))
+			return Double.NaN;
+		return SteerableLineFilter.saliency(h, vecOut);
+	}
+
+	/** line saliency at the grid voxel v, its direction (grid space, unit) to vecOut; NaN outside of the box **/
+	public double saliencyAndVectorAtVoxel(final long [] v, final double [] vecOut)
+	{
+		return saliencyAtVoxel(v[0], v[1], v[2], vecOut);
+	}
+
+	/** hessian (6 components: xx, xy, xz, yy, yz, zz) at the grid voxel v to h, false outside of the box **/
+	public boolean hessianAtVoxel(final long [] v, final double [] h)
+	{
+		final int i = voxelIndex(v);
+		if(i < 0)
+			return false;
+		final float [] hess = hessImg.update( null ).getCurrentStorageArray();
+		for (int c = 0; c < 6; c++)
+		{
+			h[c] = hess[i + c * nVol];
+		}
 		return true;
 	}
 
@@ -313,10 +325,11 @@ public class MathBox
 		return Views.translate(out, min);
 	}
 	
+	/** (the border extension only fills the weight 0 corners on the last voxel plane, see containsReal) **/
 	void initSaliencyInterpolation()
 	{
 		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
-		rraSal = Views.interpolate (Views.extendValue(salView(), Float.NaN), nInterpolatorFactory).realRandomAccess();			
+		rraSal = Views.interpolate (Views.extendBorder(salView()), nInterpolatorFactory).realRandomAccess();
 	}
 	
 	void initHessianInterpolation()
@@ -326,41 +339,19 @@ public class MathBox
 		for(int c = 0; c < 6; c++)
 		{
 			rraHess.add( Views.interpolate( 
-				Views.extendValue(
+				Views.extendBorder(
 						Views.translate(
-								Views.hyperSlice( hessImg, 3, c ), boxMin), Float.NaN), nInterpolatorFactory).realRandomAccess() );
+								Views.hyperSlice( hessImg, 3, c ), boxMin)), nInterpolatorFactory).realRandomAccess() );
 		}
 	}
-	
-	void initVectorInterpolation()
-	{
-		final InterpolatorFactory<FloatType, RandomAccessible< FloatType >> nInterpolatorFactory = new NLinearInterpolatorFactory<>();
-
-		for(int d = 0; d < 3; d++)
-		{
-			rraVec.add( Views.interpolate( 
-				Views.extendValue(
-						Views.translate(
-								Views.hyperSlice( vecImg, 3, d ), boxMin), Float.NaN), nInterpolatorFactory).realRandomAccess() );
-		}
-	}
-	
 	
 	/** steered line filter (SteerableLineFilter.lineResponse) at the grid position x
 	 * from the trilinearly interpolated hessian. Returns NaN outside of the box **/
 	public double lineResponse(final double [] x, final double [] e)
 	{
 		final double [] h = new double[6];
-		if(rraHess.size() < 1)
-		{
-			initHessianInterpolation();
-		}
-		for (int c = 0; c < 6; c++)
-		{
-			h[c] = rraHess.get( c ).setPositionAndGet( x ).get();
-			if(Double.isNaN(h[c]))
-				return Double.NaN;
-		}
+		if(!hessianAt(x, h))
+			return Double.NaN;
 		return SteerableLineFilter.lineResponse(h, e);
 	}
 	

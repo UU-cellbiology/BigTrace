@@ -2028,7 +2028,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		//line direction at the stepped voxel (physical, along the momentum)
 		if(!mathBox.hessianAtVoxel(gridPos, h))
 			return false;
-		if(!(mathBox.saliencyAndVectorAtVoxel(gridPos, h) > 0))
+		if(!(mathBox.saliencyAndVectorAtVoxel(gridPos, t) > 0))
 			return false;
 		final double [] tp = gridToPhysDir(t);
 		if(LinAlgHelpers.dot(tp, memDirectionVector) < 0)
