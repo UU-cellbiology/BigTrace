@@ -374,6 +374,13 @@ class JunctionHandler < T extends RealType< T > & NativeType< T > >
 		if(oc.bJunctionBranchFirst)
 		{
 			nBranch = branch.plan(currpoint, raInput, path);
+			//passages lost, normal stepping up to the end of the filament: its points, then stop
+			if(nBranch == JunctionBranchPassage.GEO_PROBE_END)
+			{
+				passageQueue.addAll(path);
+				bStopAfterQueue = true;
+				return PASSAGE_OK;
+			}
 			if(nBranch == JunctionBranchPassage.GEO_OK)
 			{
 				bCoastEndedByDistance = true;

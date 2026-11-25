@@ -194,6 +194,27 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	 * first (a sharp kink or a junction not detected ahead), then the gap bridging **/
 	boolean bStallJunctionPassage = true;
 	
+	/** branch-first junction passage: normal stepping is tried through the junction first (probeNormalStepping,
+	 * JunctionBranchPassage.planByProbe); its path is used if it reaches a branch found on the half sphere
+	 * that turns not much more than the least turning one. Off: in tests it often took the wrong filament **/
+	boolean bJunctionProbe = false;
+
+	/** branch-first junction passage: if the passages to all branches are lost and normal stepping through
+	 * the junction ends inside the searched half sphere (the end of the filament), the trace follows it to its end
+	 * (instead of stopping at the junction) **/
+	boolean bJunctionProbeEnd = true;
+
+	/** true during probeNormalStepping (normal stepping without junction handling, gap bridging, visualization) **/
+	boolean bProbing = false;
+
+	/** probeNormalStepping: the last point is beyond the radius (otherwise the stepping stopped before) **/
+	boolean bProbeReached = false;
+
+	/** probeNormalStepping: momentum, line direction (physical) and running saliency at its last point **/
+	final double [] probeMem = new double[3];
+	final double [] probeLast = new double[3];
+	double dProbeSal = 0;
+
 	/** gap bridging by a planned passage (JunctionBranchPassage.planGap: ridge centres ahead within the reach, 
 	 * least turning curve to them, followed over the gap) instead of the jump to the best voxel in the 
 	 * look-ahead cone (bridgeGap) **/
@@ -267,7 +288,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 	/** Steger's linking: minimum cosine between the step to the next line point and the momentum
 	 * (Steger, 2D: the neighbors within 67.5 deg of the line direction) **/
 	double dLinkMinStepCos = 0.5;
-
+	
 	/** input of the convolutions of the current math box (border extended, grid coordinates), see getBoxInput **/
 	RandomAccessible<?> mathBoxInput = null;
 	
@@ -692,6 +713,92 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		return nCountPoints;
 	}
 	
+	/** Dry run of the normal stepping (getNextPoint without junction handling and gap bridging) from currpoint,
+	 * as the tracing loop does it (direction history, traced points, math box): until a point is farther than
+	 * dRadiusSD SDs (sdPhys per axis, physical: an ellipsoid) from centre (physical), the stepping stops
+	 * (no step, self intersection) or after nMaxSteps. Returns the points (full resolution); bProbeReached:
+	 * the last one is beyond the radius; probeMem, probeLast, dProbeSal: the state at the last point.
+	 * The state of the tracing is restored afterwards (the math box is recomputed at currpoint if it moved). **/
+	ArrayList<RealPoint> probeNormalStepping(final RealPoint currpoint, final double [] centre, final double [] sdPhys,
+			final double dRadiusSD, final int nMaxSteps)
+	{
+		final double [] memBefore = memDirectionVector.clone();
+		final double [] lastBefore = lastDirectionVector.clone();
+		final double dSalBefore = dSalTrace;
+		final ArrayList<double[]> histBefore = new ArrayList<>(dirHistory);
+		final long [] boxMinBefore = mathBox.boxMin.clone();
+		final boolean bJunctionsBefore = bJunctions;
+		final double dGapBefore = dGapBridgeSigma;
+		final boolean bPassageBefore = bLastFromPassage;
+		bJunctions = false;
+		dGapBridgeSigma = 0;
+		bProbing = true;
+
+		final ArrayList<RealPoint> out = new ArrayList<>();
+		final ArrayList<double[]> added = new ArrayList<>();
+		bProbeReached = false;
+		RealPoint cur = currpoint;
+		try
+		{
+			for (int n = 0; n < nMaxSteps; n++)
+			{
+				final RealPoint next = getNextPoint(cur);
+				if(next == null || checkIntersection(next))
+					break;
+				out.add(next);
+				addDirHistory(next);
+				final double [] q = next.positionAsDoubleArray();
+				addIntersectionPoint(q);
+				added.add(q);
+				double dR = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					final double r = (toGridDouble(q[d], d) * gridVoxelSize[d] - centre[d]) / sdPhys[d];
+					dR += r * r;
+				}
+				if(Math.sqrt(dR) >= dRadiusSD)
+				{
+					bProbeReached = true;
+					break;
+				}
+				cur = next;
+				if(!Intervals.contains(innerTraceBox, cur))
+				{
+					getMathForCurrentPoint(cur);
+				}
+			}
+		}
+		finally
+		{
+			System.arraycopy(memDirectionVector, 0, probeMem, 0, 3);
+			System.arraycopy(lastDirectionVector, 0, probeLast, 0, 3);
+			dProbeSal = dSalTrace;
+			System.arraycopy(memBefore, 0, memDirectionVector, 0, 3);
+			System.arraycopy(lastBefore, 0, lastDirectionVector, 0, 3);
+			dSalTrace = dSalBefore;
+			dirHistory.clear();
+			dirHistory.addAll(histBefore);
+			for (int i = added.size() - 1; i >= 0; i--)
+			{
+				removeIntersectionPoint(added.get(i));
+			}
+			bJunctions = bJunctionsBefore;
+			dGapBridgeSigma = dGapBefore;
+			bLastFromPassage = bPassageBefore;
+			bProbing = false;
+			boolean bMoved = false;
+			for (int d = 0; d < 3; d++)
+			{
+				bMoved |= (mathBox.boxMin[d] != boxMinBefore[d]);
+			}
+			if(bMoved)
+			{
+				getMathForCurrentPoint(currpoint);
+			}
+		}
+		return out;
+	}
+
 	/** adds a traced point to dirHistory (keeps at most nDirHistoryMax) **/
 	void addDirHistory(final RealPoint pt)
 	{
@@ -950,7 +1057,10 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				return junctions.passageQueue.poll();
 			}
 			//(debug: the gap saliency map is removed after the passage)
-			visDebugJunctionMap(false);
+			if(!bProbing)
+			{
+				visDebugJunctionMap(false);
+			}
 		}
 		//junctions: passage points, stop, or normal stepping
 		if(bJunctions)
@@ -985,7 +1095,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 				return out;
 			}
 		}
-
+				
 		/** normalized step vector of the current and of the best candidate **/
 		final double [] candStep = new double[3];
 		final double [] bestStep = new double[3];
@@ -1770,6 +1880,29 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		intersectionGrid.computeIfAbsent( packKey(Math.round( pt[0] ), Math.round( pt[1] ), Math.round( pt[2] )), k -> new ArrayList<>() ).add( pt );
 	}
 
+	/** removes a point added by addIntersectionPoint (the same array; the last ones are the fastest) **/
+	void removeIntersectionPoint(final double [] pt)
+	{
+		for (int i = allPointsIntersection.size() - 1; i >= 0; i--)
+		{
+			if(allPointsIntersection.get(i) == pt)
+			{
+				allPointsIntersection.remove(i);
+				break;
+			}
+		}
+		final long nKey = packKey(Math.round( pt[0] ), Math.round( pt[1] ), Math.round( pt[2] ));
+		final ArrayList<double[]> cell = intersectionGrid.get( nKey );
+		if(cell != null)
+		{
+			cell.removeIf(x -> x == pt);
+			if(cell.isEmpty())
+			{
+				intersectionGrid.remove( nKey );
+			}
+		}
+	}
+
 	/** packs 3 coordinates (each within +-2^20) into one long **/
 	static long packKey(final long x, final long y, final long z)
 	{
@@ -2129,7 +2262,7 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		System.arraycopy(dir, 0, dirOut, 0, 3);
 		return true;
 	}
-
+	
 	/** Stepping by Steger's linking of line points (C. Steger, An unbiased detector of curvilinear structures, 1998;
 	 * dissertation 1998, 3.1.x linking and 4.3.2-4.3.3 lines in 3D), history (momentum) stepping only.
 	 * Each of the 26 neighbors of the voxel of the current (sub-voxel) point with its centre ahead along the momentum

@@ -61,6 +61,11 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** weight of the smoothed (momentum) direction in the heading (0 = only the fit, 1 = only the momentum) **/
 	double dHeadingMomentumWeight = 0.5;
 
+	/** junction passages (plan, planToCoastEnd): weight of the line direction at the current point
+	 * (OneClickTrace.lastDirectionVector; with Steger's linking the direction at the line point) in the heading,
+	 * blended with the fit (and momentum) above; 0: the fit only, 1: the local direction only **/
+	double dHeadingLocalWeight = 1.0;
+
 	/** maximum number of candidates with a planned curve (the lowest cost ones) **/
 	int nMaxPlanned = 8;
 
@@ -201,8 +206,13 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	/** gap bridging (planGap): weight of the momentum in the heading (the momentum follows the drift at the end) **/
 	double dGapHeadingMomentumWeight = 0.0;
 
-	/** results of plan() **/
-	static final int GEO_OK = 0, GEO_NOFIT = 1, GEO_NOTARGET = 2, GEO_LOST = 3;
+	/** normal stepping through the junction (planByProbe): its path is used if the ridge centre it reaches on
+	 * the half sphere turns at most this much more (degrees) than the least turning candidate **/
+	double dProbeMaxExtraTurnDeg = 30.0;
+
+	/** results of plan(); GEO_PROBE_END: the passages are lost, normal stepping ends inside the half sphere
+	 * (the end of the filament): its points are the passage, then the trace stops **/
+	static final int GEO_OK = 0, GEO_NOFIT = 1, GEO_NOTARGET = 2, GEO_LOST = 3, GEO_PROBE_END = 4;
 
 	//---------- geometry of the current plan (physical space)
 
@@ -339,8 +349,165 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				sMode, altCurves.size() + 1, dChosenTurnDeg, dT1FitDeg));
 		visDebugPlan(true);
 
+		//normal stepping through the junction first: used if it reaches one of the branches
+		//(turning not much more than the least turning one)
+		final ArrayList<RealPoint> probePts = new ArrayList<>();
+		final boolean bSphere = OneClickTrace.BRANCH_SEARCH_MODE == OneClickTrace.BRANCH_SEARCH_SPHERE && secRadiusSD > 0;
+		boolean bProbed = false;
+		if(bSphere && oc.bJunctionProbe)
+		{
+			bProbed = true;
+			if(planByProbe(currpoint, dMinSal, probePts) == GEO_OK)
+			{
+				outPath.addAll(probePts);
+				return GEO_OK;
+			}
+		}
+
 		//4) follow the curve (if lost, the next ones)
-		return followPlans(raInput, outPath, dMinSal, "branch-first", 0.0);
+		final int nResult = followPlans(raInput, outPath, dMinSal, "branch-first", 0.0);
+		//all lost, normal stepping ends inside the half sphere (the end of the filament): up to there
+		if(nResult == GEO_LOST && bSphere && oc.bJunctionProbeEnd && !bProbed)
+		{
+			runProbe(currpoint, probePts);
+		}
+		if(nResult == GEO_LOST && bSphere && oc.bJunctionProbeEnd && !oc.bProbeReached && !probePts.isEmpty())
+		{
+			jh.visDebugMessage("branch-first: passages lost, normal stepping ends inside, used up to its end");
+			outPath.addAll(probePts);
+			useProbeHeading();
+			return GEO_PROBE_END;
+		}
+		return nResult;
+	}
+
+	/** Normal stepping through the junction (OneClickTrace.probeNormalStepping) from currpoint up to the half
+	 * sphere of the candidates (radius secRadiusSD around p0). If it reaches the sphere at a ridge centre found there
+	 * (a candidate, or one rejected by its orientation: e.g. a sharp bend) that turns (Hermite curve to it, as
+	 * chooseLeastTurning) at most dProbeMaxExtraTurnDeg more than the least turning candidate, GEO_OK:
+	 * its points are the passage (heading of OneClickTrace set to the state at its end).
+	 * Otherwise GEO_NOTARGET, nothing changed. The points of the stepping go to probePts in any case. **/
+	int planByProbe(final RealPoint currpoint, final double dMinSal, final ArrayList<RealPoint> probePts)
+	{
+		runProbe(currpoint, probePts);
+		if(!oc.bProbeReached || probePts.isEmpty())
+			return GEO_NOTARGET;
+		final double [] last = probePts.get(probePts.size() - 1).positionAsDoubleArray();
+		final double [] x = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			x[d] = oc.toGridDouble(last[d], d) * vox[d];
+		}
+		//the nearest ridge centre on the sphere: a planned candidate
+		int nPlan = -1;
+		double dBest = dCandidateMergeSD;
+		for (int i = 0; i < plans.size(); i++)
+		{
+			final double dd = distSD(x, plans.get(i).p1);
+			if(dd < dBest)
+			{
+				dBest = dd;
+				nPlan = i;
+			}
+		}
+		//or one rejected by the orientation
+		double [] rej = null;
+		for(final double [] r : secRejected)
+		{
+			final double dd = distSD(x, r);
+			if(dd < dBest)
+			{
+				dBest = dd;
+				rej = r;
+				nPlan = -1;
+			}
+		}
+		final double dLeastDeg = plans.get(0).dTurnDeg;
+		double dTurnDeg;
+		if(nPlan >= 0)
+		{
+			usePlan(nPlan);
+			dTurnDeg = plans.get(nPlan).dTurnDeg;
+		}
+		else if(rej != null)
+		{
+			//curve to it, as for the candidates: the direction along the ridge, oriented along the stepping
+			final long [] g = new long[3];
+			for (int d = 0; d < 3; d++)
+			{
+				g[d] = Math.round(rej[d] / vox[d]);
+			}
+			final double [] vecGrid = new double[3];
+			final double dSal = jh.box.saliencyAtVoxel(g[0], g[1], g[2], vecGrid);
+			if(!(dSal > 0))
+				return GEO_NOTARGET;
+			final double [] dir = oc.gridToPhysDir(vecGrid);
+			if(LinAlgHelpers.dot(dir, oc.probeMem) < 0)
+			{
+				LinAlgHelpers.scale(dir, -1.0, dir);
+			}
+			final double [] c = new double [] {rej[0], rej[1], rej[2], 0, 0, dir[0], dir[1], dir[2], dSal};
+			dT1FitDeg = fitCandidateDirection(c, dMinSal);
+			for (int d = 0; d < 3; d++)
+			{
+				p1[d] = c[d];
+				t1[d] = c[5 + d];
+			}
+			buildCurve();
+			dTurnDeg = Math.toDegrees(totalTurning(curve));
+			dChosenTurnDeg = dTurnDeg;
+		}
+		else
+		{
+			jh.visDebugMessage("branch-first: normal stepping reaches no branch");
+			return GEO_NOTARGET;
+		}
+		if(dTurnDeg > dLeastDeg + dProbeMaxExtraTurnDeg)
+		{
+			jh.visDebugMessage(String.format("branch-first: normal stepping reaches a branch turning %.0f deg (least %.0f deg), not used", dTurnDeg, dLeastDeg));
+			return GEO_NOTARGET;
+		}
+		jh.visDebugMessage(String.format("branch-first: normal stepping reaches a branch turning %.0f deg (least %.0f deg), its path used", dTurnDeg, dLeastDeg));
+		visDebugPlan(true);
+		useProbeHeading();
+		return GEO_OK;
+	}
+
+	/** normal stepping through the junction (OneClickTrace.probeNormalStepping) from currpoint up to the half sphere
+	 * of the candidates (radius secRadiusSD around p0), its points to probePts **/
+	void runProbe(final RealPoint currpoint, final ArrayList<RealPoint> probePts)
+	{
+		double dMaxSD = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			dMaxSD = Math.max(dMaxSD, sd[d]);
+		}
+		final int nMaxSteps = (int) Math.ceil(4.0 * secRadiusSD * dMaxSD / dStep) + 10;
+		probePts.addAll(oc.probeNormalStepping(currpoint, p0, sd, secRadiusSD, nMaxSteps));
+	}
+
+	/** heading of OneClickTrace after a passage by normal stepping (probe): its state at the end **/
+	void useProbeHeading()
+	{
+		System.arraycopy(oc.probeMem, 0, oc.memDirectionVector, 0, 3);
+		System.arraycopy(oc.probeLast, 0, oc.lastDirectionVector, 0, 3);
+		oc.dSalTrace = oc.dProbeSal;
+		final double [] tGrid = oc.physToGridDir(oc.probeMem);
+		System.arraycopy(tGrid, 0, jh.coastLineDir, 0, 3);
+		System.arraycopy(tGrid, 0, jh.coastDir, 0, 3);
+		jh.bJunctionArmed = false;
+	}
+
+	/** distance between the points a and b (first 3 values, physical) in tracing SDs (per axis) **/
+	double distSD(final double [] a, final double [] b)
+	{
+		double dd = 0;
+		for (int d = 0; d < 3; d++)
+		{
+			final double r = (a[d] - b[d]) / sd[d];
+			dd += r * r;
+		}
+		return Math.sqrt(dd);
 	}
 
 	/** After the map coasting (ending at endFull, full resolution, with direction endDirGrid, grid space):
@@ -836,7 +1003,27 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * (dHeadingMomentumWeight). Sets p0 (current point) also when it fails (too short history). **/
 	boolean fitHeading(final RealPoint currpoint)
 	{
-		return fitHeading(currpoint, 0.0, dHeadingMomentumWeight);
+		if(!fitHeading(currpoint, 0.0, dHeadingMomentumWeight))
+			return false;
+		//the line direction at the current point (Steger: at the line point), oriented along the fit
+		if(dHeadingLocalWeight > 0)
+		{
+			final double [] loc = oc.lastDirectionVector.clone();
+			if(LinAlgHelpers.dot(loc, loc) > 0)
+			{
+				LinAlgHelpers.normalize(loc);
+				if(LinAlgHelpers.dot(loc, t0) < 0)
+				{
+					LinAlgHelpers.scale(loc, -1.0, loc);
+				}
+				for (int d = 0; d < 3; d++)
+				{
+					t0[d] = (1.0 - dHeadingLocalWeight) * t0[d] + dHeadingLocalWeight * loc[d];
+				}
+				LinAlgHelpers.normalize(t0);
+			}
+		}
+		return true;
 	}
 
 	/** as fitHeading(currpoint), the last dSkipSD tracing SDs of the trace (path length) are left out of the fit
