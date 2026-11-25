@@ -75,12 +75,12 @@ public class OCVisDebug
 	/** index in cones: history (momentum) direction, opening from stiffness **/
 	public static final int CONE_HISTORY = 1;
 	
-	/** index in cones: branch-first bending cone (apex at the straight end ahead, 
-	 * base through the ends of the maximally bending paths) **/
-	public static final int CONE_BRANCH_BEND = 2;
+//	/** index in cones: branch-first bending cone (apex at the straight end ahead, 
+//	 * base through the ends of the maximally bending paths) **/
+//	public static final int CONE_BRANCH_BEND = 2;
 
 	/** number of step cones **/
-	static final int N_CONES = 3;
+	static final int N_CONES = 2;
 	
 	/** index in polylines: gap bridging search direction (heading, up to the search reach) **/
 	public static final int POLY_BRIDGE_SEARCH = 0;
@@ -262,7 +262,7 @@ public class OCVisDebug
 		}
 		cones.get(CONE_LAST).setColor(colorLast);
 		cones.get(CONE_HISTORY).setColor(colorHistory);
-		cones.get(CONE_BRANCH_BEND).setColor(colorBendCone);
+//		cones.get(CONE_BRANCH_BEND).setColor(colorBendCone);
 		for(int i = 0; i < N_BEND_PATHS; i++)
 		{
 			polylines.get(POLY_BEND_FIRST + i).setLineColor(colorBendCone);
@@ -347,10 +347,10 @@ public class OCVisDebug
 		{
 			bPolylineVisible[POLY_BEND_FIRST + i] = false;
 		}
-		if(cones.size() > CONE_BRANCH_BEND)
-		{
-			cones.get(CONE_BRANCH_BEND).bVisible = false;
-		}
+//		if(cones.size() > CONE_BRANCH_BEND)
+//		{
+//			cones.get(CONE_BRANCH_BEND).bVisible = false;
+//		}
 		for(int i = 0; i < N_BRANCH_ALT; i++)
 		{
 			bPolylineVisible[POLY_BRANCH_ALT_FIRST + i] = false;
@@ -360,8 +360,8 @@ public class OCVisDebug
 	/** true if a branch-first line (or cross-section, points) is shown **/
 	synchronized boolean isBranchShown()
 	{
-		if(cones.size() > CONE_BRANCH_BEND && cones.get(CONE_BRANCH_BEND).bVisible)
-			return true;
+//		if(cones.size() > CONE_BRANCH_BEND && cones.get(CONE_BRANCH_BEND).bVisible)
+//			return true;
 		return bPolylineVisible[POLY_BRANCH_HEADING] || bPolylineVisible[POLY_BRANCH_TARGET] || bPolylineVisible[POLY_BRANCH_PATH]
 				|| bPolygonVisible[POLYGON_BRANCH_SECTION] || bPointsVisible[POINTS_BRANCH_CANDIDATES] || bPointsVisible[POINTS_BRANCH_REJECTED]
 				|| bPointsVisible[POINTS_COAST_END];
@@ -374,43 +374,43 @@ public class OCVisDebug
 	 * @param dFullAngle full opening angle (radians); 0 = no cone (no bending)
 	 * @param pathsVoxel maximally bending paths, voxel coordinates (up to N_BEND_PATHS shown)
 	 */
-	public synchronized void setBendCone(final double [] apexVoxel, final double [] axisPhys, final double dFullAngle, 
-			final ArrayList<ArrayList<double[]>> pathsVoxel)
-	{
-		if(!initialized)
-		{
-			init();
-		}
-		final VisCone cone = cones.get(CONE_BRANCH_BEND);
-		if(dFullAngle > 0)
-		{
-			final double [] apexPhys = new double[3];
-			for(int d = 0; d < 3; d++)
-			{
-				apexPhys[d] = apexVoxel[d] * bt.btData.globCal[d];
-			}
-			cone.setColor(colorBendCone);
-			cone.setVertices(axisPhys, apexPhys, dFullAngle);
-			cone.bVisible = true;
-		}
-		else
-		{
-			cone.bVisible = false;
-		}
-		for(int i = 0; i < N_BEND_PATHS; i++)
-		{
-			final int nInd = POLY_BEND_FIRST + i;
-			if(pathsVoxel != null && i < pathsVoxel.size() && pathsVoxel.get(i).size() >= 2)
-			{
-				polylines.get(nInd).setVertices(toRealPoints(pathsVoxel.get(i)));
-				bPolylineVisible[nInd] = true;
-			}
-			else
-			{
-				bPolylineVisible[nInd] = false;
-			}
-		}
-	}
+//	public synchronized void setBendCone(final double [] apexVoxel, final double [] axisPhys, final double dFullAngle, 
+//			final ArrayList<ArrayList<double[]>> pathsVoxel)
+//	{
+//		if(!initialized)
+//		{
+//			init();
+//		}
+//		final VisCone cone = cones.get(CONE_BRANCH_BEND);
+//		if(dFullAngle > 0)
+//		{
+//			final double [] apexPhys = new double[3];
+//			for(int d = 0; d < 3; d++)
+//			{
+//				apexPhys[d] = apexVoxel[d] * bt.btData.globCal[d];
+//			}
+//			cone.setColor(colorBendCone);
+//			cone.setVertices(axisPhys, apexPhys, dFullAngle);
+//			cone.bVisible = true;
+//		}
+//		else
+//		{
+//			cone.bVisible = false;
+//		}
+//		for(int i = 0; i < N_BEND_PATHS; i++)
+//		{
+//			final int nInd = POLY_BEND_FIRST + i;
+//			if(pathsVoxel != null && i < pathsVoxel.size() && pathsVoxel.get(i).size() >= 2)
+//			{
+//				polylines.get(nInd).setVertices(toRealPoints(pathsVoxel.get(i)));
+//				bPolylineVisible[nInd] = true;
+//			}
+//			else
+//			{
+//				bPolylineVisible[nInd] = false;
+//			}
+//		}
+//	}
 
 	/**
 	 * Branch-first junction passage plan, then pause (nBranchPlanDelayMs). All in voxel coordinates.
