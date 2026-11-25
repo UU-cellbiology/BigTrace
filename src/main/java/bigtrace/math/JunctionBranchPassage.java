@@ -66,6 +66,16 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * blended with the fit (and momentum) above; 0: the fit only, 1: the local direction only **/
 	double dHeadingLocalWeight = 1.0;
 
+	/** junction passages: second heading, the local line direction at the trace point this far behind
+	 * the current point (tracing SDs, path length; localDirectionBehind), 0: none. In a crossing the direction
+	 * at the current point can be pulled towards the other filament already (then the one behind is right),
+	 * on a bend the one behind lags (then the current one is right): each candidate's turn is the smaller
+	 * of the two (chooseLeastTurning) **/
+	double dHeadingBackSD = 1.5;
+
+	/** second heading (physical, unit, oriented along t0; localDirectionBehind), null if none (fitHeading) **/
+	double [] tHeadingBack = null;
+
 	/** maximum number of candidates with a planned curve (the lowest cost ones) **/
 	int nMaxPlanned = 8;
 
@@ -877,7 +887,27 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				t1[d] = c[5 + d];
 			}
 			buildCurve();
-			final double turn = totalTurning(curve);
+			double turn = totalTurning(curve);
+			//the second heading (behind): the curve that turns less
+			if(tHeadingBack != null)
+			{
+				final double [][] curveA = curve;
+				final double [] curveSA = curveS;
+				final double [] t0A = t0.clone();
+				System.arraycopy(tHeadingBack, 0, t0, 0, 3);
+				buildCurve();
+				System.arraycopy(t0A, 0, t0, 0, 3);
+				final double turnB = totalTurning(curve);
+				if(turnB < turn)
+				{
+					turn = turnB;
+				}
+				else
+				{
+					curve = curveA;
+					curveS = curveSA;
+				}
+			}
 			curves.add(curve);
 			curvesS.add(curveS);
 			turns.add(turn);
@@ -1024,7 +1054,66 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 				LinAlgHelpers.normalize(t0);
 			}
 		}
+		//second heading: the local direction behind
+		tHeadingBack = dHeadingBackSD > 0 ? localDirectionBehind(currpoint, dHeadingBackSD) : null;
+		if(tHeadingBack != null && LinAlgHelpers.dot(tHeadingBack, t0) < 0)
+		{
+			LinAlgHelpers.scale(tHeadingBack, -1.0, tHeadingBack);
+		}
 		return true;
+	}
+
+	/** Line direction (physical, unit, sign arbitrary) at the trace point dBackSD tracing SDs (path length along
+	 * the direction history) behind currpoint: eigenvector of the smallest absolute eigenvalue of the hessian of
+	 * the math box (trilinearly interpolated, physical units) there. Null if the history is shorter, the point is
+	 * outside of the math box or not line-like there. **/
+	double [] localDirectionBehind(final RealPoint currpoint, final double dBackSD)
+	{
+		final double [] vx = oc.gridVoxelSize;
+		final double dBack = dBackSD * dLenSD;
+		final double [] prev = new double[3];
+		for (int d = 0; d < 3; d++)
+		{
+			prev[d] = oc.toGridDouble(currpoint.getDoublePosition(d), d);
+		}
+		final Iterator<double[]> it = oc.dirHistory.descendingIterator();
+		double dLen = 0;
+		double [] x = null;
+		while(it.hasNext())
+		{
+			final double [] q = it.next();
+			final double [] g = new double[3];
+			double dd = 0;
+			for (int d = 0; d < 3; d++)
+			{
+				g[d] = oc.toGridDouble(q[d], d);
+				final double r = (g[d] - prev[d]) * vx[d];
+				dd += r * r;
+			}
+			dLen += Math.sqrt(dd);
+			System.arraycopy(g, 0, prev, 0, 3);
+			if(dLen >= dBack)
+			{
+				x = g;
+				break;
+			}
+		}
+		if(x == null)
+			return null;
+		final double [] h = new double[6];
+		if(!oc.mathBox.hessianAt(x, h))
+			return null;
+		h[0] /= vx[0] * vx[0];
+		h[1] /= vx[0] * vx[1];
+		h[2] /= vx[0] * vx[2];
+		h[3] /= vx[1] * vx[1];
+		h[4] /= vx[1] * vx[2];
+		h[5] /= vx[2] * vx[2];
+		final double [] t = new double[3];
+		if(!(SteerableLineFilter.saliency(h, t) > 0))
+			return null;
+		LinAlgHelpers.normalize(t);
+		return t;
 	}
 
 	/** as fitHeading(currpoint), the last dSkipSD tracing SDs of the trace (path length) are left out of the fit
@@ -1032,6 +1121,7 @@ class JunctionBranchPassage < T extends RealType< T > & NativeType< T > >
 	 * with the weight dMomentumWeight **/
 	boolean fitHeading(final RealPoint currpoint, final double dSkipSD, final double dMomentumWeight)
 	{
+		tHeadingBack = null;
 		for (int d = 0; d < 3; d++)
 		{
 			p0[d] = oc.toGridDouble(currpoint.getDoublePosition(d), d) * vox[d];
