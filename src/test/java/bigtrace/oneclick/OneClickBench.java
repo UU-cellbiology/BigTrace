@@ -55,7 +55,6 @@ public class OneClickBench
 		ArrayImg<FloatType, FloatArray> img;
 		double [] voxel;
 		double [] sigma;
-		double [] psf;
 		double dDirectionality = 0.6;
 		double [] start;
 		double [] startDir;
@@ -184,7 +183,7 @@ public class OneClickBench
 						noise.add(new double [] {3, 100 + s});
 				}
 				//tracing sigma: the PSF (default rule); with isotropic voxels also the PSF with half of it in z
-				//(the user's rule for an elongated PSF: smooth less along it), which tests the scaling by sqrt(psf^2 + sigma^2)
+				//(the user's rule for an elongated PSF: smooth less along it)
 				for (int nSig = 0; nSig < (v == 0 ? 2 : 1); nSig++)
 				for (final double [] nz : noise)
 				{
@@ -193,7 +192,6 @@ public class OneClickBench
 					run.img = SyntheticCase.withNoise(clean, nz[0], (long) nz[1]);
 					run.voxel = c.voxel.clone();
 					//tracing sigma = PSF (the default rule)
-					run.psf = c.psfVoxels();
 					run.sigma = c.psfVoxels();
 					if(nSig == 1)
 					{
@@ -237,7 +235,6 @@ public class OneClickBench
 			core.sigma[d] = run.sigma[d];
 			core.voxelSize[d] = run.voxel[d];
 		}
-		core.psf = run.psf.clone();
 		core.dDirectionality = run.dDirectionality;
 		core.nThreads = 1;
 		core.init();
@@ -440,13 +437,12 @@ public class OneClickBench
 			w.println(String.format(Locale.US, "dims %d %d %d", dims[0], dims[1], dims[2]));
 			w.println(String.format(Locale.US, "voxel %s %s %s", run.voxel[0], run.voxel[1], run.voxel[2]));
 			w.println(String.format(Locale.US, "sigma %s %s %s", run.sigma[0], run.sigma[1], run.sigma[2]));
-			w.println(String.format(Locale.US, "psf %s %s %s", run.psf[0], run.psf[1], run.psf[2]));
 			w.println(String.format(Locale.US, "start %d", run.history.size()));
 		}
 	}
 
 	/** real data case from a folder: img.f32 (float32 little endian, x fastest), case.txt with lines
-	 * "dims nx ny nz", "voxel vx vy vz", "sigma sx sy sz" (voxels), optional "psf px py pz" (voxels, default sigma),
+	 * "dims nx ny nz", "voxel vx vy vz", "sigma sx sy sz" (voxels),
 	 * optional "directionality c", "start i" (index into trace.txt); trace.txt: the trace up to the start (voxels, one point per line);
 	 * gt.txt: the target (voxels), starting anywhere before or at the start **/
 	public static class Replay
@@ -465,14 +461,11 @@ public class OneClickBench
 					case "dims": dims = new long [] {Long.parseLong(t[1]), Long.parseLong(t[2]), Long.parseLong(t[3])}; break;
 					case "voxel": run.voxel = vec(t); break;
 					case "sigma": run.sigma = vec(t); break;
-					case "psf": run.psf = vec(t); break;
 					case "directionality": run.dDirectionality = Double.parseDouble(t[1]); break;
 					case "start": nStart = Integer.parseInt(t[1]); break;
 					default: break;
 				}
 			}
-			if(run.psf == null)
-				run.psf = run.sigma.clone();
 			final byte [] raw = Files.readAllBytes(new File(dir, "img.f32").toPath());
 			final float [] a = new float[raw.length / 4];
 			ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(a);

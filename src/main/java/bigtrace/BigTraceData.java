@@ -240,11 +240,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** characteristic size (SD) of lines (for each dimension)**/
 	public double [] sigmaTrace = new double [ 3 ];
 	
-	/** SD of the PSF (voxels, for each dimension). With the tracing sigma it gives the width of
-	 * the smoothed filament profile, sqrt(psf^2 + sigma^2), which normalises the hessian (MathBox):
-	 * line directions do not depend on the PSF elongation. Defaults to sigmaTrace. **/
-	public double [] psfTrace = new double [ 3 ];
-
 	/** whether to limit tracing to clipped area**/
 	public boolean bTraceOnlyClipped = false;
 	
@@ -377,10 +372,6 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		sigmaTrace[0] = Prefs.get("BigTrace.sigmaTraceX", 3.0);
 		sigmaTrace[1] = Prefs.get("BigTrace.sigmaTraceY", 3.0);
 		sigmaTrace[2] = Prefs.get("BigTrace.sigmaTraceZ", 3.0);
-		psfTrace = new double [3];
-		psfTrace[0] = Prefs.get("BigTrace.psfTraceX", sigmaTrace[0]);
-		psfTrace[1] = Prefs.get("BigTrace.psfTraceY", sigmaTrace[1]);
-		psfTrace[2] = Prefs.get("BigTrace.psfTraceZ", sigmaTrace[2]);
 		bTraceOnlyClipped = Prefs.get("BigTrace.bTraceOnlyClipped", false);
 		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		

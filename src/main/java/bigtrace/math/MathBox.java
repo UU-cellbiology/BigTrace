@@ -24,8 +24,8 @@ import net.imglib2.view.Views;
  * <p>
  * Scale normalisation (setScale): the derivatives are taken with respect to x_i / scale_i,
  * H'_ij = scale_i scale_j d2/dx_i dx_j and g'_i = scale_i d/dx_i (scale per axis, in voxels).
- * With the scale equal to the width of the smoothed filament profile per axis (lineScale: the PSF and the
- * smoothing combined), a filament has a round cross-section in that space, so the eigen decomposition
+ * Tracing uses the tracing sigma (curve thickness SD) as the scale: if its anisotropy is the anisotropy of the
+ * filament profile (the PSF), a filament has a round cross-section in that space, so the eigen decomposition
  * (which direction has the smallest curvature) does not depend on the anisotropy of the PSF or of the voxels.
  * The line directions (vecImg and all direction outputs) are converted back to voxel units (normToGridDir);
  * only the hessian and the gradient themselves (hessianAt, hessianAtVoxel, gradientAtVoxel) stay normalised.
@@ -82,19 +82,7 @@ public class MathBox
 		vecImg = ArrayImgs.floats( dims[0], dims[1], dims[2], 3 );
 	}
 
-	/** width (SD, voxels) per axis of the profile of a thin filament imaged with the PSF (SD psf)
-	 * and smoothed with the Gaussian of SD sigma: sqrt(psf^2 + sigma^2). The scale of the normalised derivatives. **/
-	public static double [] lineScale(final double [] sigma, final double [] psf)
-	{
-		final double [] out = new double[3];
-		for (int d = 0; d < 3; d++)
-		{
-			out[d] = Math.sqrt(psf[d] * psf[d] + sigma[d] * sigma[d]);
-		}
-		return out;
-	}
-
-	/** scale (voxels, per axis) of the normalised derivatives (see derivativeConvolutions, lineScale);
+	/** scale (voxels, per axis) of the normalised derivatives (see derivativeConvolutions);
 	 * the line directions are converted with it to voxel units **/
 	public void setScale(final double [] scale_)
 	{

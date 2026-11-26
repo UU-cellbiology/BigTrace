@@ -85,7 +85,6 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 			final double cal = bt.btData.globCal[d];
 			core.voxelSize[d] = cal > 0 ? cal : 1.0;
 		}
-		core.psf = bt.btData.psfTrace.clone();
 		core.dDirectionality = bt.btData.dDirectionalityOneClick;
 		core.dIntensityThreshold = bt.btData.bOCIntensityStop ? bt.btData.dOCIntensityThreshold : Double.NaN;
 		core.init();

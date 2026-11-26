@@ -31,8 +31,8 @@ import net.imglib2.view.Views;
  * <li>Tracing stops when there is none (stopReason tells which test removed the last candidates).</li>
  * </ul>
  * Units: positions are voxel coordinates of the input (sub-voxel), directions are unit vectors in physical
- * space (calibrated voxel size). The hessian is scale-normalised by the width of the smoothed filament
- * profile per axis (MathBox.lineScale of the tracing sigma and the PSF SD). **/
+ * space (calibrated voxel size). The hessian is scale-normalised by the tracing sigma (curve thickness SD)
+ * per axis: its anisotropy is taken as the anisotropy of the filament profile (MathBox). **/
 public class OneClickCore < T extends RealType< T > >
 {
 	/** reasons for the end of tracing **/
@@ -72,9 +72,6 @@ public class OneClickCore < T extends RealType< T > >
 
 	/** tracing (smoothing) sigma, SD in voxels per axis **/
 	public final double [] sigma = new double [] {3.0, 3.0, 3.0};
-
-	/** PSF SD in voxels per axis, null: the same as sigma **/
-	public double [] psf = null;
 
 	/** voxel size per axis (physical units) **/
 	public final double [] voxelSize = new double [] {1.0, 1.0, 1.0};
@@ -145,8 +142,7 @@ public class OneClickCore < T extends RealType< T > >
 	/** sets up the box and the convolutions for the current settings **/
 	public void init()
 	{
-		final double [] psfV = psf == null ? sigma : psf;
-		final double [] scale = MathBox.lineScale(sigma, psfV);
+		final double [] scale = sigma;
 		final long [] dims = new long[3];
 		dMinVox = Double.MAX_VALUE;
 		for (int d = 0; d < 3; d++)

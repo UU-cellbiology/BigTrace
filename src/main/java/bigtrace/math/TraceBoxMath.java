@@ -57,7 +57,7 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 			nProgressSteps = 7;
 			//original full resolution calculation
 			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(Views.extendBorder(input), minV, dim, bt.btData.sigmaTrace,
-					MathBox.lineScale(bt.btData.sigmaTrace, bt.btData.psfTrace), null);
+					bt.btData.sigmaTrace, null);
 			directionVectors =  Views.translate(res[0], minV[0], minV[1], minV[2], 0);
 			salWeights =  Views.translate(res[1], minV);
 			final IntervalView<FloatType> lineCorners =  Views.translate(res[2], minV);
@@ -79,11 +79,11 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 			DownsampleGrid.blockAverage(Views.extendBorder(input), gridImg, gridMin, ds);
 			setProgress(100/nProgressSteps);
 			
-			//width of the filament profile on the grid
-			final double [] scaleGrid = MathBox.lineScale(bt.btData.sigmaTrace, bt.btData.psfTrace);
+			//the curve thickness on the grid
+			final double [] scaleGrid = new double[3];
 			for(int d = 0; d < 3; d++)
 			{
-				scaleGrid[d] /= ds[d];
+				scaleGrid[d] = bt.btData.sigmaTrace[d] / ds[d];
 			}
 			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(
 					Views.extendBorder(Views.translate(gridImg, gridMin)), gridMin, gridDim, sigmaGrid, scaleGrid, ds);
