@@ -3,24 +3,14 @@ package bigtrace.math;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.convolution.Convolution;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.Views;
 
 /** One-click tracing algorithm, without any UI (OneClickTrace builds the ROI from it).
  * <p>
@@ -40,21 +30,16 @@ import net.imglib2.view.Views;
  * space (calibrated voxel size). The hessian is scale-normalised by the tracing sigma (curve thickness SD)
  * per axis: its anisotropy is taken as the anisotropy of the filament profile (MathBox).
  * <p>
- * Downsampling (bDownsample): for thick curves the tracing runs on a block-averaged grid, as semi-auto tracing
+ * The hessian, saliency and directions come from a LineField (MovingBoxLineField: a box that moves with the trace).
+ * Downsampling (bDownsample): for thick curves the field is on a block-averaged grid, as in semi-auto tracing
  * (DownsampleGrid: factors max(1, round(sigma / dDownsampleSigma)) per axis, kernels of about dDownsampleSigma
- * grid voxels). Everything inside (the box, the line points, the steps, the self-intersection test) is then in
- * grid voxels; the public methods take and return input voxel coordinates, except linePoint (grid voxels).
- * Steps are one grid voxel long, so the trace is coarser and faster. **/
+ * grid voxels). The tracing works in the voxels of that grid (working voxels: the line points, the steps,
+ * the self-intersection test); the public methods take and return input voxel coordinates, except linePoint
+ * (working voxels). Steps are one working voxel long, so a downsampled trace is coarser and faster. **/
 public class OneClickCore < T extends RealType< T > >
 {
 	/** reasons for the end of tracing **/
 	public enum Stop { NONE, NO_LINE_POINT, DIRECTION, INTENSITY, MASK, SELF_INTERSECTION, BORDER }
-
-	/** box of the hessian around the current point: +- BOX_SD tracing sigmas **/
-	static final double BOX_SD = 3.0;
-
-	/** the box is recomputed when the point is further than INNER_SD sigmas from its centre **/
-	static final double INNER_SD = 1.0;
 
 	/** search of the start point: saliency maximum within +- START_SD sigmas of the click **/
 	static final double START_SD = 2.0;
@@ -116,40 +101,18 @@ public class OneClickCore < T extends RealType< T > >
 	//------------------ state
 
 	RandomAccessibleInterval< T > input;
-	RandomAccessible< T > inputExtended;
 	RandomAccess< T > raInput;
 
-	/** downsampling factors (all 1 without downsampling) **/
-	final long [] ds = new long [] {1, 1, 1};
-	/** true if tracing runs on a downsampled grid **/
-	boolean bGrid = false;
-	/** working voxels (the grid, or the input voxels): tracing sigma, kernel sigma, voxel size **/
-	final double [] sigW = new double[3];
-	final double [] sigK = new double[3];
-	final double [] vs = new double[3];
-	/** the input in working voxels **/
-	Interval work;
-	/** constant continuation beyond the image (MODE) **/
-	double dBackground = 0.0;
-
-	MathBox box;
-	@SuppressWarnings( "rawtypes" )
-	Convolution [] conv;
-	ExecutorService es = null;
-
-	/** half size of the box (voxels) **/
-	final long [] boxHalf = new long[3];
-	/** half size of the inner box (voxels) **/
-	final long [] innerHalf = new long[3];
-	/** centre of the box (voxels) **/
-	final long [] boxCentre = new long[3];
-	boolean bBoxValid = false;
-	/** true after the box was recomputed (cleared by the caller, e.g. to show it) **/
+	/** the line field (hessian, saliency, directions) the tracing runs on; its grid voxels are the working voxels **/
+	MovingBoxLineField< T > field;
+	/** true after the box of the field was recomputed (cleared by the caller, e.g. to show it) **/
 	public boolean bBoxMoved = false;
 
+	/** working (grid) voxel size, physical **/
+	final double [] vs = new double[3];
 	double dMinVox = 1.0;
 
-	/** current point (voxels) and line direction (physical, unit, oriented along the tracing) **/
+	/** current point (working voxels) and line direction (physical, unit, oriented along the tracing) **/
 	final double [] pos = new double[3];
 	final double [] dir = new double[3];
 
@@ -160,13 +123,13 @@ public class OneClickCore < T extends RealType< T > >
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	final List<int[]> [] neighborsArr = new ArrayList[27];
 
-	/** traced points (voxels) in a spatial hash (rounded positions) for the self-intersection test **/
+	/** traced points (working voxels) in a spatial hash (rounded positions) for the self-intersection test **/
 	final HashMap<Long, ArrayList<double[]>> traced = new HashMap<>();
 
 	/** result of linePoint **/
 	public static class LinePoint
 	{
-		/** position (voxels, sub-voxel) **/
+		/** position (working voxels, sub-voxel) **/
 		public final double [] x = new double[3];
 		/** line direction (physical, unit, sign arbitrary) **/
 		public final double [] t = new double[3];
@@ -174,107 +137,53 @@ public class OneClickCore < T extends RealType< T > >
 		public double dSal;
 	}
 
-	/** sets up the box and the convolutions for the current settings **/
+	/** sets up the line field for the current settings **/
 	public void init()
 	{
-		//on the grid the kernels are smaller by the blur of the block averaging; the normalisation scale is sigma / ds
-		bGrid = DownsampleGrid.computeFactors(sigma, bDownsample, dDownsampleSigma, ds, sigK);
-		final long [] dims = new long[3];
+		release();
+		field = new MovingBoxLineField<>(sigma, bDownsample, dDownsampleSigma, oob, nThreads);
+		final long [] ds = field.downsampling();
 		dMinVox = Double.MAX_VALUE;
 		for (int d = 0; d < 3; d++)
 		{
-			sigW[d] = sigma[d] / ds[d];
 			vs[d] = voxelSize[d] * ds[d];
-			boxHalf[d] = (long) Math.ceil(BOX_SD * sigW[d]);
-			innerHalf[d] = Math.max(1, (long) Math.ceil(INNER_SD * sigW[d]));
-			dims[d] = 2 * boxHalf[d] + 1;
 			dMinVox = Math.min(dMinVox, vs[d]);
 		}
-		box = new MathBox(dims);
-		box.setScale(sigW);
-		box.enableGradient();
-		release();
-		es = Executors.newFixedThreadPool( Math.max(1, nThreads) );
-		conv = MathBox.derivativeConvolutions(sigK, sigW, es);
 		NeighborsHashMap.fill( neighborsArr );
-		bBoxValid = false;
 		if(input != null)
 			setInput(input);
 	}
 
-	/** the image to trace (voxel coordinates) **/
+	/** the image to trace (input voxels); a new trace (the background beyond the image is estimated again) **/
 	public void setInput(final RandomAccessibleInterval< T > input_)
 	{
 		input = input_;
-		//made with the first box of the trace (background estimate from it), ensureBox
-		inputExtended = null;
 		raInput = input.randomAccess();
-		bBoxValid = false;
-		if(bGrid)
-		{
-			final long [] gMin = new long[3];
-			final long [] gMax = new long[3];
-			for (int d = 0; d < 3; d++)
-			{
-				gMin[d] = DownsampleGrid.toGrid(input.min(d), ds[d]);
-				gMax[d] = DownsampleGrid.toGrid(input.max(d), ds[d]);
-			}
-			work = new FinalInterval(gMin, gMax);
-		}
-		else
-			work = input;
+		field.setInput(input);
 	}
 
 	public void release()
 	{
-		if(es != null)
-		{
-			es.shutdown();
-			es = null;
-		}
+		if(field != null)
+			field.release();
 	}
 
-	/** the box of the hessian (input voxels) **/
+	/** the line field the tracing runs on **/
+	public LineField getField()
+	{
+		return field;
+	}
+
+	/** the box of the line field (input voxels) **/
 	public FinalInterval getBoxInterval()
 	{
-		final long [] min = new long[3];
-		final long [] max = new long[3];
-		for (int d = 0; d < 3; d++)
-		{
-			min[d] = box.boxMin[d] * ds[d];
-			max[d] = (box.boxMin[d] + box.dims[d]) * ds[d] - 1;
-		}
-		return new FinalInterval(min, max);
-	}
-
-	/** input voxel coordinates -> working voxels **/
-	double [] toWork(final double [] x)
-	{
-		final double [] out = new double[3];
-		for (int d = 0; d < 3; d++)
-		{
-			out[d] = (x[d] - 0.5 * (ds[d] - 1)) / ds[d];
-		}
-		return out;
-	}
-
-	/** working voxels -> input voxel coordinates **/
-	double [] toInput(final double [] x)
-	{
-		if(x == null)
-			return null;
-		final double [] out = new double[3];
-		for (int d = 0; d < 3; d++)
-		{
-			out[d] = x[d] * ds[d] + 0.5 * (ds[d] - 1);
-		}
-		return out;
+		return new FinalInterval(field.availableInputInterval());
 	}
 
 	/** the input voxel nearest to the working position x, inside of the input **/
 	long [] inputVoxel(final double [] x)
 	{
-		final double [] f = toInput(x);
+		final double [] f = field.toInput(x);
 		final long [] out = new long[3];
 		for (int d = 0; d < 3; d++)
 		{
@@ -283,71 +192,17 @@ public class OneClickCore < T extends RealType< T > >
 		return out;
 	}
 
-	/** the box is computed around x (working voxels) if x is not in its inner part **/
+	/** the field is made available around x (working voxels) **/
 	void ensureBox(final double [] x)
 	{
-		final long [] c = new long[3];
-		boolean bInside = bBoxValid;
-		for (int d = 0; d < 3; d++)
-		{
-			c[d] = Math.round(x[d]);
-			if(Math.abs(c[d] - boxCentre[d]) > innerHalf[d])
-				bInside = false;
-		}
-		if(bInside)
-			return;
-		final long [] min = new long[3];
-		for (int d = 0; d < 3; d++)
-		{
-			boxCentre[d] = c[d];
-			//inside of the image if it fits
-			min[d] = Math.max(work.min(d), Math.min(work.max(d) - box.dims[d] + 1, c[d] - boxHalf[d]));
-		}
-		box.setMin(min);
-		if(!bGrid)
-		{
-			if(inputExtended == null)
-			{
-				//the background (mode) is estimated once per trace, from its first box,
-				//so the continuation beyond the image does not change while the box moves
-				inputExtended = MathBox.extend(input, oob, box.boxInterval());
-			}
-			box.compute(inputExtended, conv, nThreads, es);
-		}
-		else
-		{
-			if(inputExtended == null)
-			{
-				//as above, from the first box (in input voxels, within the input)
-				dBackground = oob == MathBox.OutOfBounds.MODE ? MathBox.estimateMode(Views.interval(input, Intervals.intersect(input, getBoxInterval()))) : 0.0;
-				inputExtended = MathBox.extend(input, oob, dBackground);
-			}
-			//block averages of the box and a margin for the kernels
-			final long [] gMin = new long[3];
-			final long [] gDim = new long[3];
-			for (int d = 0; d < 3; d++)
-			{
-				final long m = (long) Math.ceil(4.0 * sigK[d]) + 2;
-				gMin[d] = min[d] - m;
-				gDim[d] = box.dims[d] + 2 * m;
-			}
-			final ArrayImg<FloatType, FloatArray> gridImg = ArrayImgs.floats(gDim);
-			DownsampleGrid.blockAverage(inputExtended, gridImg, gMin, ds);
-			box.compute(MathBox.extend(Views.translate(gridImg, gMin), oob, dBackground), conv, nThreads, es);
-		}
-		bBoxValid = true;
-		bBoxMoved = true;
+		if(field.ensure(x))
+			bBoxMoved = true;
 	}
 
 	/** v (working voxels) is inside of the input **/
 	boolean insideInput(final long [] v)
 	{
-		for (int d = 0; d < 3; d++)
-		{
-			if(v[d] < work.min(d) || v[d] > work.max(d))
-				return false;
-		}
-		return true;
+		return field.insideGrid(v);
 	}
 
 	//------------------ start
@@ -357,7 +212,9 @@ public class OneClickCore < T extends RealType< T > >
 	 * Null if there is no line-like voxel around. **/
 	public double [] findStart(final double [] clickIn, final double [] dirOut)
 	{
-		final double [] click = toWork(clickIn);
+		final double [] click = field.toGrid(clickIn);
+		final Interval work = field.gridInterval();
+		final double [] sigW = field.gridSigma();
 		ensureBox(click);
 		final long [] min = new long[3];
 		final long [] max = new long[3];
@@ -374,7 +231,7 @@ public class OneClickCore < T extends RealType< T > >
 			for (v[1] = min[1]; v[1] <= max[1]; v[1]++)
 				for (v[0] = min[0]; v[0] <= max[0]; v[0]++)
 				{
-					final double s = box.saliencyAtVoxel(v);
+					final double s = field.saliencyAtVoxel(v);
 					if(s > dBest)
 					{
 						dBest = s;
@@ -390,11 +247,11 @@ public class OneClickCore < T extends RealType< T > >
 		}
 		final double [] lp = nearestLinePointW(out, dirOut);
 		if(lp != null)
-			return toInput(lp);
+			return field.toInput(lp);
 		final double [] tg = new double[3];
-		box.saliencyAndVectorAtVoxel(best, tg);
+		field.saliencyAndVectorAtVoxel(best, tg);
 		System.arraycopy(gridToPhys(tg), 0, dirOut, 0, 3);
-		return toInput(out);
+		return field.toInput(out);
 	}
 
 	/** the line point nearest to x (voxels) among the voxel of x and its 26 neighbours, its line direction
@@ -402,7 +259,7 @@ public class OneClickCore < T extends RealType< T > >
 	 * not exactly on the line, and stepping goes from line point to line point. **/
 	public double [] nearestLinePoint(final double [] x, final double [] dirOut)
 	{
-		return toInput(nearestLinePointW(toWork(x), dirOut));
+		return field.toInput(nearestLinePointW(field.toGrid(x), dirOut));
 	}
 
 	/** nearestLinePoint in working voxels **/
@@ -449,7 +306,7 @@ public class OneClickCore < T extends RealType< T > >
 	/** adds a traced point (input voxels) for the self-intersection test **/
 	public void addTracePoint(final double [] x)
 	{
-		addTracePointW(toWork(x));
+		addTracePointW(field.toGrid(x));
 	}
 
 	void addTracePointW(final double [] x)
@@ -460,7 +317,7 @@ public class OneClickCore < T extends RealType< T > >
 	/** tracing continues from x (voxels) along the direction direction (physical); x is added to the traced points **/
 	public void begin(final double [] x, final double [] direction)
 	{
-		System.arraycopy(toWork(x), 0, pos, 0, 3);
+		System.arraycopy(field.toGrid(x), 0, pos, 0, 3);
 		System.arraycopy(direction, 0, dir, 0, 3);
 		LinAlgHelpers.normalize(dir);
 		addTracePointW(pos);
@@ -470,7 +327,7 @@ public class OneClickCore < T extends RealType< T > >
 	/** current point (input voxels) **/
 	public double [] getPosition()
 	{
-		return toInput(pos);
+		return field.toInput(pos);
 	}
 
 	/** current line direction (physical, unit) **/
@@ -518,7 +375,7 @@ public class OneClickCore < T extends RealType< T > >
 			if(!insideInput(n))
 				continue;
 			bAnyInside = true;
-			if(!(box.saliencyAtVoxel(n) > 0))
+			if(!(field.saliencyAtVoxel(n) > 0))
 			{
 				report(n, null, "saliency");
 				continue;
@@ -591,7 +448,7 @@ public class OneClickCore < T extends RealType< T > >
 		System.arraycopy(best.x, 0, pos, 0, 3);
 		System.arraycopy(best.t, 0, dir, 0, 3);
 		addTracePointW(pos);
-		return toInput(pos);
+		return field.toInput(pos);
 	}
 
 	void report(final long [] n, final LinePoint lp, final String sWhat)
@@ -623,7 +480,7 @@ public class OneClickCore < T extends RealType< T > >
 	{
 		final double [] h = new double[6];
 		final double [] g = new double[3];
-		if(!box.hessianAtVoxel(n, h) || !box.gradientAtVoxel(n, g))
+		if(!field.hessianAtVoxel(n, h) || !field.gradientAtVoxel(n, g))
 			return false;
 		final double [] tn = new double[3];
 		lp.dSal = SteerableLineFilter.saliency(h, tn);
@@ -633,10 +490,10 @@ public class OneClickCore < T extends RealType< T > >
 		}
 		if(!(lp.dSal > 0))
 			return false;
-		box.normToGridDir(tn, tn);
+		field.normToGridDir(tn, tn);
 		System.arraycopy(gridToPhys(tn), 0, lp.t, 0, 3);
 		//to voxel units
-		final double [] sc = box.scale;
+		final double [] sc = field.gridSigma();
 		h[0] /= sc[0] * sc[0];
 		h[1] /= sc[0] * sc[1];
 		h[2] /= sc[0] * sc[2];
