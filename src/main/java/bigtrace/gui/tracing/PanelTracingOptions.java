@@ -68,7 +68,7 @@ public class PanelTracingOptions extends JPanel
 		cbEstimateThickness.setSelected(bt.btData.bEstimateROIThicknessFromParams);		
 		cbTraceOnlyClipped.setSelected(bt.btData.bTraceOnlyClipped);
 		cbTraceDownsample.setSelected(bt.btData.bTraceDownsample);
-		cbTraceDownsample.setToolTipText( "Semi-auto tracing uses a block-averaged grid, so the kernel stays ~target SD voxels" );
+		cbTraceDownsample.setToolTipText( "Semi-auto and one-click tracing use a block-averaged grid, so the kernel stays ~target SD voxels" );
 		
 		final String [] sAxes = new String [] {"X", "Y", "Z"};
 		for(int d = 0; d < 3; d++)

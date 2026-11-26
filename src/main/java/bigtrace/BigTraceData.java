@@ -255,11 +255,11 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
 	 * so the kernel stays about dDownsampleSigma voxels:
 	 * semi-auto tracing computes the trace box (hessian, saliency, vectors) on the grid and interpolates
-	 * it back to full resolution. If false, the original full resolution tracing is used.
-	 * (One-click tracing does not downsample at the moment.) **/
+	 * it back to full resolution; one-click tracing steps on the grid (OneClickCore).
+	 * If false, the original full resolution tracing is used. **/
 	public boolean bTraceDownsample;
 	
-	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
+	/** target kernel size (in voxels of the downsampled grid) for semi-auto and one-click tracing.
 	* Downsampling factor per axis is max(1, round(sigmaTrace/dOCDownsampleSigma)) **/
 	public double dDownsampleSigma = 3.0;
 	

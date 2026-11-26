@@ -87,6 +87,8 @@ public class OneClickTrace < T extends RealType< T > & NativeType< T > > extends
 		}
 		core.dDirectionality = bt.btData.dDirectionalityOneClick;
 		core.dIntensityThreshold = bt.btData.bOCIntensityStop ? bt.btData.dOCIntensityThreshold : Double.NaN;
+		core.bDownsample = bt.btData.bTraceDownsample;
+		core.dDownsampleSigma = bt.btData.dDownsampleSigma;
 		core.init();
 		nPointPerSegment = bt.btData.nVertexPlacementPointN;
 		if(bt.btData.bEstimateROIThicknessFromParams)
