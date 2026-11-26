@@ -14,12 +14,9 @@ import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.convolution.Convolution;
-import net.imglib2.algorithm.convolution.kernel.Kernel1D;
-import net.imglib2.algorithm.convolution.kernel.SeparableKernelConvolution;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
-import net.imglib2.parallel.Parallelization;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -59,7 +56,8 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 		{
 			nProgressSteps = 7;
 			//original full resolution calculation
-			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(Views.extendBorder(input), minV, dim, bt.btData.sigmaTrace, null);
+			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(Views.extendBorder(input), minV, dim, bt.btData.sigmaTrace,
+					MathBox.lineScale(bt.btData.sigmaTrace, bt.btData.psfTrace), null);
 			directionVectors =  Views.translate(res[0], minV[0], minV[1], minV[2], 0);
 			salWeights =  Views.translate(res[1], minV);
 			final IntervalView<FloatType> lineCorners =  Views.translate(res[2], minV);
@@ -81,8 +79,14 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 			DownsampleGrid.blockAverage(Views.extendBorder(input), gridImg, gridMin, ds);
 			setProgress(100/nProgressSteps);
 			
+			//width of the filament profile on the grid
+			final double [] scaleGrid = MathBox.lineScale(bt.btData.sigmaTrace, bt.btData.psfTrace);
+			for(int d = 0; d < 3; d++)
+			{
+				scaleGrid[d] /= ds[d];
+			}
 			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(
-					Views.extendBorder(Views.translate(gridImg, gridMin)), gridMin, gridDim, sigmaGrid, ds);
+					Views.extendBorder(Views.translate(gridImg, gridMin)), gridMin, gridDim, sigmaGrid, scaleGrid, ds);
 			
 			//back to full resolution
 			setProgressState("trace box upsampling...");
@@ -131,26 +135,25 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 		return null;
 	}
 	
-	/** hessian (second derivative convolutions of source with sigma) in the box (minV, dim),
+	/** scale-normalised hessian (second derivative convolutions of source with sigma, normalised by scale, MathBox) in the box (minV, dim),
 	 * its eigen decomposition, returns {direction vectors (dim x 3), saliency weights, line corners}
 	 * as ArrayImgs starting at zero (box coordinates).
-	 * ds: if not null, source is a downsampled grid and the hessian is converted 
-	 * to full resolution units (d/dx_full = d/dx_grid / ds), so the vectors are 
-	 * full resolution directions also for anisotropic ds **/
+	 * The direction vectors are unit directions in full resolution voxel units (as the steps of DijkstraFHRestrictVector).
+	 * ds: if not null, source is a downsampled grid (sigma in grid voxels) **/
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	ArrayImg<FloatType, FloatArray> [] computeVectorsWeightsCorners(final RandomAccessible source, final long [] minV, final long [] dim, 
-			final double [] sigma, final long [] ds)
+	ArrayImg<FloatType, FloatArray> [] computeVectorsWeightsCorners(final RandomAccessible<?> source, final long [] minV, final long [] dim,
+			final double [] sigma, final double [] scale, final long [] ds)
 	{
-		final long[] nShift = new long [4];
-		for (int i = 0; i < 3; i++)
-		{
-			nShift[i] = minV[i];
-		}
 		final int nStepShift = nProgressSteps - 7;
 		
-		ArrayImg<FloatType, FloatArray> hessFloat = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 6 );
-		IntervalView<FloatType> hessian = Views.translate(hessFloat, nShift);
-		
+		final MathBox box = new MathBox(dim);
+		box.setMin(minV);
+		box.setScale(scale);
+		box.enableCorners();
+
+		final int nThreads =  Runtime.getRuntime().availableProcessors();
+		final ExecutorService es = Executors.newFixedThreadPool( nThreads );
+		final Convolution [] conv = MathBox.derivativeConvolutions(sigma, scale, es);
 		int count = 0;
 		//second derivatives
 		for (int d1=0; d1<3; d1++)
@@ -164,38 +167,10 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 					Thread.sleep(1);
 				} catch (InterruptedException ignore) {}
 				setProgress((count + nStepShift)*100/nProgressSteps);
-
-				IntervalView< FloatType > hs2 = Views.hyperSlice( hessian, 3, count );
-				final int [] nDerivOrder = new int [3];
-				nDerivOrder[d1]++;
-				nDerivOrder[d2]++;
-				final double [][] kernels = DerivConvolutionKernels.convolve_derive_kernel(sigma, nDerivOrder );
-				if(ds != null)
-				{
-					final double dScale = 1.0 / (ds[d1] * ds[d2]);
-					for(int k = 0; k < kernels[0].length; k++)
-					{
-						kernels[0][k] *= dScale;
-					}
-				}
-				final Kernel1D[] derivKernel = Kernel1D.centralAsymmetric(kernels);
-				
-				final Convolution convObjx = SeparableKernelConvolution.convolution( derivKernel );
-
-				Parallelization.runMultiThreaded( () -> {
-					convObjx.process(source, hs2 );
-				} );
+				box.computeHessianComponent(source, conv[count], count);
 				count++;
 			}
 		}
-
-		EigenValVecSymmDecomposition<FloatType> mEV = new EigenValVecSymmDecomposition<>(3);
-		ArrayImg<FloatType, FloatArray> dV = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ], 3 );
-		ArrayImg<FloatType, FloatArray> sW = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ]);
-		ArrayImg<FloatType, FloatArray> nC = ArrayImgs.floats( dim[ 0 ], dim[ 1 ], dim[ 2 ]);
-		IntervalView<FloatType> directionVectors =  Views.translate(dV, nShift);
-		IntervalView<FloatType> salWeights =  Views.translate(sW, minV);
-		IntervalView<FloatType> lineCorners =  Views.translate(nC, minV);
 
 		setProgressState("trace box eigenvalues/corners...");
 		  //Sleep for up to one second.
@@ -204,11 +179,35 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 		} catch (InterruptedException ignore) {}
 		setProgress((6 + nStepShift)*100/nProgressSteps);
 		
-		final int nThreads =  Runtime.getRuntime().availableProcessors();
-		ExecutorService es = Executors.newFixedThreadPool( nThreads );
-		mEV.computeVWCRAI(hessian, directionVectors, salWeights, lineCorners, nThreads, es);
+		box.computeSaliency(nThreads, es);
 		es.shutdown();
-		return new ArrayImg [] {dV, sW, nC};
+
+		//directions: grid voxel space -> full resolution voxel space (DijkstraFHRestrictVector compares them
+		//with the steps to the neighboring voxels: the angle cost is in the voxel lattice space)
+		if(ds != null)
+		{
+			final float [] vec = box.vecImg.update( null ).getCurrentStorageArray();
+			final int nVol = box.nVol;
+			final double [] t = new double[3];
+			for (int i = 0; i < nVol; i++)
+			{
+				double dNorm = 0;
+				for (int d = 0; d < 3; d++)
+				{
+					t[d] = vec[i + d * nVol] * ds[d];
+					dNorm += t[d] * t[d];
+				}
+				if(dNorm > 0)
+				{
+					dNorm = 1.0 / Math.sqrt(dNorm);
+					for (int d = 0; d < 3; d++)
+					{
+						vec[i + d * nVol] = (float) (t[d] * dNorm);
+					}
+				}
+			}
+		}
+		return new ArrayImg [] {box.vecImg, box.salImg, box.cornImg};
 	}
     /*
      * Executed in event dispatching thread

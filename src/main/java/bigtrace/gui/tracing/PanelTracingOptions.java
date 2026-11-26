@@ -39,6 +39,9 @@ public class PanelTracingOptions extends JPanel
 	
 	final NumberField [] nfSigmas = new NumberField [] {nfSigmaX, nfSigmaY, nfSigmaZ};
 	
+	/** PSF SD per axis (px) **/
+	final NumberField [] nfPsfs = new NumberField [] {new NumberField(4), new NumberField(4), new NumberField(4)};
+
 	final JCheckBox cbTraceOnlyClipped = new JCheckBox("Trace only clipped volume");
 	final JCheckBox cbTraceDownsample = new JCheckBox("Downsample data for large thickness");
 	final String [] sEstimateMode = new String [] {"MAX", "AVG", "MIN"};
@@ -62,13 +65,20 @@ public class PanelTracingOptions extends JPanel
 		nfSigmaX.setText(df.format(bt.btData.sigmaTrace[0]));
 		nfSigmaY.setText(df.format(bt.btData.sigmaTrace[1]));
 		nfSigmaZ.setText(df.format(bt.btData.sigmaTrace[2]));
+		for(int d = 0; d < 3; d++)
+		{
+			nfPsfs[d].setText(df.format(bt.btData.psfTrace[d]));
+			nfPsfs[d].setToolTipText( "<html>SD of the point spread function along this axis (px).<br>"
+					+ "With the curve thickness it sets the shape of the blurred curve profile, so that line<br>"
+					+ "directions do not depend on the PSF elongation. Usually the same as the curve thickness.</html>" );
+		}
 		
 		cbEstimateThicknessCoeff.setText(df2.format( bt.btData.dTraceROIThicknessCoeff));
 		cbEstimateThicknessMode.setSelectedIndex( bt.btData.nTraceROIThicknessMode );
 		cbEstimateThickness.setSelected(bt.btData.bEstimateROIThicknessFromParams);		
 		cbTraceOnlyClipped.setSelected(bt.btData.bTraceOnlyClipped);
 		cbTraceDownsample.setSelected(bt.btData.bTraceDownsample);
-		cbTraceDownsample.setToolTipText( "One-click and semi-auto tracing use a block-averaged grid, so the kernel stays ~target SD voxels" );
+		cbTraceDownsample.setToolTipText( "Semi-auto tracing uses a block-averaged grid, so the kernel stays ~target SD voxels" );
 		
 		final String [] sAxes = new String [] {"X", "Y", "Z"};
 		for(int d = 0; d < 3; d++)
@@ -94,6 +104,14 @@ public class PanelTracingOptions extends JPanel
 				@Override
 				public void changedUpdate( DocumentEvent e ) { updateSigmaUnits(dim, nfSigmas[dim].getText()); updateROIThickness(); }
 			});
+		}
+		for(int d = 0; d < 3; d++)
+		{
+			gbc.gridx = 0;
+			gbc.gridy = 3 + d;
+			this.add(new JLabel("PSF " + sAxes[d] + " (SD, px): "),gbc);
+			gbc.gridx++;
+			this.add(nfPsfs[d],gbc);
 		}
 		
 		JPanel panEstimate = new JPanel(new GridBagLayout());
@@ -228,6 +246,13 @@ public class PanelTracingOptions extends JPanel
 		
 		bt.btData.sigmaTrace[2] = Double.parseDouble(nfSigmaZ.getText());
 		Prefs.set("BigTrace.sigmaTraceZ", bt.btData.sigmaTrace[2]);
+
+		final String [] sAxes = new String [] {"X", "Y", "Z"};
+		for(int d = 0; d < 3; d++)
+		{
+			bt.btData.psfTrace[d] = Math.max(0.0, Double.parseDouble(nfPsfs[d].getText()));
+			Prefs.set("BigTrace.psfTrace" + sAxes[d], bt.btData.psfTrace[d]);
+		}
 
 		bt.btData.bEstimateROIThicknessFromParams = cbEstimateThickness.isSelected();
 		Prefs.set("BigTrace.bEstimateROIThicknessFromParams", bt.btData.bEstimateROIThicknessFromParams);

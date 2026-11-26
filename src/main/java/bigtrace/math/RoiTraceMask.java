@@ -60,10 +60,9 @@ public class RoiTraceMask < T extends RealType< T > & NativeType< T > > extends 
     boolean [] blockDirty;
     
     
-    /** if true, initTraceMask also creates the junction mask (crossing handling in one-click is on).
+    /** if true, initTraceMask also creates the junction mask.
      * It records where traces passed junctions (crossed existing ROIs or crossing filaments),
-     * e.g. for visualization. Tracing does not depend on it: crossing an existing ROI 
-     * is decided by OneClickTrace.planPassage **/
+     * e.g. for visualization. Tracing does not depend on it. **/
     public boolean bJunctionMask = false;
     
     /** junction mask: regions of the traced ROIs where a junction was passed by coasting **/

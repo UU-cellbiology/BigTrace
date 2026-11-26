@@ -90,6 +90,10 @@ public class ViewsIO
 				{
 					writer.write("Trace sigma," + Integer.toString( d ) + "," + df3.format(bt.btData.sigmaTrace[d])+"\n");					
 				}
+				for (int d = 0; d < 3; d++)
+				{
+					writer.write("Trace PSF," + Integer.toString( d ) + "," + df3.format(bt.btData.psfTrace[d])+"\n");
+				}
 				
 				writer.write("bEstimateROIThicknessFromParams," + Integer.toString( bt.btData.bEstimateROIThicknessFromParams ? 1 : 0 ) + "\n");
 				writer.write("dTraceROIThicknessCoeff," + df3.format( bt.btData.dTraceROIThicknessCoeff)+"\n");
@@ -365,6 +369,11 @@ public class ViewsIO
 					bt.btData.sigmaTrace[dA] = Double.parseDouble( line_array[2] ) ;
 					Prefs.set("BigTrace."+sigmaTraceName[dA], bt.btData.sigmaTrace[dA]);
 					break;	
+				case "Trace PSF":
+					final int dP = Integer.parseInt( line_array[1]);
+					bt.btData.psfTrace[dP] = Double.parseDouble( line_array[2] ) ;
+					Prefs.set("BigTrace.psfTrace" + "XYZ".charAt( dP ), bt.btData.psfTrace[dP]);
+					break;
 				case "bEstimateROIThicknessFromParams":	
 					bt.btData.bEstimateROIThicknessFromParams =  line_array[1].equals( "1" )? true : false;
 					Prefs.set("BigTrace.bEstimateROIThicknessFromParams", bt.btData.bEstimateROIThicknessFromParams);

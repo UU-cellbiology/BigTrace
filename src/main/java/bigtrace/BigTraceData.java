@@ -240,6 +240,11 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** characteristic size (SD) of lines (for each dimension)**/
 	public double [] sigmaTrace = new double [ 3 ];
 	
+	/** SD of the PSF (voxels, for each dimension). With the tracing sigma it gives the width of
+	 * the smoothed filament profile, sqrt(psf^2 + sigma^2), which normalises the hessian (MathBox):
+	 * line directions do not depend on the PSF elongation. Defaults to sigmaTrace. **/
+	public double [] psfTrace = new double [ 3 ];
+
 	/** whether to limit tracing to clipped area**/
 	public boolean bTraceOnlyClipped = false;
 	
@@ -254,9 +259,9 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	
 	/** if true, tracing uses a block-averaged (downsampled) grid when tracing sigma is large,
 	 * so the kernel stays about dDownsampleSigma voxels:
-	 * one-click (and full auto) tracing runs on the grid, semi-auto tracing computes 
-	 * the trace box (hessian, saliency, vectors) on the grid and interpolates it back to full resolution.
-	 * If false, the original full resolution tracing is used. **/
+	 * semi-auto tracing computes the trace box (hessian, saliency, vectors) on the grid and interpolates
+	 * it back to full resolution. If false, the original full resolution tracing is used.
+	 * (One-click tracing does not downsample at the moment.) **/
 	public boolean bTraceDownsample;
 	
 	/** target kernel size (in voxels of the downsampled grid) for one-click tracing.
@@ -315,9 +320,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	/** value of the intensity threshold to stop One click tracing **/
 	public double dOCIntensityThreshold;	
 		
-	/** one-click "path stiffness" (0-1), use of the path "history". If more than zero, tracing keeps a smoothed 
-	* (momentum) direction of the path and scores candidate voxels by saliency, orientation agreement 
-	* and step direction. Higher = straighter, stiffer path. 0 = original stepping **/
+	/* The next four one-click settings are not used by one-click tracing at the moment (it is rebuilt step
+	 * by step, see OneClickCore); they are kept for macros and saved settings. */
+
+	/** one-click "path stiffness" (0-1), use of the path "history". **/
 	public double dOCStiffness;
 
 	/** one-click tracing: max gap to jump over when the ridge is interrupted
@@ -333,21 +339,8 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 	 * look a bit ahead in a wider cone and continue with reset momentum **/
 	public boolean bOCKinkRecovery;
 	
-	/** one-click junction (crossing) handling: crossings are detected ahead and passed 
-	 * along the steered line filter map. Set separately from stiffness, but stepping 
-	 * then uses stiffness of at least 0.1 (OneClickTrace.dJunctionMinStiffness) **/
+	/** one-click junction (crossing) handling **/
 	public boolean bOCJunctions;
-	
-	/** one-click junction passage "branch-first": the outgoing branch is chosen by geometry 
-	 * (extrapolated own path, brightness only as a threshold), then followed (JunctionBranchPassage);
-	 * falls back to the map coasting without enough trace history or a branch found.
-	 * (no UI/macro yet, for testing) **/
-	public boolean bOCJunctionBranchFirst = true;
-	
-	/** one-click junction passage by the map coasting: its end is refined to the nearest ridge and 
-	 * the passage to it is planned and followed as in branch-first (JunctionBranchPassage.planToCoastEnd).
-	 * (no UI/macro yet, for testing) **/
-	public boolean bOCJunctionCoastRefine = true;
 	
 	/** use collision mask with existing ROIs during one-click **/
 	public boolean bOneClickUseMask = Prefs.get( "BigTrace.bOneClickUseMask", false );
@@ -384,6 +377,10 @@ public class BigTraceData < T extends RealType< T > & NativeType< T > >
 		sigmaTrace[0] = Prefs.get("BigTrace.sigmaTraceX", 3.0);
 		sigmaTrace[1] = Prefs.get("BigTrace.sigmaTraceY", 3.0);
 		sigmaTrace[2] = Prefs.get("BigTrace.sigmaTraceZ", 3.0);
+		psfTrace = new double [3];
+		psfTrace[0] = Prefs.get("BigTrace.psfTraceX", sigmaTrace[0]);
+		psfTrace[1] = Prefs.get("BigTrace.psfTraceY", sigmaTrace[1]);
+		psfTrace[2] = Prefs.get("BigTrace.psfTraceZ", sigmaTrace[2]);
 		bTraceOnlyClipped = Prefs.get("BigTrace.bTraceOnlyClipped", false);
 		bTraceDownsample = Prefs.get("BigTrace.bTraceDownsample", false);
 		
