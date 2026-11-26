@@ -14,7 +14,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.Views;
 
 /** One-click tracing algorithm, without any UI (OneClickTrace builds the ROI from it).
  * <p>
@@ -91,6 +90,10 @@ public class OneClickCore < T extends RealType< T > >
 	/** number of threads for the convolutions **/
 	public int nThreads = Runtime.getRuntime().availableProcessors();
 
+	/** how the image is continued beyond its borders (only matters where the box reaches past them):
+	 * MODE = a constant background, the mode of the first box of the trace (FINDINGS, finding 8) **/
+	public MathBox.OutOfBounds oob = MathBox.OutOfBounds.MODE;
+
 	//------------------ state
 
 	RandomAccessibleInterval< T > input;
@@ -166,7 +169,8 @@ public class OneClickCore < T extends RealType< T > >
 	public void setInput(final RandomAccessibleInterval< T > input_)
 	{
 		input = input_;
-		inputExtended = Views.extendBorder(input);
+		//made with the first box of the trace (background estimate from it), ensureBox
+		inputExtended = null;
 		raInput = input.randomAccess();
 		bBoxValid = false;
 	}
@@ -212,6 +216,12 @@ public class OneClickCore < T extends RealType< T > >
 			min[d] = Math.max(input.min(d), Math.min(input.max(d) - box.dims[d] + 1, c[d] - boxHalf[d]));
 		}
 		box.setMin(min);
+		if(inputExtended == null)
+		{
+			//the background (mode) is estimated once per trace, from its first box,
+			//so the continuation beyond the image does not change while the box moves
+			inputExtended = MathBox.extend(input, oob, box.boxInterval());
+		}
 		box.compute(inputExtended, conv, nThreads, es);
 		bBoxValid = true;
 		bBoxMoved = true;

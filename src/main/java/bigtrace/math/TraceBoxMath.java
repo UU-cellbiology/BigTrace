@@ -26,6 +26,9 @@ import net.imglib2.view.Views;
 
 public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends BigTraceBGTask
 {
+	/** how the data is continued beyond the trace box for the hessian (FINDINGS, finding 8) **/
+	static final MathBox.OutOfBounds OOB = MathBox.OutOfBounds.MODE;
+
 	public BigTrace<T> bt;
 	public IntervalView<T> input; 
 	public RealPoint refinePosition = null;
@@ -47,7 +50,12 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 				bt.btData.dDownsampleSigma, ds, sigmaGrid);
 		
 		setProgress(0);
-		
+
+		//beyond the trace box the data is continued with a constant background, the mode of the box
+		//(repeating the edge voxels flattens filaments close to a face of the box, e.g. in stacks with few slices)
+		final double dBackground = OOB == MathBox.OutOfBounds.MODE ? MathBox.estimateMode(input) : 0.0;
+		final RandomAccessible<T> inputExtended = MathBox.extend(input, OOB, dBackground);
+
 		IntervalView<FloatType> directionVectors;
 		IntervalView<FloatType> salWeights;
 		ArrayList<long []> jumpPoints;
@@ -56,7 +64,7 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 		{
 			nProgressSteps = 7;
 			//original full resolution calculation
-			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(Views.extendBorder(input), minV, dim, bt.btData.sigmaTrace,
+			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(inputExtended, minV, dim, bt.btData.sigmaTrace,
 					bt.btData.sigmaTrace, null);
 			directionVectors =  Views.translate(res[0], minV[0], minV[1], minV[2], 0);
 			salWeights =  Views.translate(res[1], minV);
@@ -76,7 +84,7 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 			}
 			setProgressState("trace box downsampling...");
 			final ArrayImg<FloatType, FloatArray> gridImg = ArrayImgs.floats( gridDim[ 0 ], gridDim[ 1 ], gridDim[ 2 ]);
-			DownsampleGrid.blockAverage(Views.extendBorder(input), gridImg, gridMin, ds);
+			DownsampleGrid.blockAverage(inputExtended, gridImg, gridMin, ds);
 			setProgress(100/nProgressSteps);
 			
 			//the curve thickness on the grid
@@ -86,7 +94,7 @@ public class TraceBoxMath < T extends RealType< T > & NativeType< T > > extends 
 				scaleGrid[d] = bt.btData.sigmaTrace[d] / ds[d];
 			}
 			final ArrayImg<FloatType, FloatArray> [] res = computeVectorsWeightsCorners(
-					Views.extendBorder(Views.translate(gridImg, gridMin)), gridMin, gridDim, sigmaGrid, scaleGrid, ds);
+					MathBox.extend(Views.translate(gridImg, gridMin), OOB, dBackground), gridMin, gridDim, sigmaGrid, scaleGrid, ds);
 			
 			//back to full resolution
 			setProgressState("trace box upsampling...");

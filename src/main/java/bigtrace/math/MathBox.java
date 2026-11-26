@@ -4,7 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.algorithm.convolution.Convolution;
 import net.imglib2.algorithm.convolution.kernel.Kernel1D;
@@ -14,7 +18,11 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -113,6 +121,89 @@ public class MathBox
 		{
 			cornImg = ArrayImgs.floats( dims[0], dims[1], dims[2] );
 		}
+	}
+
+	/** how the input is continued beyond its borders for the convolutions (extend) **/
+	public enum OutOfBounds
+	{
+		/** repeat the edge voxels **/
+		BORDER,
+		/** a constant, the most frequent intensity (background estimate, estimateMode) **/
+		MODE
+	}
+
+	/** input continued beyond its borders: BORDER repeats the edge voxels, MODE uses a constant background,
+	 * the most frequent intensity of the input voxels in modeRegion (estimateMode; null: the whole input).
+	 * With BORDER, a filament close to a face of the input (e.g. the top or bottom of a stack with few slices)
+	 * gets a flattened profile across that face and can lose its saliency (FINDINGS, findings 7 and 8). **/
+	public static < T extends RealType< T > > RandomAccessible< T > extend(final RandomAccessibleInterval< T > input, final OutOfBounds oob,
+			final Interval modeRegion)
+	{
+		if(oob == OutOfBounds.BORDER)
+		{
+			return Views.extendBorder(input);
+		}
+		final RandomAccessibleInterval< T > region = modeRegion == null ? input : Views.interval(input, Intervals.intersect(input, modeRegion));
+		return extend(input, oob, estimateMode(Views.iterable(region)));
+	}
+
+	/** input continued beyond its borders: BORDER repeats the edge voxels, MODE uses the constant dBackground **/
+	public static < T extends RealType< T > > RandomAccessible< T > extend(final RandomAccessibleInterval< T > input, final OutOfBounds oob,
+			final double dBackground)
+	{
+		if(oob == OutOfBounds.BORDER)
+		{
+			return Views.extendBorder(input);
+		}
+		final T value = Util.getTypeFromInterval(input).createVariable();
+		value.setReal(dBackground);
+		return Views.extendValue(input, value);
+	}
+
+	/** the most frequent intensity of the data (a background estimate): for integer types the exact mode
+	 * (when the range of values is at most 2^20), otherwise the center of the fullest of 1024 bins between min and max **/
+	public static < T extends RealType< T > > double estimateMode(final IterableInterval< T > data)
+	{
+		double min = Double.MAX_VALUE;
+		double max = -Double.MAX_VALUE;
+		for (final T v : data)
+		{
+			final double d = v.getRealDouble();
+			if(d < min)
+				min = d;
+			if(d > max)
+				max = d;
+		}
+		if(!(max > min))
+		{
+			return min == Double.MAX_VALUE ? 0.0 : min;
+		}
+		final boolean bInteger = data.firstElement() instanceof IntegerType && max - min < (1 << 20);
+		final int nBins = bInteger ? (int) Math.round(max - min) + 1 : 1024;
+		final double dBin = bInteger ? 1.0 : (max - min) / nBins;
+		final int [] hist = new int[nBins];
+		for (final T v : data)
+		{
+			hist[Math.min(nBins - 1, (int) ((v.getRealDouble() - min) / dBin))]++;
+		}
+		int iMax = 0;
+		for (int i = 1; i < nBins; i++)
+		{
+			if(hist[i] > hist[iMax])
+				iMax = i;
+		}
+		return bInteger ? min + iMax : min + (iMax + 0.5) * dBin;
+	}
+
+	/** the box as an interval (voxels) **/
+	public Interval boxInterval()
+	{
+		final long [] max = new long[3];
+		for (int d = 0; d < 3; d++)
+		{
+			max[d] = boxMin[d] + dims[d] - 1;
+		}
+		return new FinalInterval(boxMin.clone(), max);
 	}
 
 	/** The 9 separable scale-normalised derivative convolutions of the Gaussian with SD sigma (voxels, per axis):
