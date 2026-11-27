@@ -104,7 +104,9 @@ public class OneClickCore < T extends RealType< T > >
 	RandomAccess< T > raInput;
 
 	/** the line field (hessian, saliency, directions) the tracing runs on; its grid voxels are the working voxels **/
-	MovingBoxLineField< T > field;
+	LineField field;
+	/** the field the core makes itself (init): a box that moves with the trace **/
+	MovingBoxLineField< T > boxField;
 	/** true after the box of the field was recomputed (cleared by the caller, e.g. to show it) **/
 	public boolean bBoxMoved = false;
 
@@ -141,7 +143,23 @@ public class OneClickCore < T extends RealType< T > >
 	public void init()
 	{
 		release();
-		field = new MovingBoxLineField<>(sigma, bDownsample, dDownsampleSigma, oob, nThreads);
+		boxField = new MovingBoxLineField<>(sigma, bDownsample, dDownsampleSigma, oob, nThreads);
+		useField(boxField);
+		NeighborsHashMap.fill( neighborsArr );
+		if(input != null)
+			setInput(input);
+	}
+
+	/** traces on the given field (e.g. one computed for the whole image) instead of the moving box of init;
+	 * call after init, and after setInput **/
+	public void setField(final LineField field_)
+	{
+		useField(field_);
+	}
+
+	void useField(final LineField field_)
+	{
+		field = field_;
 		final long [] ds = field.downsampling();
 		dMinVox = Double.MAX_VALUE;
 		for (int d = 0; d < 3; d++)
@@ -149,9 +167,6 @@ public class OneClickCore < T extends RealType< T > >
 			vs[d] = voxelSize[d] * ds[d];
 			dMinVox = Math.min(dMinVox, vs[d]);
 		}
-		NeighborsHashMap.fill( neighborsArr );
-		if(input != null)
-			setInput(input);
 	}
 
 	/** the image to trace (input voxels); a new trace (the background beyond the image is estimated again) **/
@@ -159,13 +174,14 @@ public class OneClickCore < T extends RealType< T > >
 	{
 		input = input_;
 		raInput = input.randomAccess();
-		field.setInput(input);
+		if(field == boxField)
+			boxField.setInput(input);
 	}
 
 	public void release()
 	{
-		if(field != null)
-			field.release();
+		if(boxField != null)
+			boxField.release();
 	}
 
 	/** the line field the tracing runs on **/
